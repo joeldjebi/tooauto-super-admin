@@ -4,18 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Promotion;
 use App\Models\Etablissement;
+use App\Services\WasabiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 
 class PromotionController extends Controller
 {
+    private const MENU_KEY = 'promotions';
+    private const IMAGE_DIRECTORY = 'images/promotions';
+
+    public function __construct(private WasabiService $wasabiService)
+    {
+    }
+
     /**
      * Afficher la liste des promotions
      */
     public function index(Request $request)
     {
-        $query = Promotion::with(['etablissement:id,name', 'createdBy:id,name']);
+        $query = Promotion::with(['etablissement:id,name', 'createdBy:id,nom,prenoms,email']);
 
         // Filtres
         if ($request->filled('etablissement_filter')) {
@@ -35,11 +43,13 @@ class PromotionController extends Controller
         }
 
         $promotions = $query->orderBy('id', 'desc')->paginate(15);
+        $promotions->getCollection()->transform(fn ($promotion) => $this->attachImageUrl($promotion));
 
         // Récupérer la liste des établissements pour le filtre
         $etablissements = Etablissement::select('id', 'name')->orderBy('name')->get();
+        $menu = self::MENU_KEY;
 
-        return view('promotions.index', compact('promotions', 'etablissements'));
+        return view('promotions.index', compact('promotions', 'etablissements', 'menu'));
     }
 
     /**
@@ -48,7 +58,9 @@ class PromotionController extends Controller
     public function create()
     {
         $etablissements = Etablissement::select('id', 'name')->orderBy('name')->get();
-        return view('promotions.create', compact('etablissements'));
+        $menu = self::MENU_KEY;
+
+        return view('promotions.create', compact('etablissements', 'menu'));
     }
 
     /**
@@ -74,9 +86,11 @@ class PromotionController extends Controller
 
         // Gestion de l'image
         if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = 'image-' . time() . '.' . $image->getClientOriginalExtension();
-            $image->storeAs('public/promotions', $imageName);
+            $imageName = $this->wasabiService->uploadFile(
+                $request->file('image'),
+                self::IMAGE_DIRECTORY,
+                'promotion'
+            );
         }
 
         $promotion = Promotion::create([
@@ -101,7 +115,10 @@ class PromotionController extends Controller
     public function show($id)
     {
         $promotion = Promotion::with(['etablissement', 'createdBy'])->findOrFail($id);
-        return view('promotions.show', compact('promotion'));
+        $this->attachImageUrl($promotion);
+        $menu = self::MENU_KEY;
+
+        return view('promotions.show', compact('promotion', 'menu'));
     }
 
     /**
@@ -110,8 +127,11 @@ class PromotionController extends Controller
     public function edit($id)
     {
         $promotion = Promotion::findOrFail($id);
+        $this->attachImageUrl($promotion);
         $etablissements = Etablissement::select('id', 'name')->orderBy('name')->get();
-        return view('promotions.edit', compact('promotion', 'etablissements'));
+        $menu = self::MENU_KEY;
+
+        return view('promotions.edit', compact('promotion', 'etablissements', 'menu'));
     }
 
     /**
@@ -139,14 +159,13 @@ class PromotionController extends Controller
 
         // Gestion de l'image
         if ($request->hasFile('image')) {
-            // Supprimer l'ancienne image
-            if ($promotion->image) {
-                Storage::delete('public/promotions/' . $promotion->image);
-            }
+            $this->deletePromotionImage($promotion->image);
 
-            $image = $request->file('image');
-            $imageName = 'image-' . time() . '.' . $image->getClientOriginalExtension();
-            $image->storeAs('public/promotions', $imageName);
+            $imageName = $this->wasabiService->uploadFile(
+                $request->file('image'),
+                self::IMAGE_DIRECTORY,
+                'promotion'
+            );
         }
 
         $promotion->update([
@@ -171,9 +190,7 @@ class PromotionController extends Controller
         $promotion = Promotion::findOrFail($id);
 
         // Supprimer l'image
-        if ($promotion->image) {
-            Storage::delete('public/promotions/' . $promotion->image);
-        }
+        $this->deletePromotionImage($promotion->image);
 
         $promotion->delete();
 
@@ -258,5 +275,44 @@ class PromotionController extends Controller
             'message' => 'Liste des promotions de l\'établissement.',
             'promotions' => $promotions,
         ], 200);
+    }
+
+    private function attachImageUrl(Promotion $promotion): Promotion
+    {
+        $promotion->image_url = $this->resolvePromotionImageUrl($promotion->image);
+
+        return $promotion;
+    }
+
+    private function resolvePromotionImageUrl(?string $image): ?string
+    {
+        if (empty($image)) {
+            return null;
+        }
+
+        if (filter_var($image, FILTER_VALIDATE_URL)) {
+            return $image;
+        }
+
+        if (str_contains($image, '/')) {
+            return $this->wasabiService->temporaryUrl($image) ?? $image;
+        }
+
+        return asset('storage/promotions/' . $image);
+    }
+
+    private function deletePromotionImage(?string $image): void
+    {
+        if (empty($image)) {
+            return;
+        }
+
+        if (str_contains($image, '/') || filter_var($image, FILTER_VALIDATE_URL)) {
+            $this->wasabiService->deleteFile($image);
+
+            return;
+        }
+
+        Storage::delete('public/promotions/' . $image);
     }
 }

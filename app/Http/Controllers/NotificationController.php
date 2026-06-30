@@ -63,7 +63,7 @@ class NotificationController extends Controller
             'user_id' => 'required|exists:users,id',
             'title' => 'required|string|max:255',
             'body' => 'required|string',
-            'data' => 'nullable|array'
+            'data' => 'nullable'
         ]);
 
         if ($validator->fails()) {
@@ -119,7 +119,7 @@ class NotificationController extends Controller
             'user_ids.*' => 'exists:users,id',
             'title' => 'required|string|max:255',
             'body' => 'required|string',
-            'data' => 'nullable|array'
+            'data' => 'nullable'
         ]);
 
         if ($validator->fails()) {
@@ -172,6 +172,64 @@ class NotificationController extends Controller
     }
 
     /**
+     * Envoyer une notification à tous les usagers qui ont un token FCM
+     */
+    public function sendToAllDevices(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'body' => 'required|string',
+            'data' => 'nullable'
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        try {
+            $tokens = User::whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->pluck('fcm_token')
+                ->unique()
+                ->values()
+                ->toArray();
+
+            if (empty($tokens)) {
+                session()->flash('type', 'alert-danger');
+                session()->flash('message', 'Aucun usager avec un token FCM valide trouvé');
+                return back();
+            }
+
+            $data = [];
+            if ($request->has('data') && is_string($request->data)) {
+                $data = json_decode($request->data, true) ?? [];
+            } elseif ($request->has('data') && is_array($request->data)) {
+                $data = $request->data;
+            }
+
+            $result = $this->firebaseService->sendToMultipleDevices(
+                $tokens,
+                $request->title,
+                $request->body,
+                $data
+            );
+
+            if ($result['success']) {
+                session()->flash('type', 'alert-success');
+                session()->flash('message', $result['message'] . ' (' . count($tokens) . ' usager(s) cible(s))');
+            } else {
+                session()->flash('type', 'alert-danger');
+                session()->flash('message', $result['message']);
+            }
+        } catch (\Exception $e) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Erreur: ' . $e->getMessage());
+        }
+
+        return back();
+    }
+
+    /**
      * Envoyer une notification à un topic
      */
     public function sendToTopic(Request $request)
@@ -180,7 +238,7 @@ class NotificationController extends Controller
             'topic' => 'required|string|max:255',
             'title' => 'required|string|max:255',
             'body' => 'required|string',
-            'data' => 'nullable|array'
+            'data' => 'nullable'
         ]);
 
         if ($validator->fails()) {
@@ -226,7 +284,7 @@ class NotificationController extends Controller
             'topics' => 'required|string',
             'title' => 'required|string|max:255',
             'body' => 'required|string',
-            'data' => 'nullable|array'
+            'data' => 'nullable'
         ]);
 
         if ($validator->fails()) {
@@ -284,7 +342,7 @@ class NotificationController extends Controller
             'days_before_expiration' => 'required|integer|min:0|max:365',
             'title' => 'required|string|max:255',
             'body' => 'required|string',
-            'data' => 'nullable|array'
+            'data' => 'nullable'
         ]);
 
         if ($validator->fails()) {

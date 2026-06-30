@@ -109,11 +109,11 @@
                         </div>
 
                         <div class="col-md-4">
-                            @if($promotion->image)
+                            @if($promotion->image_url)
                                 <div class="mb-3">
                                     <label class="form-label fw-bold">Image</label>
                                     <div class="text-center">
-                                        <img src="{{ asset('storage/promotions/' . $promotion->image) }}" 
+                                        <img src="{{ $promotion->image_url }}" 
                                              alt="{{ $promotion->libelle }}" 
                                              class="img-fluid rounded shadow" 
                                              style="max-width: 100%; max-height: 300px;">
@@ -131,7 +131,7 @@
                                         <li><strong>Créé le:</strong> {{ $promotion->created_at->format('d/m/Y H:i') }}</li>
                                         <li><strong>Modifié le:</strong> {{ $promotion->updated_at->format('d/m/Y H:i') }}</li>
                                         @if($promotion->createdBy)
-                                            <li><strong>Créé par:</strong> {{ $promotion->createdBy->name }}</li>
+                                            <li><strong>Créé par:</strong> {{ trim(($promotion->createdBy->nom ?? '') . ' ' . ($promotion->createdBy->prenoms ?? '')) ?: $promotion->createdBy->email }}</li>
                                         @endif
                                     </ul>
                                 </div>

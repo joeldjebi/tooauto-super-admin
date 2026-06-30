@@ -94,8 +94,8 @@
                                     <tr>
                                         <td>{{ $promotion->id }}</td>
                                         <td>
-                                            @if($promotion->image)
-                                                <img src="{{ asset('storage/promotions/' . $promotion->image) }}" 
+                                            @if($promotion->image_url)
+                                                <img src="{{ $promotion->image_url }}" 
                                                      alt="{{ $promotion->libelle }}" 
                                                      class="img-thumbnail" 
                                                      style="width: 50px; height: 50px; object-fit: cover;">

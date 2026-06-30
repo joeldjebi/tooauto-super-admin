@@ -20,7 +20,7 @@
         @endif
         <div class="card text-left">
             <div class="card-body">
-                <h4 class="card-title mb-3">Les forfait d'abonnements</h4>
+                <h4 class="card-title mb-3">Les forfaits pro</h4>
                 @if($forfaits->isNotEmpty() )
                     <div class="table-responsive">
                         <table class="display table table-striped table-bordered" id="language_option_table" style="width:100%">
@@ -31,6 +31,7 @@
                                     <th scope="col">Durée</th>
                                     <th scope="col">Prix</th>
                                     <th scope="col">Avantages</th>
+                                    <th scope="col">Statut</th>
                                     <th scope="col">Actions</th>
                                 </tr>
                             </thead>
@@ -40,7 +41,7 @@
                                         <div class="modal-dialog" role="document">
                                             <div class="modal-content">
                                                 <div class="modal-header">
-                                                    <h5 class="modal-title" id="exampleModalLabel">Modifier la catégorie</h5>
+                                                    <h5 class="modal-title" id="exampleModalLabel">Modifier le forfait pro</h5>
                                                     <button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
                                                 </div>
                                                 <div class="modal-body">
@@ -70,6 +71,15 @@
                                                                 <textarea class="form-control" name="avantages" id="" cols="10" rows="5">{{ old("avantages")?? $item->avantages }}</textarea>
                                                             </div>
                                                         </div>
+                                                        <div class="col-md-12">
+                                                            <div class="form-group">
+                                                                <label for="">Statut</label>
+                                                                <select class="form-control" name="statut">
+                                                                    <option value="1" {{ (string) old('statut', $item->statut) === '1' ? 'selected' : '' }}>Actif</option>
+                                                                    <option value="0" {{ (string) old('statut', $item->statut) === '0' ? 'selected' : '' }}>Inactif</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
                                                         <div class="modal-footer">
                                                             <button class="btn btn-secondary" type="button" data-dismiss="modal">Fermé</button>
                                                             <button class="btn btn-primary ml-2" type="submit">Modifier</button>
@@ -85,6 +95,13 @@
                                         <td>{{ $item->duree }}</td>
                                         <td>{{ $item->prix }}</td>
                                         <td>{{ $item->avantages }}</td>
+                                        <td>
+                                            @if((int) $item->statut === 1)
+                                                <span class="badge badge-success">Actif</span>
+                                            @else
+                                                <span class="badge badge-secondary">Inactif</span>
+                                            @endif
+                                        </td>
                                         <td>
                                             <a class="text-success mr-2" href="#" data-toggle="modal" data-target="#id{{ $item->id }}">
                                                 <i class="nav-icon i-Pen-2 font-weight-bold"></i>
@@ -103,13 +120,13 @@
                         </table>
                     </div>
                     @else
-                        <p>Aucune catégorie enregistrer !'</p>
+                        <p>Aucun forfait pro enregistré !</p>
                 @endif
             </div>
         </div>
         </div>
         <div class="col-lg-4 col-md-12">
-            <h4>Ajouter un forfait</h4>
+            <h4>Ajouter un forfait pro</h4>
             <div class="card mb-5">
                 <div class="card-body">
                     <div class="d-flex flex-column">
@@ -131,6 +148,13 @@
                                 <label for="">Avantages</label>
                                 <textarea class="form-control" name="avantages" cols="10" rows="5"></textarea>
                                 <small style="color: red;">S'il y a plusieurs avantages, les séparer par des points virgules (;)</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="">Statut</label>
+                                <select class="form-control" name="statut">
+                                    <option value="1" selected>Actif</option>
+                                    <option value="0">Inactif</option>
+                                </select>
                             </div>
                             <div class="text-center mt-3">
                                 <button type="submit" class="btn btn-primary pd-x-20">Enregistrer</button>

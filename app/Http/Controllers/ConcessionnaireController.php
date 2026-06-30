@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Userconcessionnaire;
 use App\Models\Concessionnaire;
-use App\Models\Vehicule_concessionnaire;
+use App\Models\VehiculeConcessionnaire as Vehicule_concessionnaire;
 use App\Models\Marque;
-use App\Models\Rdv_concessionnaire;
+use App\Models\RdvConcessionnaire as Rdv_concessionnaire;
 use App\Models\OffreConcessionnaire;
 use App\Models\User;
 use App\Models\AnnonceConcessionnaire;
@@ -20,9 +20,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\File;
+use App\Services\WasabiService;
 
 class ConcessionnaireController extends Controller
 {
+    public function __construct(private WasabiService $wasabiService)
+    {
+    }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -256,7 +261,14 @@ class ConcessionnaireController extends Controller
      */
     public function destroyConcessionnaire(Request $request, $id)
     {
-        $concessionnaire = Concessionnaire::where(['id' => $id, 'userconcessionnaire_id' => auth()->user()->id])->first();
+        $user = auth()->user();
+        $concessionnaireQuery = Concessionnaire::where('id', $id);
+
+        if (!$this->isAdminUser($user)) {
+            $concessionnaireQuery->where('userconcessionnaire_id', $user->id);
+        }
+
+        $concessionnaire = $concessionnaireQuery->first();
         if (empty($concessionnaire)) {
             session()->flash('type', 'alert-danger');
             session()->flash('message', "Établissement introuvable.");
@@ -265,23 +277,23 @@ class ConcessionnaireController extends Controller
 
         DB::beginTransaction();
         try {
-            // Supprimer les fichiers associés (logo et cover) s'ils existent
-            if ($concessionnaire->logo && File::exists(public_path('concessionnaire/logo/' . $concessionnaire->logo))) {
-                File::delete(public_path('concessionnaire/logo/' . $concessionnaire->logo));
+            $vehicules = Vehicule_concessionnaire::where('concessionnaire_id', $concessionnaire->id)->get();
+
+            foreach ($vehicules as $vehicule) {
+                $this->deleteVehiculeFiles($vehicule);
             }
 
-            if ($concessionnaire->cover && File::exists(public_path('concessionnaire/cover/' . $concessionnaire->cover))) {
-                File::delete(public_path('concessionnaire/cover/' . $concessionnaire->cover));
-            }
+            $this->deleteConcessionnaireFiles($concessionnaire);
 
-            // Supprimer le concessionnaire de la base de données
+            Rdv_concessionnaire::where('concessionnaire_id', $concessionnaire->id)->delete();
+            Vehicule_concessionnaire::where('concessionnaire_id', $concessionnaire->id)->delete();
             $concessionnaire->delete();
 
             DB::commit();
 
             session()->flash('type', 'alert-success');
             session()->flash('message', "Établissement supprimé avec succès.");
-            return redirect()->route('dashboard');
+            return $this->isAdminUser($user) ? back() : redirect()->route('dashboard');
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -289,6 +301,78 @@ class ConcessionnaireController extends Controller
             session()->flash('message', "Erreur lors de la suppression de l'établissement : " . $e->getMessage());
             return back();
         }
+    }
+    private function deleteConcessionnaireFiles(Concessionnaire $concessionnaire): void
+    {
+        $this->deleteStoredFile($concessionnaire->logo, ['concessionnaire/logo', 'images/concessionnaires']);
+        $this->deleteStoredFile($concessionnaire->cover, ['concessionnaire/cover', 'images/concessionnaires']);
+    }
+
+    private function deleteVehiculeFiles($vehicule): void
+    {
+        foreach ($this->normalizePhotos($vehicule->photos) as $photo) {
+            $this->deleteStoredFile($photo);
+        }
+
+        $this->deleteStoredFile($vehicule->fichier, ['fichiers/vehicules']);
+    }
+
+    private function normalizePhotos($photos): array
+    {
+        if (empty($photos)) {
+            return [];
+        }
+
+        if (is_array($photos)) {
+            return $photos;
+        }
+
+        $decoded = json_decode($photos, true);
+
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        return [$photos];
+    }
+
+    private function deleteStoredFile(?string $path, array $localDirectories = []): void
+    {
+        if (empty($path)) {
+            return;
+        }
+
+        $path = trim($path);
+
+        try {
+            $this->wasabiService->deleteFile($path);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $publicPath = public_path($path);
+        if (File::exists($publicPath)) {
+            File::delete($publicPath);
+        }
+
+        foreach ($localDirectories as $directory) {
+            $localPath = public_path(trim($directory, '/') . '/' . basename($path));
+            if (File::exists($localPath)) {
+                File::delete($localPath);
+            }
+        }
+    }
+
+    private function isAdminUser($user): bool
+    {
+        if (empty($user)) {
+            return false;
+        }
+
+        $role = strtolower(str_replace(['-', '_'], ' ', (string) ($user->role ?? '')));
+        $role = trim(preg_replace('/\s+/', ' ', $role));
+
+        return in_array($role, ['admin', 'super admin', 'superadmin', 'super'], true);
     }
 
     public function indexVehicule()

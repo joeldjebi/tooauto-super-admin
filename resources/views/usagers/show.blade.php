@@ -8,6 +8,15 @@
         @if(session()->has("message"))
             <div style="padding: 10px" class="alert {{session()->get('type')}}">{{ session()->get('message') }} </div>
         @endif
+        @if ($errors->any())
+            <div class="alert alert-danger">
+                <ul>
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
     </div>
 </div>
 
@@ -19,7 +28,7 @@
                 <h4 class="card-title mb-3">
                     <i class="nav-icon i-User"></i> Détails de l'usager
                 </h4>
-                
+
                 <div class="row">
                     <div class="col-md-6">
                         <h6><i class="nav-icon i-User"></i> Informations personnelles</h6>
@@ -32,6 +41,50 @@
                         <h6><i class="nav-icon i-Calendar"></i> Informations temporelles</h6>
                         <p><strong>Date de création:</strong> {{ \Carbon\Carbon::parse($usager->created_at)->format('d/m/Y à H:i:s') }}</p>
                         <p><strong>Dernière modification:</strong> {{ \Carbon\Carbon::parse($usager->updated_at)->format('d/m/Y à H:i:s') }}</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="nav-icon i-Receipt-4"></i> Abonnement</h6>
+                        @if($usager->abonnement_affiche)
+                            <p>
+                                <span class="badge badge-{{ $usager->abonnement_est_actif ? 'success' : 'secondary' }}">
+                                    {{ $usager->abonnement_est_actif ? 'Actif' : 'Expiré/Inactif' }}
+                                </span>
+                            </p>
+                            <p><strong>Forfait:</strong> {{ $usager->abonnement_affiche->forfait_usager->libelle ?? 'Forfait non renseigné' }}</p>
+                            <p><strong>Période:</strong> du {{ $usager->abonnement_affiche->date_debut }} au {{ $usager->abonnement_affiche->date_fin }}</p>
+                            <p><strong>Type:</strong> {{ (int) $usager->abonnement_affiche->is_free === 1 ? 'Gratuit' : 'Payant' }}</p>
+                        @else
+                            <p><span class="badge badge-warning">Aucun abonnement</span></p>
+                        @endif
+                        <form action="{{ route('usager.change-forfait', ['id' => $usager->id]) }}" method="post" class="mt-3">
+                            @csrf
+                            <div class="form-group">
+                                <label for="forfait_id">Changer le forfait</label>
+                                <select class="form-control" name="forfait_id" id="forfait_id" required>
+                                    <option value="">Choisir un forfait</option>
+                                    @foreach($forfait_usagers as $forfait)
+                                        <option value="{{ $forfait->id }}">
+                                            {{ $forfait->libelle }} - {{ number_format($forfait->prix, 0, ',', ' ') }} FCFA - {{ $forfait->duree }} mois(s)
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                Appliquer le forfait
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="nav-icon i-Business-ManWoman"></i> Commercial</h6>
+                        @if($usager->commercial)
+                            <p><strong>Nom:</strong> {{ $usager->commercial->nom }} {{ $usager->commercial->prenoms }}</p>
+                            <p><strong>Mobile:</strong> {{ $usager->commercial->mobile }}</p>
+                        @else
+                            <p><span class="text-muted">Non enregistré par un commercial</span></p>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -94,16 +147,16 @@
                                     <input type="hidden" name="alert_filter" value="{{ request('alert_filter') }}">
                                     <input type="hidden" name="concessionnaire_filter" value="{{ request('concessionnaire_filter') }}">
                                     <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
-                                    <input type="text" 
-                                           name="annonce_filter" 
-                                           value="{{ request('annonce_filter') }}" 
-                                           placeholder="Rechercher dans les annonces..." 
+                                    <input type="text"
+                                           name="annonce_filter"
+                                           value="{{ request('annonce_filter') }}"
+                                           placeholder="Rechercher dans les annonces..."
                                            class="form-control form-control-sm">
                                     <button type="submit" class="btn btn-primary btn-sm ml-2">
                                         <i class="nav-icon i-Magnifying-Glass"></i>
                                     </button>
                                     @if(request('annonce_filter'))
-                                        <a href="{{ route('usager.show', $usager->id) }}?vehicule_filter={{ request('vehicule_filter') }}&alert_filter={{ request('alert_filter') }}&concessionnaire_filter={{ request('concessionnaire_filter') }}&per_page={{ request('per_page', 10) }}" 
+                                        <a href="{{ route('usager.show', $usager->id) }}?vehicule_filter={{ request('vehicule_filter') }}&alert_filter={{ request('alert_filter') }}&concessionnaire_filter={{ request('concessionnaire_filter') }}&per_page={{ request('per_page', 10) }}"
                                            class="btn btn-secondary btn-sm ml-1">
                                             <i class="nav-icon i-Close-Window"></i>
                                         </a>
@@ -156,9 +209,9 @@
                                         </td>
                                         <td>
                                             @if($annonce->image)
-                                                <img src="{{ asset('images/annonces/' . $annonce->image) }}" 
-                                                     alt="Image annonce" 
-                                                     class="img-thumbnail" 
+                                                <img src="{{ asset('images/annonces/' . $annonce->image) }}"
+                                                     alt="Image annonce"
+                                                     class="img-thumbnail"
                                                      style="width: 50px; height: 50px; object-fit: cover;"
                                                      onerror="this.style.display='none'">
                                             @else
@@ -187,11 +240,11 @@
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- Pagination optimisée pour les annonces -->
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div class="text-muted">
-                            Affichage de {{ $annonces->firstItem() ?? 0 }} à {{ $annonces->lastItem() ?? 0 }} 
+                            Affichage de {{ $annonces->firstItem() ?? 0 }} à {{ $annonces->lastItem() ?? 0 }}
                             sur {{ $annonces->total() }} résultats
                         </div>
                         <div>
@@ -231,16 +284,16 @@
                                     <input type="hidden" name="alert_filter" value="{{ request('alert_filter') }}">
                                     <input type="hidden" name="concessionnaire_filter" value="{{ request('concessionnaire_filter') }}">
                                     <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
-                                    <input type="text" 
-                                           name="vehicule_filter" 
-                                           value="{{ request('vehicule_filter') }}" 
-                                           placeholder="Rechercher dans les véhicules..." 
+                                    <input type="text"
+                                           name="vehicule_filter"
+                                           value="{{ request('vehicule_filter') }}"
+                                           placeholder="Rechercher dans les véhicules..."
                                            class="form-control form-control-sm">
                                     <button type="submit" class="btn btn-primary btn-sm ml-2">
                                         <i class="nav-icon i-Magnifying-Glass"></i>
                                     </button>
                                     @if(request('vehicule_filter'))
-                                        <a href="{{ route('usager.show', $usager->id) }}?annonce_filter={{ request('annonce_filter') }}&alert_filter={{ request('alert_filter') }}&concessionnaire_filter={{ request('concessionnaire_filter') }}&per_page={{ request('per_page', 10) }}" 
+                                        <a href="{{ route('usager.show', $usager->id) }}?annonce_filter={{ request('annonce_filter') }}&alert_filter={{ request('alert_filter') }}&concessionnaire_filter={{ request('concessionnaire_filter') }}&per_page={{ request('per_page', 10) }}"
                                            class="btn btn-secondary btn-sm ml-1">
                                             <i class="nav-icon i-Close-Window"></i>
                                         </a>
@@ -312,11 +365,11 @@
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- Pagination optimisée pour les véhicules -->
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div class="text-muted">
-                            Affichage de {{ $vehicules->firstItem() ?? 0 }} à {{ $vehicules->lastItem() ?? 0 }} 
+                            Affichage de {{ $vehicules->firstItem() ?? 0 }} à {{ $vehicules->lastItem() ?? 0 }}
                             sur {{ $vehicules->total() }} résultats
                         </div>
                         <div>
@@ -353,16 +406,16 @@
                             <input type="hidden" name="annonce_filter" value="{{ request('annonce_filter') }}">
                             <input type="hidden" name="vehicule_filter" value="{{ request('vehicule_filter') }}">
                             <input type="hidden" name="concessionnaire_filter" value="{{ request('concessionnaire_filter') }}">
-                            <input type="text" 
-                                   name="alert_filter" 
-                                   value="{{ request('alert_filter') }}" 
-                                   placeholder="Rechercher dans les alertes..." 
+                            <input type="text"
+                                   name="alert_filter"
+                                   value="{{ request('alert_filter') }}"
+                                   placeholder="Rechercher dans les alertes..."
                                    class="form-control form-control-sm">
                             <button type="submit" class="btn btn-primary btn-sm ml-2">
                                 <i class="nav-icon i-Magnifying-Glass"></i>
                             </button>
                             @if(request('alert_filter'))
-                                <a href="{{ route('usager.show', $usager->id) }}?annonce_filter={{ request('annonce_filter') }}&vehicule_filter={{ request('vehicule_filter') }}&concessionnaire_filter={{ request('concessionnaire_filter') }}" 
+                                <a href="{{ route('usager.show', $usager->id) }}?annonce_filter={{ request('annonce_filter') }}&vehicule_filter={{ request('vehicule_filter') }}&concessionnaire_filter={{ request('concessionnaire_filter') }}"
                                    class="btn btn-secondary btn-sm ml-1">
                                     <i class="nav-icon i-Close-Window"></i>
                                 </a>
@@ -415,7 +468,7 @@
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- Pagination pour les alertes -->
                     <div class="d-flex justify-content-center mt-3">
                         {{ $alerts->appends(request()->query())->links() }}
@@ -450,16 +503,16 @@
                             <input type="hidden" name="annonce_filter" value="{{ request('annonce_filter') }}">
                             <input type="hidden" name="vehicule_filter" value="{{ request('vehicule_filter') }}">
                             <input type="hidden" name="alert_filter" value="{{ request('alert_filter') }}">
-                            <input type="text" 
-                                   name="concessionnaire_filter" 
-                                   value="{{ request('concessionnaire_filter') }}" 
-                                   placeholder="Rechercher dans les demandes..." 
+                            <input type="text"
+                                   name="concessionnaire_filter"
+                                   value="{{ request('concessionnaire_filter') }}"
+                                   placeholder="Rechercher dans les demandes..."
                                    class="form-control form-control-sm">
                             <button type="submit" class="btn btn-primary btn-sm ml-2">
                                 <i class="nav-icon i-Magnifying-Glass"></i>
                             </button>
                             @if(request('concessionnaire_filter'))
-                                <a href="{{ route('usager.show', $usager->id) }}?annonce_filter={{ request('annonce_filter') }}&vehicule_filter={{ request('vehicule_filter') }}&alert_filter={{ request('alert_filter') }}" 
+                                <a href="{{ route('usager.show', $usager->id) }}?annonce_filter={{ request('annonce_filter') }}&vehicule_filter={{ request('vehicule_filter') }}&alert_filter={{ request('alert_filter') }}"
                                    class="btn btn-secondary btn-sm ml-1">
                                     <i class="nav-icon i-Close-Window"></i>
                                 </a>
@@ -530,7 +583,7 @@
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- Pagination pour les demandes concessionnaires -->
                     <div class="d-flex justify-content-center mt-3">
                         {{ $annonce_concessionnaires->appends(request()->query())->links() }}

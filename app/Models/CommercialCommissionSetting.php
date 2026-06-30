@@ -5,17 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Forfait extends Model
+class CommercialCommissionSetting extends Model
 {
     use HasFactory;
 
-    protected $table = 'forfait_pros';
-
     protected $fillable = [
-        'nom',
-        'duree',
-        'prix',
-        'avantages',
+        'type',
+        'value',
         'statut',
+        'created_by',
+    ];
+
+    protected $casts = [
+        'value' => 'decimal:2',
     ];
 }

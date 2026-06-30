@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Commercial;
 use App\Models\Etablissement;
 use App\Models\Parrain;
+use App\Models\CommercialCommissionSetting;
+use App\Models\CommercialWallet;
+use App\Models\CommercialWalletTransaction;
 use App\Models\TypeEtablissement;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Response;
@@ -18,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use App\Services\CommercialWalletService;
 
 class CommercialController extends Controller
 {
@@ -40,8 +44,14 @@ class CommercialController extends Controller
         }
 
         $data["commercials"] = Commercial::orderBy('id', 'desc')
-        ->with('parrain:id,code,commercial_id')
+        ->with(['parrain:id,code', 'wallet'])
         ->get();
+
+        $data["commissionSetting"] = CommercialCommissionSetting::where('statut', 1)->latest()->first();
+        $data["recentWalletTransactions"] = CommercialWalletTransaction::with('commercial')
+            ->orderBy('id', 'desc')
+            ->limit(10)
+            ->get();
 
         
         return view('commercials.index',$data);
@@ -416,6 +426,89 @@ class CommercialController extends Controller
         $data['filleuls'] = $filleulsQuery->paginate(25)->withQueryString();
 
         return view('commercials.filleuls', $data);
+    }
+
+    public function walletHistory($id)
+    {
+        $commercial = Commercial::with('wallet')->find($id);
+
+        if (!$commercial) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Commercial introuvable.');
+            return back();
+        }
+
+        $transactions = CommercialWalletTransaction::where('commercial_id', $commercial->id)
+            ->with(['user', 'abonnementUsager', 'forfaitUsager'])
+            ->orderBy('id', 'desc')
+            ->paginate(30);
+
+        return view('commercials.wallet-history', [
+            'title' => 'Historique wallet commercial',
+            'menu' => 'index-commercial',
+            'commercial' => $commercial,
+            'transactions' => $transactions,
+        ]);
+    }
+
+    public function updateCommissionSetting(Request $request)
+    {
+        $request->validate([
+            'type' => 'required|in:fixed,percentage',
+            'value' => 'required|numeric|min:0',
+        ]);
+
+        CommercialCommissionSetting::where('statut', 1)->update(['statut' => 0]);
+
+        CommercialCommissionSetting::create([
+            'type' => $request->type,
+            'value' => $request->value,
+            'statut' => 1,
+            'created_by' => optional(Auth::user())->id,
+        ]);
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Configuration de commission mise a jour avec succes.');
+
+        return back();
+    }
+
+    public function payout(Request $request, $id)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'reference' => 'nullable|string|max:100',
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        $commercial = Commercial::find($id);
+
+        if (!$commercial) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Commercial introuvable.');
+            return back();
+        }
+
+        try {
+            app(CommercialWalletService::class)->payout(
+                (int) $commercial->id,
+                (float) $request->amount,
+                $request->reference,
+                $request->description,
+                optional(Auth::user())->id
+            );
+
+            session()->flash('type', 'alert-success');
+            session()->flash('message', 'Reversement enregistre avec succes.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', $e->getMessage());
+        } catch (\Throwable $e) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Erreur lors du reversement: ' . $e->getMessage());
+        }
+
+        return back();
     }
 
 }

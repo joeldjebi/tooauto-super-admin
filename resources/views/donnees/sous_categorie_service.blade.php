@@ -31,7 +31,7 @@
                                         <th scope="col">Statut</th>
                                         <th scope="col">Activé pour les pros ?</th>
                                         <th scope="col">Usager ou pros ?</th>
-                                        <th scope="col">SS-catégorie</th>
+                                        <th scope="col">SS-catégories</th>
                                         <th scope="col">Actions</th>
                                     </tr>
                                 </thead>
@@ -59,15 +59,22 @@
                                                                 @endif
                                                             </div>
                                                             <div class="form-group">
-                                                                <label for="">SS-catégorie</label>
-                                                                <select class="form-control" name="ss_categorie_service_id">
-                                                                    <option value="">Aucune</option>
+                                                                <label for="">SS-catégories</label>
+                                                                <input type="hidden" name="ss_categorie_service_ids" value="">
+                                                                @php
+                                                                    $selectedSsCategories = old(
+                                                                        'ss_categorie_service_ids',
+                                                                        $item->ssCategorieServices->pluck('id')->all() ?: array_filter([$item->ss_categorie_service_id])
+                                                                    );
+                                                                @endphp
+                                                                <select class="form-control" name="ss_categorie_service_ids[]" multiple size="6">
                                                                     @foreach($ss_categorie_services as $ssCategorie)
-                                                                        <option value="{{ $ssCategorie->id }}" {{ (string) old('ss_categorie_service_id', $item->ss_categorie_service_id) === (string) $ssCategorie->id ? 'selected' : '' }}>
+                                                                        <option value="{{ $ssCategorie->id }}" {{ in_array($ssCategorie->id, (array) $selectedSsCategories) ? 'selected' : '' }}>
                                                                             {{ $ssCategorie->libelle }}
                                                                         </option>
                                                                     @endforeach
                                                                 </select>
+                                                                <small class="form-text text-muted">Maintenir Ctrl ou Cmd pour sélectionner plusieurs SS-catégories.</small>
                                                             </div>
                                                             <div class="form-group">
                                                                 <label for="">Activé pour les pros</label>
@@ -125,7 +132,12 @@
                                                         —
                                                 @endswitch
                                             </td>
-                                            <td>{{ $item->ssCategorieService->libelle ?? '-' }}</td>
+                                            <td>
+                                                @php
+                                                    $ssCategorieLabels = $item->ssCategorieServices->pluck('libelle')->all();
+                                                @endphp
+                                                {{ !empty($ssCategorieLabels) ? implode(', ', $ssCategorieLabels) : ($item->ssCategorieService->libelle ?? '-') }}
+                                            </td>
                                             <td>
                                                 <a class="text-success mr-2" href="#" data-toggle="modal" data-target="#sousId{{ $item->id }}">
                                                     <i class="nav-icon i-Pen-2 font-weight-bold"></i>
@@ -175,15 +187,16 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="">SS-catégorie</label>
-                                <select class="form-control" name="ss_categorie_service_id">
-                                    <option value="">Aucune</option>
+                                <label for="">SS-catégories</label>
+                                <input type="hidden" name="ss_categorie_service_ids" value="">
+                                <select class="form-control" name="ss_categorie_service_ids[]" multiple size="6">
                                     @foreach($ss_categorie_services as $ssCategorie)
-                                        <option value="{{ $ssCategorie->id }}" {{ (string) old('ss_categorie_service_id') === (string) $ssCategorie->id ? 'selected' : '' }}>
+                                        <option value="{{ $ssCategorie->id }}" {{ in_array($ssCategorie->id, (array) old('ss_categorie_service_ids', [])) ? 'selected' : '' }}>
                                             {{ $ssCategorie->libelle }}
                                         </option>
                                     @endforeach
                                 </select>
+                                <small class="form-text text-muted">Maintenir Ctrl ou Cmd pour sélectionner plusieurs SS-catégories.</small>
                             </div>
                             <div class="form-group">
                                 <label for="">Usager/Pro ou Les deux</label>

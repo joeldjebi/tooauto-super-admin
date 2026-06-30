@@ -23,7 +23,23 @@
         @endif
         <div class="card text-left">
             <div class="card-body">
-                <h4 class="card-title mb-3">Les sapeurs-pompiers</h4>
+                <h4 class="card-title mb-3">Les stations service</h4>
+                <form method="GET" action="{{ route('index-station_service') }}" class="mb-3">
+                    <div class="row align-items-end">
+                        <div class="col-md-4">
+                            <label for="station_electrique">Station électrique</label>
+                            <select class="form-control" name="station_electrique" id="station_electrique">
+                                <option value="">Toutes</option>
+                                <option value="1" {{ (string) $station_electrique_filter === '1' ? 'selected' : '' }}>Oui</option>
+                                <option value="0" {{ (string) $station_electrique_filter === '0' ? 'selected' : '' }}>Non</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary">Filtrer</button>
+                            <a href="{{ route('index-station_service') }}" class="btn btn-secondary">Réinitialiser</a>
+                        </div>
+                    </div>
+                </form>
                 @if($station_services->isNotEmpty() )
                 <div class="table-responsive">
                     <table class="display table table-striped table-bordered" id="language_option_table"
@@ -33,6 +49,7 @@
                                 <th scope="col">#</th>
                                 <th scope="col">Nom</th>
                                 <th scope="col">Borne éléctrique</th>
+                                <th scope="col">Station électrique</th>
                                 <th scope="col">Ville</th>
                                 <th scope="col">Commune</th>
                                 <th scope="col">Adresse E-mail</th>
@@ -145,6 +162,17 @@
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    <div class="col-12">
+                                                        <div class="form-group">
+                                                            <label for="station_electrique">Station électrique ?</label>
+                                                            <div class="input-group">
+                                                                <select class="form-control" name="station_electrique" id="">
+                                                                    <option value="0" {{ $item->station_electrique == 0 ? 'selected' : '' }}>Non</option>
+                                                                    <option value="1" {{ $item->station_electrique == 1 ? 'selected' : '' }}>Oui</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-secondary"
@@ -160,6 +188,7 @@
                                 <td>{{ $key + 1 }}</td>
                                 <td>{{ $item->name ?? "" }}</td>
                                 <td>{{ $item->borne_electrique == 1 ? "OUI" : "NON" }}</td>
+                                <td>{{ $item->station_electrique == 1 ? "OUI" : "NON" }}</td>
                                 <td>{{ $item->ville->libelle ?? "" }}</td>
                                 <td>{{ $item->commune->nom ?? "" }}</td>
                                 <td>{{ $item->email ?? "" }}</td>
@@ -196,7 +225,7 @@
                     </table>
                 </div>
                 @else
-                <p>Aucun sapeur pompier enregistrer !</p>
+                <p>Aucune station service enregistrée !</p>
                 @endif
             </div>
         </div>
@@ -210,7 +239,7 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="exampleModalLabel">Enregistrer un sapeur pompier</h5>
+                <h5 class="modal-title" id="exampleModalLabel">Enregistrer une station service</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">×</span>
                 </button>
@@ -288,6 +317,17 @@
                                 <label for="borne_electrique">Borne élèctrique ?</label>
                                 <div class="input-group">
                                     <select class="form-control" name="borne_electrique" id="">
+                                        <option value="0">Non</option>
+                                        <option value="1">Oui</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-group">
+                                <label for="station_electrique">Station électrique ?</label>
+                                <div class="input-group">
+                                    <select class="form-control" name="station_electrique" id="">
                                         <option value="0">Non</option>
                                         <option value="1">Oui</option>
                                     </select>

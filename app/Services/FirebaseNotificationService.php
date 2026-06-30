@@ -41,26 +41,7 @@ class FirebaseNotificationService
      */
     public function sendToDevice(string $deviceToken, string $title, string $body, array $data = []): array
     {
-        try {
-            $notification = Notification::create($title, $body);
-            
-            $message = CloudMessage::withTarget('token', $deviceToken)
-                ->withNotification($notification)
-                ->withData($data);
-
-            $result = $this->messaging->send($message);
-
-            return [
-                'success' => true,
-                'message' => 'Notification envoyée avec succès',
-                'message_id' => $result
-            ];
-        } catch (Exception $e) {
-            return [
-                'success' => false,
-                'message' => 'Erreur lors de l\'envoi: ' . $e->getMessage()
-            ];
-        }
+        return $this->sendToMultipleDevices([$deviceToken], $title, $body, $data);
     }
 
     /**
@@ -75,10 +56,12 @@ class FirebaseNotificationService
     public function sendToMultipleDevices(array $deviceTokens, string $title, string $body, array $data = []): array
     {
         try {
+            $deviceTokens = $this->normalizeDeviceTokens($deviceTokens);
+
             if (empty($deviceTokens)) {
                 return [
                     'success' => false,
-                    'message' => 'Aucun token d\'appareil fourni'
+                    'message' => 'Aucun token FCM valide fourni'
                 ];
             }
 
@@ -93,12 +76,26 @@ class FirebaseNotificationService
 
             $successCount = $report->successes()->count();
             $failureCount = $report->failures()->count();
+            $invalidCount = count($report->invalidTokens());
+            $unknownCount = count($report->unknownTokens());
+
+            $message = "Notifications envoyées: {$successCount} réussies, {$failureCount} échouées";
+
+            if ($invalidCount > 0) {
+                $message .= ". {$invalidCount} token(s) FCM invalide(s)";
+            }
+
+            if ($unknownCount > 0) {
+                $message .= ". {$unknownCount} token(s) inconnu(s) ou expiré(s)";
+            }
 
             return [
-                'success' => true,
-                'message' => "Notifications envoyées: {$successCount} réussies, {$failureCount} échouées",
+                'success' => $successCount > 0,
+                'message' => $message,
                 'success_count' => $successCount,
                 'failure_count' => $failureCount,
+                'invalid_count' => $invalidCount,
+                'unknown_count' => $unknownCount,
                 'total' => count($deviceTokens)
             ];
         } catch (Exception $e) {
@@ -107,6 +104,22 @@ class FirebaseNotificationService
                 'message' => 'Erreur lors de l\'envoi: ' . $e->getMessage()
             ];
         }
+    }
+
+    /**
+     * Nettoyer les tokens avant l'envoi Firebase.
+     */
+    private function normalizeDeviceTokens(array $deviceTokens): array
+    {
+        $tokens = array_map(static function ($token) {
+            return is_string($token) ? trim($token) : '';
+        }, $deviceTokens);
+
+        $tokens = array_filter($tokens, static function ($token) {
+            return $token !== '';
+        });
+
+        return array_values(array_unique($tokens));
     }
 
     /**
@@ -123,7 +136,8 @@ class FirebaseNotificationService
         try {
             $notification = Notification::create($title, $body);
             
-            $message = CloudMessage::withTarget('topic', $topic)
+            $message = CloudMessage::new()
+                ->withTopic($topic)
                 ->withNotification($notification)
                 ->withData($data);
 
@@ -191,4 +205,3 @@ class FirebaseNotificationService
         }
     }
 }
-

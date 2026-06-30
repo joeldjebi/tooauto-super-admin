@@ -23,6 +23,7 @@ class Station_service extends Model
         'adresse',
         'adresse_map',
         'borne_electrique',
+        'station_electrique',
     ];
 
     /**

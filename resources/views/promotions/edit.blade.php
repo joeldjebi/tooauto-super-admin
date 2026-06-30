@@ -144,11 +144,11 @@
                                     </div>
                                 </div>
 
-                                @if($promotion->image)
+                                @if($promotion->image_url)
                                     <div class="mb-3">
                                         <label class="form-label">Image actuelle</label>
                                         <div class="text-center">
-                                            <img src="{{ asset('storage/promotions/' . $promotion->image) }}" 
+                                            <img src="{{ $promotion->image_url }}" 
                                                  alt="{{ $promotion->libelle }}" 
                                                  class="img-thumbnail" 
                                                  style="max-width: 200px; max-height: 200px;">

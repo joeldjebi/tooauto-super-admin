@@ -13,6 +13,10 @@ use App\Models\Type_de_vehicule;
 use App\Models\Marque;
 use App\Models\Concessionnaire;
 use App\Models\Type_alert;
+use App\Models\Abonnement_usager;
+use App\Models\Forfait_usager;
+use App\Services\CommercialWalletService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Response;
@@ -22,6 +26,7 @@ use Session;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class UsagerController extends Controller
 {
@@ -37,7 +42,25 @@ class UsagerController extends Controller
             'id' => auth()->user()->id
         ])->first();
 
-        $data["usagers"] = User::orderBy('id', 'desc')->get();
+        $data["usagers"] = User::with([
+            'commercial',
+            'abonnementUsagers' => function ($query) {
+                $query->with('forfait_usager')
+                    ->orderByDesc('date_fin')
+                    ->orderByDesc('id');
+            },
+        ])->orderBy('id', 'desc')->get();
+
+        $today = Carbon::today()->toDateString();
+
+        $data["usagers"]->each(function ($usager) use ($today) {
+            $activeAbonnement = $usager->abonnementUsagers->first(function ($abonnement) use ($today) {
+                return (int) $abonnement->statut === 1 && $abonnement->date_fin >= $today;
+            });
+
+            $usager->abonnement_affiche = $activeAbonnement ?: $usager->abonnementUsagers->first();
+            $usager->abonnement_est_actif = ! empty($activeAbonnement);
+        });
 
         // dd($data["usagers"]);
         
@@ -102,51 +125,105 @@ class UsagerController extends Controller
      */
     public function deleteUser($userId)
     {
-        // Démarrer une transaction pour garantir l'intégrité des données
+        return $this->destroyUsager($userId);
+    }
+
+    public function destroyUsager($id)
+    {
         DB::beginTransaction();
 
         try {
-            // Récupérer les annonces de l'utilisateur
-            $annonces = Annonce::where('user_id', $userId)->get();
-        
-            // Marquer les annonces avec l'ancien ID utilisateur
-            foreach ($annonces as $annonce) {
-                $annonce->deleted_by_user_id = $userId;
-                $annonce->usager_id = null; // Détache l'annonce de l'utilisateur
-                $annonce->save();
+            $usager = User::findOrFail($id);
+            $vehiculeIds = Vehicule::where('user_id', $id)->pluck('id');
+
+            $deletedCounts = [
+                'vehicules' => 0,
+                'alerts' => 0,
+                'autodocs' => 0,
+                'annonces' => 0,
+            ];
+
+            $deletedCounts['alerts'] += Alert::where('user_id', $id)->delete();
+
+            if (Schema::hasColumn('alerts', 'usager_id')) {
+                $deletedCounts['alerts'] += Alert::where('usager_id', $id)->delete();
             }
 
-            // Récupérer les alertes de l'utilisateur
-            $alerts = Alert::where('user_id', $userId)->get();
-
-            // Marquer les alertes avec l'ancien ID utilisateur
-            foreach ($alerts as $alert) {
-                $alert->deleted_by_user_id = $userId;
-                $alert->usager_id = null; // Détache l'alerte de l'utilisateur
-                $alert->save();
+            if ($vehiculeIds->isNotEmpty()) {
+                $deletedCounts['alerts'] += Alert::whereIn('vehicule_id', $vehiculeIds)->delete();
             }
-        
-            // Supprimer l'utilisateur
-            $user = User::findOrFail($userId);
-            $user->delete();
 
-            // Commit des changements dans la base de données
+            if (Schema::hasTable('autodocs')) {
+                $autodocsHasUserId = Schema::hasColumn('autodocs', 'user_id');
+                $autodocsHasUsagerId = Schema::hasColumn('autodocs', 'usager_id');
+                $autodocsHasVehiculeId = Schema::hasColumn('autodocs', 'vehicule_id');
+
+                if ($autodocsHasUserId || $autodocsHasUsagerId || ($autodocsHasVehiculeId && $vehiculeIds->isNotEmpty())) {
+                    $autodocsQuery = DB::table('autodocs');
+
+                    $autodocsQuery->where(function ($query) use ($id, $vehiculeIds, $autodocsHasUserId, $autodocsHasUsagerId, $autodocsHasVehiculeId) {
+                        if ($autodocsHasUserId) {
+                            $query->orWhere('user_id', $id);
+                        }
+
+                        if ($autodocsHasUsagerId) {
+                            $query->orWhere('usager_id', $id);
+                        }
+
+                        if ($autodocsHasVehiculeId && $vehiculeIds->isNotEmpty()) {
+                            $query->orWhereIn('vehicule_id', $vehiculeIds);
+                        }
+                    });
+
+                    $deletedCounts['autodocs'] = $autodocsQuery->delete();
+                }
+            }
+
+            $annonceQuery = Annonce::query()->where('usager_id', $id);
+
+            if (Schema::hasColumn('annonces', 'user_id')) {
+                $annonceQuery->orWhere('user_id', $id);
+            }
+
+            $annonceIds = $annonceQuery->pluck('id');
+
+            if (Schema::hasTable('annonce_etablissements')) {
+                if ($annonceIds->isNotEmpty()) {
+                    DB::table('annonce_etablissements')
+                        ->whereIn('annonce_id', $annonceIds)
+                        ->delete();
+                }
+            }
+
+            if ($annonceIds->isNotEmpty()) {
+                $deletedCounts['annonces'] = Annonce::whereIn('id', $annonceIds)->delete();
+            }
+
+            $deletedCounts['vehicules'] = Vehicule::where('user_id', $id)->delete();
+
+            $usager->delete();
+
             DB::commit();
 
-            // Message de succès
             session()->flash('type', 'alert-success');
-            session()->flash('message', 'Utilisateur supprimé avec succès.');
-        
+            session()->flash(
+                'message',
+                'Usager supprimé avec succès. ' .
+                $deletedCounts['vehicules'] . ' véhicule(s), ' .
+                $deletedCounts['alerts'] . ' alerte(s), ' .
+                $deletedCounts['autodocs'] . ' autodoc(s), ' .
+                $deletedCounts['annonces'] . ' annonce(s) supprimé(s).'
+            );
         } catch (\Exception $e) {
-            // En cas d'erreur, annuler la transaction
             DB::rollBack();
 
-            // Message d'erreur
             session()->flash('type', 'alert-danger');
-            session()->flash('message', 'Une erreur est survenue lors de la suppression de l\'utilisateur.');
+            session()->flash(
+                'message',
+                'Une erreur est survenue lors de la suppression de l\'usager: ' . $e->getMessage()
+            );
         }
 
-        // Retour à la page précédente
         return back();
     }
 
@@ -164,12 +241,31 @@ class UsagerController extends Controller
             'id' => auth()->user()->id
         ])->first();
 
-        $data["usager"] = User::find($id);
+        $data["usager"] = User::with([
+            'commercial',
+            'abonnementUsagers' => function ($query) {
+                $query->with('forfait_usager')
+                    ->orderByDesc('date_fin')
+                    ->orderByDesc('id');
+            },
+        ])->find($id);
         if (!$data["usager"]) {
             session()->flash('type', 'alert-danger');
             session()->flash('message', 'Usager introuvable');
             return back();
         }
+
+        $today = Carbon::today()->toDateString();
+        $activeAbonnement = $data["usager"]->abonnementUsagers->first(function ($abonnement) use ($today) {
+            return (int) $abonnement->statut === 1 && $abonnement->date_fin >= $today;
+        });
+
+        $data["usager"]->abonnement_affiche = $activeAbonnement ?: $data["usager"]->abonnementUsagers->first();
+        $data["usager"]->abonnement_est_actif = ! empty($activeAbonnement);
+        $data["forfait_usagers"] = Forfait_usager::where('statut', 1)
+            ->orderBy('libelle')
+            ->get();
+
         if (empty($data['user'])) {
             session()->flash('type', 'alert-danger');
             session()->flash('message', 'Une erreur est survenue!');
@@ -262,6 +358,72 @@ class UsagerController extends Controller
         }
 
         return view('usagers.show', $data);
+    }
+
+    public function changeForfaitUsager(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'forfait_id' => 'required|integer|exists:forfait_usagers,id',
+        ]);
+
+        $usager = User::find($id);
+        if (!$usager) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Usager introuvable.');
+            return back();
+        }
+
+        $forfait = Forfait_usager::find($validated['forfait_id']);
+        if (!$forfait) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Forfait introuvable.');
+            return back();
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $today = Carbon::today();
+            $lastActiveAbonnement = Abonnement_usager::where('user_id', $usager->id)
+                ->where('statut', 1)
+                ->whereDate('date_fin', '>=', $today->toDateString())
+                ->orderByDesc('date_fin')
+                ->first();
+
+            $dateDebut = $lastActiveAbonnement
+                ? Carbon::parse($lastActiveAbonnement->date_fin)->addDay()
+                : $today;
+            $dateFin = $dateDebut->copy()->addDays((int) $forfait->duree);
+
+            $abonnement = Abonnement_usager::create([
+                'user_id' => $usager->id,
+                'forfait_id' => $forfait->id,
+                'date_debut' => $dateDebut->toDateString(),
+                'date_fin' => $dateFin->toDateString(),
+                'statut' => 1,
+                'is_free' => ((float) $forfait->prix <= 0) ? 1 : 0,
+            ]);
+
+            $walletTransaction = app(CommercialWalletService::class)
+                ->creditCommissionForAbonnement($abonnement);
+
+            DB::commit();
+
+            session()->flash('type', 'alert-success');
+            session()->flash(
+                'message',
+                'Forfait changé avec succès. Nouvelle période: ' .
+                $dateDebut->format('d/m/Y') . ' au ' . $dateFin->format('d/m/Y') .
+                ($walletTransaction ? ' Commission commercial créditée.' : '')
+            );
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Une erreur est survenue lors du changement de forfait: ' . $e->getMessage());
+        }
+
+        return back();
     }
 
     /**

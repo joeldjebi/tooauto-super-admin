@@ -14,6 +14,8 @@ use App\Models\EntrepriseAssurance;
 use App\Models\ForfaitAvantageUsager;
 use App\Models\Forfait_usager;
 use App\Models\Station_de_lavage;
+use App\Models\PrestataireLavage;
+use App\Models\DemandeLavage;
 use App\Models\Categorie_service;
 use App\Models\Sous_categorie_service;
 use App\Models\Ss_categorie_service;
@@ -48,6 +50,8 @@ use App\Models\Type_alert;
 use App\Models\Type_de_Carburant;
 use App\Models\Type_de_piece;
 use App\Models\Type_de_vehicule;
+use App\Models\Categorie_tuto;
+use App\Models\Tuto;
 use App\Models\Concessionnaire;
 use App\Models\VehiculeConcessionnaire;
 use App\Models\AnnonceConcessionnaire;
@@ -57,9 +61,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Routing\Redirector;
+use Illuminate\Support\Facades\Schema;
 use Session;
 use App\Models\Station;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use App\Services\WasabiService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -91,9 +97,190 @@ class DashboardController extends Controller
         $data['annonceCount'] = Annonce::count();
         $data['abonnementUsagerCount'] = Abonnement_usager::count();
         $data['abonnementProCount'] = Abonnement_pro::count();
+        $data['entretienCount'] = $this->countEtablissementsByServiceKeywords(['entretien']);
+        $data['assistanceCount'] = $this->countEtablissementsByServiceKeywords(['assistance']);
+        $data['reparationSuiviCount'] = $this->countEtablissementsByServiceKeywords(['reparation', 'réparation', 'suivi']);
+        $data['carburantConsoCount'] = $this->countEtablissementsByServiceKeywords(['carburant', 'conso'])
+            ?: $this->countTableIfExists('station_services');
+        $data['lavageVehiculeCount'] = $this->countTableIfExists('demande_lavages')
+            ?: $this->countEtablissementsByServiceKeywords(['lavage']);
+        $data['etablissementsByCommune'] = $this->getEtablissementsByCommune();
+        $data['etablissementsByType'] = $this->getEtablissementsByType();
+        $data['etablissementsByCommuneAndType'] = $this->getEtablissementsByCommuneAndType();
 
 
         return view('dashboard',$data);
+    }
+
+    private function getEtablissementsByCommune()
+    {
+        if (!Schema::hasTable('etablissements')
+            || !Schema::hasTable('communes')
+            || !Schema::hasColumn('etablissements', 'commune_id')
+            || !Schema::hasColumn('communes', 'nom')) {
+            return collect();
+        }
+
+        return DB::table('etablissements')
+            ->leftJoin('communes', 'communes.id', '=', 'etablissements.commune_id')
+            ->selectRaw("COALESCE(communes.nom, 'Non renseignée') as commune")
+            ->selectRaw('COUNT(etablissements.id) as total')
+            ->groupBy('commune')
+            ->orderByDesc('total')
+            ->orderBy('commune')
+            ->get();
+    }
+
+    private function getEtablissementsByType()
+    {
+        if (!Schema::hasTable('etablissements')
+            || !Schema::hasTable('type_etablissements')
+            || !Schema::hasColumn('etablissements', 'type_etablissement_id')
+            || !Schema::hasColumn('type_etablissements', 'libelle')) {
+            return collect();
+        }
+
+        return DB::table('etablissements')
+            ->leftJoin('type_etablissements', 'type_etablissements.id', '=', 'etablissements.type_etablissement_id')
+            ->selectRaw("COALESCE(type_etablissements.libelle, 'Type non renseigné') as type_etablissement")
+            ->selectRaw('COUNT(etablissements.id) as total')
+            ->groupBy('type_etablissement')
+            ->orderByDesc('total')
+            ->orderBy('type_etablissement')
+            ->get();
+    }
+
+    private function getEtablissementsByCommuneAndType()
+    {
+        if (!Schema::hasTable('etablissements')
+            || !Schema::hasTable('communes')
+            || !Schema::hasTable('type_etablissements')
+            || !Schema::hasColumn('etablissements', 'commune_id')
+            || !Schema::hasColumn('etablissements', 'type_etablissement_id')
+            || !Schema::hasColumn('communes', 'nom')
+            || !Schema::hasColumn('type_etablissements', 'libelle')) {
+            return collect();
+        }
+
+        return DB::table('etablissements')
+            ->leftJoin('communes', 'communes.id', '=', 'etablissements.commune_id')
+            ->leftJoin('type_etablissements', 'type_etablissements.id', '=', 'etablissements.type_etablissement_id')
+            ->selectRaw("COALESCE(communes.nom, 'Non renseignée') as commune")
+            ->selectRaw("COALESCE(type_etablissements.libelle, 'Type non renseigné') as type_etablissement")
+            ->selectRaw('COUNT(etablissements.id) as total')
+            ->groupBy('commune', 'type_etablissement')
+            ->orderBy('commune')
+            ->orderByDesc('total')
+            ->orderBy('type_etablissement')
+            ->get();
+    }
+
+    private function countTableIfExists(string $table): int
+    {
+        if (!Schema::hasTable($table)) {
+            return 0;
+        }
+
+        return DB::table($table)->count();
+    }
+
+    private function countEtablissementsByServiceKeywords(array $keywords): int
+    {
+        if (!Schema::hasTable('etablissements')
+            || !Schema::hasTable('categorie_services')
+            || !Schema::hasColumn('etablissements', 'categorie_service_id')
+            || !Schema::hasColumn('categorie_services', 'libelle')) {
+            return 0;
+        }
+
+        $query = DB::table('etablissements')
+            ->leftJoin('categorie_services', 'categorie_services.id', '=', 'etablissements.categorie_service_id');
+
+        $hasSousCategorieJoin = Schema::hasTable('categorie_service_sous_categorie_service')
+            && Schema::hasTable('sous_categorie_services')
+            && Schema::hasColumn('sous_categorie_services', 'libelle');
+        $hasSsCategorieJoin = $hasSousCategorieJoin
+            && Schema::hasTable('sous_categorie_service_ss_categorie_service')
+            && Schema::hasTable('ss_categorie_services')
+            && Schema::hasColumn('ss_categorie_services', 'libelle');
+        $hasLegacySousCategorieJoin = Schema::hasTable('sous_categorie_services')
+            && Schema::hasColumn('categorie_services', 'sous_categorie_service_id')
+            && Schema::hasColumn('sous_categorie_services', 'libelle');
+        $hasLegacySsCategorieJoin = $hasLegacySousCategorieJoin
+            && Schema::hasTable('ss_categorie_services')
+            && Schema::hasColumn('sous_categorie_services', 'ss_categorie_service_id')
+            && Schema::hasColumn('ss_categorie_services', 'libelle');
+
+        if ($hasLegacySousCategorieJoin) {
+            $query->leftJoin(
+                'sous_categorie_services as legacy_sous_categorie_services',
+                'legacy_sous_categorie_services.id',
+                '=',
+                'categorie_services.sous_categorie_service_id'
+            );
+
+            if ($hasLegacySsCategorieJoin) {
+                $query->leftJoin(
+                    'ss_categorie_services as legacy_ss_categorie_services',
+                    'legacy_ss_categorie_services.id',
+                    '=',
+                    'legacy_sous_categorie_services.ss_categorie_service_id'
+                );
+            }
+        }
+
+        if ($hasSousCategorieJoin) {
+            $query->leftJoin(
+                'categorie_service_sous_categorie_service',
+                'categorie_service_sous_categorie_service.categorie_service_id',
+                '=',
+                'categorie_services.id'
+            )->leftJoin(
+                'sous_categorie_services',
+                'sous_categorie_services.id',
+                '=',
+                'categorie_service_sous_categorie_service.sous_categorie_service_id'
+            );
+
+            if ($hasSsCategorieJoin) {
+                $query->leftJoin(
+                    'sous_categorie_service_ss_categorie_service',
+                    'sous_categorie_service_ss_categorie_service.sous_categorie_service_id',
+                    '=',
+                    'sous_categorie_services.id'
+                )->leftJoin(
+                    'ss_categorie_services',
+                    'ss_categorie_services.id',
+                    '=',
+                    'sous_categorie_service_ss_categorie_service.ss_categorie_service_id'
+                );
+            }
+        }
+
+        $query->where(function ($query) use ($keywords, $hasSousCategorieJoin, $hasSsCategorieJoin, $hasLegacySousCategorieJoin, $hasLegacySsCategorieJoin) {
+            foreach ($keywords as $keyword) {
+                $likeKeyword = '%' . strtolower($keyword) . '%';
+                $query->orWhereRaw('LOWER(categorie_services.libelle) LIKE ?', [$likeKeyword]);
+
+                if ($hasLegacySousCategorieJoin) {
+                    $query->orWhereRaw('LOWER(legacy_sous_categorie_services.libelle) LIKE ?', [$likeKeyword]);
+                }
+
+                if ($hasLegacySsCategorieJoin) {
+                    $query->orWhereRaw('LOWER(legacy_ss_categorie_services.libelle) LIKE ?', [$likeKeyword]);
+                }
+
+                if ($hasSousCategorieJoin) {
+                    $query->orWhereRaw('LOWER(sous_categorie_services.libelle) LIKE ?', [$likeKeyword]);
+                }
+
+                if ($hasSsCategorieJoin) {
+                    $query->orWhereRaw('LOWER(ss_categorie_services.libelle) LIKE ?', [$likeKeyword]);
+                }
+            }
+        });
+
+        return $query->distinct('etablissements.id')->count('etablissements.id');
     }
 
     /**
@@ -114,11 +301,11 @@ class DashboardController extends Controller
             session()->flash('message', 'Une erreur est survenue!');
         }
 
-        $data["categorie_services"] = Categorie_service::orderBy('id', 'desc')->get()->map(function ($categorie) {
+        $data["categorie_services"] = Categorie_service::with(['sousCategorieServices', 'sousCategorieService'])->orderBy('id', 'desc')->get()->map(function ($categorie) {
             return $this->attachCategorieServiceImageUrl($categorie);
         });
 
-        $data["sous_categorie_services"] = Sous_categorie_service::with('ssCategorieService')->orderBy('id', 'desc')->get()->map(function ($sousCategorie) {
+        $data["sous_categorie_services"] = Sous_categorie_service::with(['ssCategorieServices', 'ssCategorieService'])->orderBy('id', 'desc')->get()->map(function ($sousCategorie) {
             return $this->attachSousCategorieServiceImageUrl($sousCategorie);
         });
 
@@ -143,7 +330,7 @@ class DashboardController extends Controller
             session()->flash('message', 'Une erreur est survenue!');
         }
 
-        $data['sous_categorie_services'] = Sous_categorie_service::with('ssCategorieService')->orderBy('id', 'desc')->get()->map(function ($sousCategorie) {
+        $data['sous_categorie_services'] = Sous_categorie_service::with(['ssCategorieServices', 'ssCategorieService'])->orderBy('id', 'desc')->get()->map(function ($sousCategorie) {
             return $this->attachSousCategorieServiceImageUrl($sousCategorie);
         });
 
@@ -180,6 +367,12 @@ class DashboardController extends Controller
      */
     public function storeCategorieService(Request $request)
     {
+        $request->merge([
+            'sous_categorie_service_ids' => is_array($request->input('sous_categorie_service_ids'))
+                ? $request->input('sous_categorie_service_ids')
+                : [],
+        ]);
+
         // Validation des champs
         $request->validate([
             'libelle' => 'required|string|unique:categorie_services',
@@ -187,7 +380,8 @@ class DashboardController extends Controller
             'is_pro' => 'nullable',
             'statut' => 'nullable',
             'pro_or_usager' => 'nullable',
-            'sous_categorie_service_id' => 'nullable|exists:sous_categorie_services,id',
+            'sous_categorie_service_ids' => 'nullable|array',
+            'sous_categorie_service_ids.*' => 'exists:sous_categorie_services,id',
             'accessible_abonnement_expire' => 'nullable|boolean',
             'visible_par_defaut' => 'nullable|boolean',
             'accessible_en_fonction_de_mon_abonnement_actif' => 'nullable|boolean',
@@ -219,13 +413,16 @@ class DashboardController extends Controller
         $categorie->statut = $request->statut ?? 1;
         $categorie->is_pro = $request->is_pro;
         $categorie->pro_or_usager = $request->pro_or_usager;
-        $categorie->sous_categorie_service_id = !empty($request->sous_categorie_service_id) ? $request->sous_categorie_service_id : null;
+        $sousCategorieIds = collect($request->input('sous_categorie_service_ids', []))->filter()->values();
+        $categorie->sous_categorie_service_id = $sousCategorieIds->first();
         $categorie->accessible_abonnement_expire = $request->accessible_abonnement_expire ?? 0;
         $categorie->visible_par_defaut = $request->visible_par_defaut ?? 0;
         $categorie->accessible_en_fonction_de_mon_abonnement_actif = $request->accessible_en_fonction_de_mon_abonnement_actif ?? 1;
 
         // Vérification si l'utilisateur a bien été créé
         if ($categorie->save()) {
+            $categorie->sousCategorieServices()->sync($sousCategorieIds->all());
+
             // Flash success message
             session()->flash('type', 'alert-success');
             session()->flash('message', 'Catégorie créer avec succès');
@@ -245,6 +442,12 @@ class DashboardController extends Controller
      */
     public function updateCategorieService(Request $request, $id)
     {
+        $request->merge([
+            'sous_categorie_service_ids' => is_array($request->input('sous_categorie_service_ids'))
+                ? $request->input('sous_categorie_service_ids')
+                : [],
+        ]);
+
         // Validation des champs
         $request->validate([
             'libelle' => [
@@ -256,7 +459,8 @@ class DashboardController extends Controller
             'is_pro' => 'nullable',
             'statut' => 'nullable',
             'pro_or_usager' => 'nullable',
-            'sous_categorie_service_id' => 'nullable|exists:sous_categorie_services,id',
+            'sous_categorie_service_ids' => 'nullable|array',
+            'sous_categorie_service_ids.*' => 'exists:sous_categorie_services,id',
             'accessible_abonnement_expire' => 'nullable|boolean',
             'visible_par_defaut' => 'nullable|boolean',
             'accessible_en_fonction_de_mon_abonnement_actif' => 'nullable|boolean',
@@ -275,7 +479,8 @@ class DashboardController extends Controller
         $categorie->is_pro = html_entity_decode($request->is_pro);
         $categorie->statut = $request->statut ?? $categorie->statut;
         $categorie->pro_or_usager = html_entity_decode($request->pro_or_usager);
-        $categorie->sous_categorie_service_id = !empty($request->sous_categorie_service_id) ? $request->sous_categorie_service_id : null;
+        $sousCategorieIds = collect($request->input('sous_categorie_service_ids', []))->filter()->values();
+        $categorie->sous_categorie_service_id = $sousCategorieIds->first();
         $categorie->accessible_abonnement_expire = $request->accessible_abonnement_expire ?? 0;
         $categorie->visible_par_defaut = $request->visible_par_defaut ?? 0;
         $categorie->accessible_en_fonction_de_mon_abonnement_actif = $request->accessible_en_fonction_de_mon_abonnement_actif ?? 0;
@@ -296,6 +501,8 @@ class DashboardController extends Controller
 
         // Sauvegarde des modifications
         if ($categorie->save()) {
+            $categorie->sousCategorieServices()->sync($sousCategorieIds->all());
+
             session()->flash('type', 'alert-success');
             session()->flash('message', 'Catégorie mise à jour avec succès');
         } else {
@@ -308,13 +515,20 @@ class DashboardController extends Controller
 
     public function storeSousCategorieService(Request $request)
     {
+        $request->merge([
+            'ss_categorie_service_ids' => is_array($request->input('ss_categorie_service_ids'))
+                ? $request->input('ss_categorie_service_ids')
+                : [],
+        ]);
+
         $request->validate([
             'libelle' => 'required|string|unique:sous_categorie_services',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'is_pro' => 'nullable',
             'statut' => 'nullable',
             'pro_or_usager' => 'nullable',
-            'ss_categorie_service_id' => 'nullable|exists:ss_categorie_services,id',
+            'ss_categorie_service_ids' => 'nullable|array',
+            'ss_categorie_service_ids.*' => 'exists:ss_categorie_services,id',
         ]);
 
         $data['user'] = Super::where(['id' => Auth::user()->id])->first();
@@ -338,9 +552,12 @@ class DashboardController extends Controller
         $sousCategorie->statut = $request->statut ?? 1;
         $sousCategorie->is_pro = $request->is_pro;
         $sousCategorie->pro_or_usager = $request->pro_or_usager;
-        $sousCategorie->ss_categorie_service_id = !empty($request->ss_categorie_service_id) ? $request->ss_categorie_service_id : null;
+        $ssCategorieIds = collect($request->input('ss_categorie_service_ids', []))->filter()->values();
+        $sousCategorie->ss_categorie_service_id = $ssCategorieIds->first();
 
         if ($sousCategorie->save()) {
+            $sousCategorie->ssCategorieServices()->sync($ssCategorieIds->all());
+
             session()->flash('type', 'alert-success');
             session()->flash('message', 'Sous-catégorie créée avec succès');
         } else {
@@ -353,6 +570,12 @@ class DashboardController extends Controller
 
     public function updateSousCategorieService(Request $request, $id)
     {
+        $request->merge([
+            'ss_categorie_service_ids' => is_array($request->input('ss_categorie_service_ids'))
+                ? $request->input('ss_categorie_service_ids')
+                : [],
+        ]);
+
         $request->validate([
             'libelle' => [
                 'required',
@@ -363,7 +586,8 @@ class DashboardController extends Controller
             'is_pro' => 'nullable',
             'statut' => 'nullable',
             'pro_or_usager' => 'nullable',
-            'ss_categorie_service_id' => 'nullable|exists:ss_categorie_services,id',
+            'ss_categorie_service_ids' => 'nullable|array',
+            'ss_categorie_service_ids.*' => 'exists:ss_categorie_services,id',
         ]);
 
         $sousCategorie = Sous_categorie_service::find($id);
@@ -377,7 +601,8 @@ class DashboardController extends Controller
         $sousCategorie->is_pro = html_entity_decode($request->is_pro);
         $sousCategorie->statut = $request->statut ?? $sousCategorie->statut;
         $sousCategorie->pro_or_usager = html_entity_decode($request->pro_or_usager);
-        $sousCategorie->ss_categorie_service_id = !empty($request->ss_categorie_service_id) ? $request->ss_categorie_service_id : null;
+        $ssCategorieIds = collect($request->input('ss_categorie_service_ids', []))->filter()->values();
+        $sousCategorie->ss_categorie_service_id = $ssCategorieIds->first();
 
         if ($request->hasFile('image')) {
             if (!empty($sousCategorie->image)) {
@@ -391,6 +616,8 @@ class DashboardController extends Controller
         }
 
         if ($sousCategorie->save()) {
+            $sousCategorie->ssCategorieServices()->sync($ssCategorieIds->all());
+
             session()->flash('type', 'alert-success');
             session()->flash('message', 'Sous-catégorie mise à jour avec succès');
         } else {
@@ -495,7 +722,7 @@ class DashboardController extends Controller
             return back();
         }
 
-        if ($ssCategorie->sousCategorieServices()->count() > 0) {
+        if ($ssCategorie->sousCategorieServices()->count() > 0 || $ssCategorie->sousCategorieServicesLegacy()->count() > 0) {
             session()->flash('type', 'alert-warning');
             session()->flash('message', "Cette SS-catégorie ne peut pas être supprimée car elle est liée à des sous-catégories.");
             return back();
@@ -722,7 +949,7 @@ class DashboardController extends Controller
      */
     public function getGetForfaitPro()
     {
-        $data['title'] = "Les forfait Pro";
+        $data['title'] = "Les forfaits Pro";
         $data['menu'] ='forfait-pro';
 
         $data['user'] = Super::where([
@@ -747,10 +974,11 @@ class DashboardController extends Controller
     {
         // Validation des champs
         $request->validate([
-            'nom' => 'required|string|unique:forfaits',
-            'duree' => 'required|numeric',
-            'prix' => 'required|numeric',
+            'nom' => 'required|string|max:300|unique:forfait_pros,nom',
+            'duree' => 'required|integer|min:0',
+            'prix' => 'required|integer|min:0',
             'avantages' => 'required|string',
+            'statut' => 'nullable|in:0,1',
         ]);
 
         $data['user'] = Super::where([
@@ -768,12 +996,13 @@ class DashboardController extends Controller
         $forfait->duree = html_entity_decode($request->duree);
         $forfait->prix = html_entity_decode($request->prix);
         $forfait->avantages = html_entity_decode($request->avantages);
+        $forfait->statut = $request->statut ?? 1;
 
         // Vérification si l'utilisateur a bien été créé
         if ($forfait->save()) {
             // Flash success message
             session()->flash('type', 'alert-success');
-            session()->flash('message', 'Forfair créer avec succès');
+            session()->flash('message', 'Forfait pro créé avec succès');
             return back();
 
         } else {
@@ -795,19 +1024,20 @@ class DashboardController extends Controller
             'nom' => [
                 'required',
                 'string',
-                'max:20',
-                Rule::unique('forfaits')->ignore($id),
+                'max:300',
+                Rule::unique('forfait_pros', 'nom')->ignore($id),
             ],
-            'duree' => 'required|numeric',
-            'prix' => 'required|numeric',
+            'duree' => 'required|integer|min:0',
+            'prix' => 'required|integer|min:0',
             'avantages' => 'required|string',
+            'statut' => 'nullable|in:0,1',
         ]);
 
         // Récupérer la catégorie
         $forfait = Forfait::find($id);
         if (!$forfait) {
             session()->flash('type', 'alert-danger');
-            session()->flash('message', 'Type établissement introuvable');
+            session()->flash('message', 'Forfait pro introuvable');
             return back();
         }
 
@@ -815,11 +1045,12 @@ class DashboardController extends Controller
         $forfait->duree = html_entity_decode($request->duree);
         $forfait->prix = html_entity_decode($request->prix);
         $forfait->avantages = html_entity_decode($request->avantages);
+        $forfait->statut = $request->statut ?? $forfait->statut;
 
         // Sauvegarde des modifications
         if ($forfait->save()) {
             session()->flash('type', 'alert-success');
-            session()->flash('message', 'Forfait mise à jour avec succès');
+            session()->flash('message', 'Forfait pro mis à jour avec succès');
         } else {
             session()->flash('type', 'alert-danger');
             session()->flash('message', 'Une erreur est survenue lors de la mise à jour');
@@ -3289,6 +3520,212 @@ class DashboardController extends Controller
     }
 
     /**
+     * Display a listing of tutos.
+     */
+    public function indexTuto()
+    {
+        $data['title'] = 'Les tutos';
+        $data['menu'] = 'tutos';
+
+        $data['user'] = Super::where([
+            'id' => auth()->user()->id
+        ])->first();
+
+        if (empty($data['user'])) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Une erreur est survenue!');
+        }
+
+        $data['tutos'] = Tuto::with('categorie_tuto')
+            ->orderBy('id', 'desc')
+            ->get();
+        $data['categorie_tutos'] = Categorie_tuto::orderBy('libelle')->get();
+
+        return view('donnees.tuto', $data);
+    }
+
+    /**
+     * Store a newly created tuto.
+     */
+    public function storeTuto(Request $request)
+    {
+        $validated = $request->validate([
+            'libelle' => 'required|string|max:300',
+            'url_tuto' => 'required|url|max:500',
+            'categorie_tuto_id' => 'nullable|exists:categorie_tutos,id',
+            'categorie_tuto_libelle' => 'nullable|string|max:300',
+        ]);
+
+        if (empty($validated['categorie_tuto_id']) && empty($validated['categorie_tuto_libelle'])) {
+            return back()
+                ->withErrors(['categorie_tuto_id' => 'Veuillez choisir ou saisir une catégorie.'])
+                ->withInput();
+        }
+
+        $categorieTutoId = $validated['categorie_tuto_id'] ?? null;
+
+        if (!$categorieTutoId) {
+            $categorie = Categorie_tuto::firstOrCreate([
+                'libelle' => trim($validated['categorie_tuto_libelle']),
+            ]);
+            $categorieTutoId = $categorie->id;
+        }
+
+        $tuto = new Tuto();
+        $tuto->libelle = html_entity_decode($validated['libelle']);
+        $tuto->url_tuto = $validated['url_tuto'];
+        $tuto->categorie_tuto_id = $categorieTutoId;
+
+        if ($tuto->save()) {
+            session()->flash('type', 'alert-success');
+            session()->flash('message', 'Tuto créé avec succès.');
+        } else {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Une erreur est survenue lors de la création du tuto.');
+        }
+
+        return back();
+    }
+
+    /**
+     * Update a tuto.
+     */
+    public function updateTuto(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'libelle' => 'required|string|max:300',
+            'url_tuto' => 'required|url|max:500',
+            'categorie_tuto_id' => 'required|exists:categorie_tutos,id',
+        ]);
+
+        $tuto = Tuto::find($id);
+        if (!$tuto) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Tuto introuvable.');
+            return back();
+        }
+
+        $tuto->libelle = html_entity_decode($validated['libelle']);
+        $tuto->url_tuto = $validated['url_tuto'];
+        $tuto->categorie_tuto_id = $validated['categorie_tuto_id'];
+
+        if ($tuto->save()) {
+            session()->flash('type', 'alert-success');
+            session()->flash('message', 'Tuto mis à jour avec succès.');
+        } else {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Une erreur est survenue lors de la mise à jour du tuto.');
+        }
+
+        return back();
+    }
+
+    /**
+     * Remove a tuto.
+     */
+    public function destroyTuto($id)
+    {
+        $tuto = Tuto::find($id);
+        if (!$tuto) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Tuto introuvable.');
+            return back();
+        }
+
+        $tuto->delete();
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Tuto supprimé avec succès.');
+
+        return back();
+    }
+
+    /**
+     * Store a tuto category.
+     */
+    public function storeCategorieTuto(Request $request)
+    {
+        $validated = $request->validate([
+            'libelle' => 'required|string|max:300|unique:categorie_tutos,libelle',
+        ], [
+            'libelle.unique' => 'Cette catégorie existe déjà.',
+        ]);
+
+        $categorie = new Categorie_tuto();
+        $categorie->libelle = html_entity_decode($validated['libelle']);
+
+        if ($categorie->save()) {
+            session()->flash('type', 'alert-success');
+            session()->flash('message', 'Catégorie de tuto créée avec succès.');
+        } else {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Une erreur est survenue lors de la création de la catégorie.');
+        }
+
+        return back();
+    }
+
+    /**
+     * Update a tuto category.
+     */
+    public function updateCategorieTuto(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'libelle' => [
+                'required',
+                'string',
+                'max:300',
+                Rule::unique('categorie_tutos', 'libelle')->ignore($id),
+            ],
+        ]);
+
+        $categorie = Categorie_tuto::find($id);
+        if (!$categorie) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Catégorie de tuto introuvable.');
+            return back();
+        }
+
+        $categorie->libelle = html_entity_decode($validated['libelle']);
+
+        if ($categorie->save()) {
+            session()->flash('type', 'alert-success');
+            session()->flash('message', 'Catégorie de tuto mise à jour avec succès.');
+        } else {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Une erreur est survenue lors de la mise à jour de la catégorie.');
+        }
+
+        return back();
+    }
+
+    /**
+     * Remove a tuto category.
+     */
+    public function destroyCategorieTuto($id)
+    {
+        $categorie = Categorie_tuto::withCount('tutos')->find($id);
+        if (!$categorie) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Catégorie de tuto introuvable.');
+            return back();
+        }
+
+        if ($categorie->tutos_count > 0) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Impossible de supprimer cette catégorie car elle contient des tutos.');
+            return back();
+        }
+
+        $categorie->delete();
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Catégorie de tuto supprimée avec succès.');
+
+        return back();
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function indexSapeurPompier()
@@ -3512,9 +3949,9 @@ class DashboardController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function indexStationService()
+    public function indexStationService(Request $request)
     {
-        $data['title'] ='Les sapeur pompier';
+        $data['title'] ='Les stations service';
         $data['menu'] ='station_service';
 
         $data["user"] = Super::where([
@@ -3527,9 +3964,16 @@ class DashboardController extends Controller
             session()->flash('message', 'Une erreur est survenue!');
         }
 
-        $data["station_services"] = Station_service::orderBy('id', 'desc')
-        ->with('ville', 'commune')
-        ->get();
+        $data['station_electrique_filter'] = $request->query('station_electrique');
+
+        $stationServicesQuery = Station_service::orderBy('id', 'desc')
+            ->with('ville', 'commune');
+
+        if (in_array($data['station_electrique_filter'], ['0', '1'], true)) {
+            $stationServicesQuery->where('station_electrique', $data['station_electrique_filter']);
+        }
+
+        $data["station_services"] = $stationServicesQuery->get();
 
         $data["villes"] = Ville::all();
         $data["communes"] = Commune::all();
@@ -3552,6 +3996,7 @@ class DashboardController extends Controller
                 'adresse' => 'nullable',
                 'adresse_map' => 'nullable',
                 'borne_electrique' => 'nullable',
+                'station_electrique' => 'nullable',
             ]);
 
             $data['user'] = Auth::user();
@@ -3571,6 +4016,7 @@ class DashboardController extends Controller
             $station_service->adresse = $request->adresse;
             $station_service->adresse_map = $request->adresse_map;
             $station_service->borne_electrique = $request->borne_electrique;
+            $station_service->station_electrique = $request->station_electrique ?? 0;
 
             if ($station_service->save()) {
                 session()->flash('type', 'alert-success');
@@ -3598,13 +4044,14 @@ class DashboardController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:100',
-            'mobile' => 'required|string|unique:sapeur_pompiers,mobile,' . $id,
-            'email' => 'required|string|unique:sapeur_pompiers,email,' . $id,
+            'mobile' => 'required|string|unique:station_services,mobile,' . $id,
+            'email' => 'required|string|unique:station_services,email,' . $id,
             'ville_id' => 'required|exists:villes,id',
             'commune_id' => 'nullable|exists:communes,id',
             'adresse' => 'nullable|string',
             'adresse_map' => 'nullable|string',
             'borne_electrique' => 'nullable|string',
+            'station_electrique' => 'nullable|string',
         ]);
 
         $data['user'] = Auth::user();
@@ -3630,6 +4077,7 @@ class DashboardController extends Controller
         $station_service->adresse = $request->adresse;
         $station_service->adresse_map = $request->adresse_map;
         $station_service->borne_electrique = $request->borne_electrique;
+        $station_service->station_electrique = $request->station_electrique ?? 0;
 
         if ($station_service->save()) {
             session()->flash('type', 'alert-success');
@@ -6084,6 +6532,150 @@ class DashboardController extends Controller
 
         session()->flash('type', 'alert-success');
         session()->flash('message', "Forfait usager supprimé avec succès.");
+        return back();
+    }
+
+    public function indexPrestataireLavage()
+    {
+        $data['title'] = 'Prestataires lavage';
+        $data['menu'] = 'prestataire_lavage';
+        $data['user'] = Auth::user();
+
+        if (empty($data['user'])) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', "L'utilisateur est introuvable.");
+            return back();
+        }
+
+        $data['prestataires'] = PrestataireLavage::orderBy('id', 'desc')->get();
+
+        return view('lavages.prestataires', $data);
+    }
+
+    public function storePrestataireLavage(Request $request)
+    {
+        $validated = $request->validate([
+            'nom' => 'required|string|max:191',
+            'responsable' => 'nullable|string|max:191',
+            'contact' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:191',
+            'adresse' => 'nullable|string',
+            'adresse_map' => 'nullable|string',
+            'longitude' => 'nullable|string|max:100',
+            'latitude' => 'nullable|string|max:100',
+            'statut' => 'nullable|boolean',
+        ]);
+
+        $validated['statut'] = $request->input('statut', 1);
+        PrestataireLavage::create($validated);
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Prestataire lavage créé avec succès.');
+
+        return back();
+    }
+
+    public function updatePrestataireLavage(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'nom' => 'required|string|max:191',
+            'responsable' => 'nullable|string|max:191',
+            'contact' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:191',
+            'adresse' => 'nullable|string',
+            'adresse_map' => 'nullable|string',
+            'longitude' => 'nullable|string|max:100',
+            'latitude' => 'nullable|string|max:100',
+            'statut' => 'nullable|boolean',
+        ]);
+
+        $prestataire = PrestataireLavage::find($id);
+        if (!$prestataire) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Prestataire lavage introuvable.');
+            return back();
+        }
+
+        $validated['statut'] = $request->input('statut', 1);
+        $prestataire->update($validated);
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Prestataire lavage modifié avec succès.');
+
+        return back();
+    }
+
+    public function destroyPrestataireLavage($id)
+    {
+        $prestataire = PrestataireLavage::find($id);
+        if (!$prestataire) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Prestataire lavage introuvable.');
+            return back();
+        }
+
+        if ($prestataire->demandes()->exists()) {
+            session()->flash('type', 'alert-warning');
+            session()->flash('message', 'Ce prestataire est déjà lié à des demandes de lavage.');
+            return back();
+        }
+
+        $prestataire->delete();
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Prestataire lavage supprimé avec succès.');
+
+        return back();
+    }
+
+    public function indexDemandeLavage()
+    {
+        $data['title'] = 'Demandes lavage';
+        $data['menu'] = 'demande_lavage';
+        $data['user'] = Auth::user();
+
+        if (empty($data['user'])) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', "L'utilisateur est introuvable.");
+            return back();
+        }
+
+        $data['demandes'] = DemandeLavage::with('prestataire')->orderBy('id', 'desc')->get();
+        $data['prestataires'] = PrestataireLavage::where('statut', 1)->orderBy('nom')->get();
+
+        return view('lavages.demandes', $data);
+    }
+
+    public function updateDemandeLavage(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'prestataire_lavage_id' => 'nullable|exists:prestataire_lavages,id',
+            'statut' => 'required|in:en_attente,attribuee,en_cours,terminee,annulee',
+            'commentaire_sat' => 'nullable|string',
+        ]);
+
+        $demande = DemandeLavage::find($id);
+        if (!$demande) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Demande lavage introuvable.');
+            return back();
+        }
+
+        if (!empty($validated['prestataire_lavage_id']) && empty($demande->date_attribution)) {
+            $validated['date_attribution'] = now();
+        }
+
+        if ($validated['statut'] === 'terminee' && empty($demande->date_fin)) {
+            $validated['date_fin'] = now();
+        }
+
+        DB::table('demande_lavages')->where('id', $demande->id)->update(array_merge($validated, [
+            'updated_at' => now(),
+        ]));
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Demande lavage mise à jour avec succès.');
+
         return back();
     }
 

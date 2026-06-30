@@ -113,8 +113,20 @@
          </li>
          <li class="nav-item {{ $menu == "promotions" ? 'active' : '' }}">
             <a class="nav-item-hold" href="{{ route('promotions.index') }}"
-               ><i class="nav-icon i-Double-Tap"></i
-               ><span class="nav-text">Promotions</span></a
+               ><i class="nav-icon i-Double-Tap"></i>
+               <span class="nav-text">Promotions</span></a
+               >
+            <div class="triangle"></div>
+         </li>
+         <li class="nav-item {{ $menu == "station_service" ? 'active' : '' }}">
+            <a class="nav-item-hold" href="{{ route('index-station_service') }}"
+               ><i class="nav-icon i-Double-Tap"></i><span class="nav-text">Stations service</span></a
+               >
+            <div class="triangle"></div>
+         </li>
+         <li class="nav-item {{ $menu == "tutos" ? 'active' : '' }}">
+            <a class="nav-item-hold" href="{{ route('index-tuto') }}"
+               ><i class="nav-icon i-File-Clipboard-File--Text"></i><span class="nav-text">Tutos</span></a
                >
             <div class="triangle"></div>
          </li>
@@ -434,7 +446,7 @@
             <li class="nav-item {{ $menu == "notifications" ? 'active' : '' }}">
                <a href="{{ route('notifications.index') }}"
                   ><i class="nav-icon i-Receipt-4"></i
-                  ><span class="item-name">Notifications</span></a
+                  ><span class="item-name">Notification</span></a
                   >
             </li>
             <!-- Notifications par type d'alerte -->

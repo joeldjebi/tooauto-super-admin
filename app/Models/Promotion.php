@@ -39,7 +39,7 @@ class Promotion extends Model
      */
     public function createdBy()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(Super::class, 'created_by');
     }
 
     /**

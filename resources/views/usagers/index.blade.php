@@ -32,6 +32,8 @@
                                     <th scope="col">Prénoms</th>
                                     <th scope="col">Mobile</th>
                                     <th scope="col">E-mail</th>
+                                    <th scope="col">Abonnement</th>
+                                    <th scope="col">Commercial</th>
                                     <th scope="col">Statut</th>
                                     <th scope="col">Actions</th>
                                 </tr>
@@ -114,6 +116,32 @@
                                         <td>{{ $item->prenoms }}</td>
                                         <td>{{ $item->indicatif }}{{ $item->mobile }}</td>
                                         <td>{{ $item->email }}</td>
+                                        <td>
+                                            @if($item->abonnement_affiche)
+                                                <div>
+                                                    <span class="badge badge-{{ $item->abonnement_est_actif ? 'success' : 'secondary' }}">
+                                                        {{ $item->abonnement_est_actif ? 'Actif' : 'Expiré/Inactif' }}
+                                                    </span>
+                                                </div>
+                                                <strong>{{ $item->abonnement_affiche->forfait_usager->libelle ?? 'Forfait non renseigné' }}</strong>
+                                                <div class="small text-muted">
+                                                    Du {{ $item->abonnement_affiche->date_debut }} au {{ $item->abonnement_affiche->date_fin }}
+                                                </div>
+                                                @if((int) $item->abonnement_affiche->is_free === 1)
+                                                    <div class="small text-info">Gratuit</div>
+                                                @endif
+                                            @else
+                                                <span class="badge badge-warning">Aucun abonnement</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($item->commercial)
+                                                <strong>{{ $item->commercial->nom }} {{ $item->commercial->prenoms }}</strong>
+                                                <div class="small text-muted">{{ $item->commercial->mobile }}</div>
+                                            @else
+                                                <span class="text-muted">Non enregistré par un commercial</span>
+                                            @endif
+                                        </td>
                                         <td>
                                             <span class="text-white badge bg-{{ $item->statut == 1 ? 'primary' : "danger" }} m-2">{{ $item->statut == 1 ? 'Activer' : "Desactiver" }}</span>
                                         </td>

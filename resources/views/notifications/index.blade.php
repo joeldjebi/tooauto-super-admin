@@ -238,13 +238,18 @@
                 <!-- Onglets -->
                 <ul class="nav nav-tabs mb-3" id="notificationTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="individual-tab" data-toggle="tab" data-target="#individual" type="button" role="tab" aria-controls="individual" aria-selected="true">
-                            Notification Individuelle
+                        <button class="nav-link active" id="all-tab" data-toggle="tab" data-target="#all" type="button" role="tab" aria-controls="all" aria-selected="true">
+                            Tous les usagers
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="individual-tab" data-toggle="tab" data-target="#individual" type="button" role="tab" aria-controls="individual" aria-selected="false">
+                            Un seul usager
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="multiple-tab" data-toggle="tab" data-target="#multiple" type="button" role="tab" aria-controls="multiple" aria-selected="false">
-                            Notifications Groupées (Tokens)
+                            Quelques usagers
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -261,8 +266,68 @@
 
                 <!-- Contenu des onglets -->
                 <div class="tab-content" id="notificationTabsContent">
+                    <!-- Notification a tous les usagers -->
+                    <div class="tab-pane fade show active" id="all" role="tabpanel" aria-labelledby="all-tab">
+                        <div class="card mt-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="card-title mb-0">Envoyer une notification à tous les usagers</h5>
+                                    <span class="badge badge-success" data-toggle="tooltip" data-placement="top" title="Tous les usagers avec un token FCM recevront la notification">
+                                        <i class="nav-icon i-Users"></i> Tous
+                                    </span>
+                                </div>
+                                <p class="text-muted mb-3">
+                                    <i class="nav-icon i-Info"></i>
+                                    Cette notification sera envoyée à tous les usagers qui ont un token FCM enregistré.
+                                    @if(!$users->isEmpty())
+                                        {{ $users->count() }} usager(s) disponible(s).
+                                    @endif
+                                </p>
+                                @if($users->isEmpty())
+                                    <div class="alert alert-warning">
+                                        <strong>Attention :</strong> Aucun usager avec un token FCM trouvé dans la base de données.
+                                        <br>Assurez-vous que les usagers ont enregistré leur token FCM dans le champ <code>fcm_token</code> de la table <code>users</code>.
+                                    </div>
+                                @endif
+                                <form action="{{ route('notifications.send-all') }}" method="POST">
+                                    @csrf
+                                    <div class="form-group mb-3">
+                                        <label for="title_all">
+                                            Titre <span class="text-danger">*</span>
+                                            <i class="nav-icon i-Information text-info ml-1" data-toggle="tooltip" data-placement="top" title="Titre de la notification visible dans la barre de notification (max 255 caractères)"></i>
+                                        </label>
+                                        <input type="text" class="form-control" id="title_all" name="title"
+                                               placeholder="Ex: Annonce importante, Nouvelle offre..." maxlength="255" required>
+                                        <small class="form-text text-muted">Apparaît dans la barre de notification de tous les usagers ciblés</small>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label for="body_all">
+                                            Message <span class="text-danger">*</span>
+                                            <i class="nav-icon i-Information text-info ml-1" data-toggle="tooltip" data-placement="top" title="Contenu principal de la notification visible par les usagers"></i>
+                                        </label>
+                                        <textarea class="form-control" id="body_all" name="body" rows="4"
+                                                  placeholder="Ex: Une nouvelle offre est disponible dans votre application." required></textarea>
+                                        <small class="form-text text-muted">Contenu principal visible par les usagers</small>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label for="data_all">
+                                            Données supplémentaires (JSON optionnel)
+                                            <i class="nav-icon i-Information text-info ml-1" data-toggle="tooltip" data-placement="top" title="Données personnalisées pour l'application mobile (navigation, actions, paramètres). Format JSON valide requis."></i>
+                                        </label>
+                                        <textarea class="form-control" id="data_all" name="data_json" rows="3"
+                                                  placeholder='{"action": "open_screen", "screen": "home"}'></textarea>
+                                        <small class="form-text text-muted">
+                                            <i class="nav-icon i-Info"></i> Format JSON valide. Utilisé pour la navigation et les actions dans l'application mobile.
+                                        </small>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" @if($users->isEmpty()) disabled @endif>Envoyer à tous les usagers</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Notification Individuelle -->
-                    <div class="tab-pane fade show active" id="individual" role="tabpanel" aria-labelledby="individual-tab">
+                    <div class="tab-pane fade" id="individual" role="tabpanel" aria-labelledby="individual-tab">
                         <div class="card mt-3">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -788,4 +853,3 @@ $(document).ready(function() {
     $('[data-toggle="tooltip"]').tooltip();
 });
 </script>
-

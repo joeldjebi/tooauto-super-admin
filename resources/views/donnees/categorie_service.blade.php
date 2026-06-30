@@ -35,7 +35,7 @@
                                     <th scope="col">Visible par défaut</th>
                                     <th scope="col">Accès expiré</th>
                                     <th scope="col">Accès via forfait</th>
-                                    <th scope="col">Sous catégorie</th>
+                                    <th scope="col">Sous-catégories</th>
                                     <th scope="col">Actions</th>
                                 </tr>
                             </thead>
@@ -59,15 +59,21 @@
                                                         </div>
                                                         <div class="col-md-12">
                                                             <div class="form-group">
-                                                                <label for="">Sous catégorie</label>
-                                                                <select class="form-control" name="sous_categorie_service_id">
-                                                                    <option value="">Aucune</option>
+                                                                <label for="">Sous-catégories</label>
+                                                                @php
+                                                                    $selectedSousCategories = old(
+                                                                        'sous_categorie_service_ids',
+                                                                        $item->sousCategorieServices->pluck('id')->all() ?: array_filter([$item->sous_categorie_service_id])
+                                                                    );
+                                                                @endphp
+                                                                <select class="form-control" name="sous_categorie_service_ids[]" multiple size="6">
                                                                     @foreach($sous_categorie_services as $sousCategorie)
-                                                                        <option value="{{ $sousCategorie->id }}" {{ (string) old('sous_categorie_service_id', $item->sous_categorie_service_id) === (string) $sousCategorie->id ? 'selected' : '' }}>
+                                                                        <option value="{{ $sousCategorie->id }}" {{ in_array($sousCategorie->id, (array) $selectedSousCategories) ? 'selected' : '' }}>
                                                                             {{ $sousCategorie->libelle }}
                                                                         </option>
                                                                     @endforeach
                                                                 </select>
+                                                                <small class="form-text text-muted">Maintenir Ctrl ou Cmd pour sélectionner plusieurs sous-catégories.</small>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-12">
@@ -172,7 +178,12 @@
                                         <td>{{ $item->visible_par_defaut == 1 ? 'Oui' : 'Non' }}</td>
                                         <td>{{ $item->accessible_abonnement_expire == 1 ? 'Oui' : 'Non' }}</td>
                                         <td>{{ $item->accessible_en_fonction_de_mon_abonnement_actif == 1 ? 'Oui' : 'Non' }}</td>
-                                        <td>{{ $item->sousCategorieService->libelle ?? '-' }}</td>
+                                        <td>
+                                            @php
+                                                $sousCategorieLabels = $item->sousCategorieServices->pluck('libelle')->all();
+                                            @endphp
+                                            {{ !empty($sousCategorieLabels) ? implode(', ', $sousCategorieLabels) : ($item->sousCategorieService->libelle ?? '-') }}
+                                        </td>
 
                                         <td>
                                             <a class="text-success mr-2" href="#" data-toggle="modal" data-target="#id{{ $item->id }}">
@@ -231,13 +242,15 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="">Sous catégorie</label>
-                                <select class="form-control" name="sous_categorie_service_id">
-                                    <option value="">Aucune</option>
+                                <label for="">Sous-catégories</label>
+                                <select class="form-control" name="sous_categorie_service_ids[]" multiple size="6">
                                     @foreach($sous_categorie_services as $sousCategorie)
-                                        <option value="{{ $sousCategorie->id }}">{{ $sousCategorie->libelle }}</option>
+                                        <option value="{{ $sousCategorie->id }}" {{ in_array($sousCategorie->id, (array) old('sous_categorie_service_ids', [])) ? 'selected' : '' }}>
+                                            {{ $sousCategorie->libelle }}
+                                        </option>
                                     @endforeach
                                 </select>
+                                <small class="form-text text-muted">Maintenir Ctrl ou Cmd pour sélectionner plusieurs sous-catégories.</small>
                             </div>
                             <div class="form-group">
                                 <label for="">Visible par défaut</label>
@@ -304,15 +317,16 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="">SS-catégorie</label>
-                                <select class="form-control" name="ss_categorie_service_id">
-                                    <option value="">Aucune</option>
+                                <label for="">SS-catégories</label>
+                                <input type="hidden" name="ss_categorie_service_ids" value="">
+                                <select class="form-control" name="ss_categorie_service_ids[]" multiple size="6">
                                     @foreach($ss_categorie_services as $ssCategorie)
-                                        <option value="{{ $ssCategorie->id }}" {{ (string) old('ss_categorie_service_id') === (string) $ssCategorie->id ? 'selected' : '' }}>
+                                        <option value="{{ $ssCategorie->id }}" {{ in_array($ssCategorie->id, (array) old('ss_categorie_service_ids', [])) ? 'selected' : '' }}>
                                             {{ $ssCategorie->libelle }}
                                         </option>
                                     @endforeach
                                 </select>
+                                <small class="form-text text-muted">Maintenir Ctrl ou Cmd pour sélectionner plusieurs SS-catégories.</small>
                             </div>
                             <div class="form-group">
                                 <label for="">Image</label>

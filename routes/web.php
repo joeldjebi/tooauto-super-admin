@@ -63,6 +63,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Routes pour les usagers
     Route::get('/usagers', [UsagerController::class, 'indexUsager'])->name('index-usagers');
+    Route::post('/usagers/{id}/change-forfait', [UsagerController::class, 'changeForfaitUsager'])->name('usager.change-forfait');
     Route::get('/usagers/{id}', [UsagerController::class, 'showUsager'])->name('usager.show');
     Route::post('/store-usagers', [UsagerController::class, 'storeUsager'])->name('store-usagers');
     Route::post('/update-usagers/{id}', [UsagerController::class, 'updateUsager'])->name('update-usagers');
@@ -86,6 +87,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/professionnels/{id}/activer', [ProfessionnelController::class, 'activer'])->name('professionnels.activer');
     Route::post('/professionnels/{id}/desactiver', [ProfessionnelController::class, 'desactiver'])->name('professionnels.desactiver');
 
+    // Routes pour les lavages de véhicules
+    Route::get('/prestataire-lavages', [DashboardController::class, 'indexPrestataireLavage'])->name('prestataire-lavages.index');
+    Route::post('/prestataire-lavages', [DashboardController::class, 'storePrestataireLavage'])->name('prestataire-lavages.store');
+    Route::post('/prestataire-lavages/{id}', [DashboardController::class, 'updatePrestataireLavage'])->name('prestataire-lavages.update');
+    Route::delete('/prestataire-lavages/{id}', [DashboardController::class, 'destroyPrestataireLavage'])->name('prestataire-lavages.destroy');
+    Route::get('/demande-lavages', [DashboardController::class, 'indexDemandeLavage'])->name('demande-lavages.index');
+    Route::post('/demande-lavages/{id}', [DashboardController::class, 'updateDemandeLavage'])->name('demande-lavages.update');
+
     // Routes pour les articles
     Route::get('/articles', [DashboardController::class, 'getAllArticle'])->name('index-article');
 
@@ -97,8 +106,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/concessionnaires-liste', [DashboardController::class, 'getConcessionnairesListe'])->name('concessionnaires.liste');
     Route::get('/concessionnaires-details/{id}', [DashboardController::class, 'getConcessionnaireDetails'])->name('concessionnaires.details');
 
-    // Routes pour les commerciaux
-    Route::get('/commerciaux', [DashboardController::class, 'getParrainageForCommerciaux'])->name('index-commercial');
+    // Routes pour les parrainages commerciaux
+    Route::get('/parrainages-commerciaux', [DashboardController::class, 'getParrainageForCommerciaux'])->name('parrainage-commercial');
 
     // Routes pour les services publics
     Route::get('/prefectures', [DashboardController::class, 'getPrefecture'])->name('index-prefecture');
@@ -221,9 +230,20 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/visite-technique-update/{id}', [DashboardController::class, 'updateVisiteTechnique'])->name('visite_technique.update');
     Route::get('/revisions-techniques', [DashboardController::class, 'getRevisionTechnique'])->name('index-revision-technique');
     Route::post('/revision-technique-update/{id}', [DashboardController::class, 'updateRevisionTechnique'])->name('revision_technique.update');
+    Route::get('/station-services', [DashboardController::class, 'indexStationService'])->name('index-station_service');
+    Route::post('/store-station-service', [DashboardController::class, 'storeStationService'])->name('store-station_service');
+    Route::post('/update-station-service/{id}', [DashboardController::class, 'updateStationService'])->name('update-station_service');
+    Route::delete('/delete-station-service/{id}', [DashboardController::class, 'destroyStationService'])->name('destroy-station_service');
     Route::get('/categories-tv', [DashboardController::class, 'getCategorieTv'])->name('index-categorie-tv');
     Route::get('/tv', [DashboardController::class, 'getTv'])->name('index-tv');
     Route::get('/informations', [DashboardController::class, 'getInfo'])->name('index-info');
+    Route::get('/tutos', [DashboardController::class, 'indexTuto'])->name('index-tuto');
+    Route::post('/store-tuto', [DashboardController::class, 'storeTuto'])->name('store-tuto');
+    Route::post('/update-tuto/{id}', [DashboardController::class, 'updateTuto'])->name('update-tuto');
+    Route::delete('/delete-tuto/{id}', [DashboardController::class, 'destroyTuto'])->name('delete-tuto');
+    Route::post('/store-categorie-tuto', [DashboardController::class, 'storeCategorieTuto'])->name('store-categorie-tuto');
+    Route::post('/update-categorie-tuto/{id}', [DashboardController::class, 'updateCategorieTuto'])->name('update-categorie-tuto');
+    Route::delete('/delete-categorie-tuto/{id}', [DashboardController::class, 'destroyCategorieTuto'])->name('delete-categorie-tuto');
     Route::post('/store-info', [DashboardController::class, 'storeInfo'])->name('store-info');
     Route::post('/update-info/{id}', [DashboardController::class, 'updateInfo'])->name('update-info');
     Route::delete('/delete-info/{id}', [DashboardController::class, 'destroyInfo'])->name('delete-info');
@@ -318,12 +338,17 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/delete-commercial/{id}', [CommercialController::class, 'destroy'])->name('commercial.destroy');
     Route::post('/commercial/{id}/activer', [CommercialController::class, 'activer'])->name('commercial.activer');
     Route::post('/commercial/{id}/desactiver', [CommercialController::class, 'desactiver'])->name('commercial.desactiver');
+    
     Route::get('/commerciaux/{code}/filleuls', [CommercialController::class, 'filleulsParCode'])->name('commercial.filleuls');
+    Route::post('/commercial-wallet/commission-setting', [CommercialController::class, 'updateCommissionSetting'])->name('commercial.wallet.commission-setting');
+    Route::post('/commercial-wallet/{id}/payout', [CommercialController::class, 'payout'])->name('commercial.wallet.payout');
+    Route::get('/commercial-wallet/{id}/historique', [CommercialController::class, 'walletHistory'])->name('commercial.wallet.history');
 
     // Routes pour les notifications Firebase (individuelles et groupées)
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/send-device', [NotificationController::class, 'sendToDevice'])->name('notifications.send-device');
     Route::post('/notifications/send-multiple', [NotificationController::class, 'sendToMultipleDevices'])->name('notifications.send-multiple');
+    Route::post('/notifications/send-all', [NotificationController::class, 'sendToAllDevices'])->name('notifications.send-all');
     Route::post('/notifications/send-topic', [NotificationController::class, 'sendToTopic'])->name('notifications.send-topic');
     Route::post('/notifications/send-topics', [NotificationController::class, 'sendToMultipleTopics'])->name('notifications.send-topics');
 
@@ -357,6 +382,7 @@ Route::prefix('call-center')->group(function () {
         Route::get('/annonce-etablissements', [CallCenterSpaceController::class, 'annonceEtablissements'])->name('call-center.annonce-etablissements');
         Route::get('/concessionnaires', [CallCenterSpaceController::class, 'concessionnaires'])->name('call-center.concessionnaires');
         Route::get('/etablissements', [CallCenterSpaceController::class, 'etablissements'])->name('call-center.etablissements');
+        Route::post('/etablissements/{etablissement}/suivi-appel', [CallCenterSpaceController::class, 'updateEtablissementCallFollowUp'])->name('call-center.etablissements.suivi-appel');
         Route::get('/etablissements/{etablissement}/articles', [CallCenterSpaceController::class, 'etablissementArticles'])->name('call-center.etablissements.articles');
         Route::get('/etablissements/{etablissement}/promotions', [CallCenterSpaceController::class, 'etablissementPromotions'])->name('call-center.etablissements.promotions');
         Route::get('/etablissements/{etablissement}/abonnements', [CallCenterSpaceController::class, 'etablissementAbonnements'])->name('call-center.etablissements.abonnements');

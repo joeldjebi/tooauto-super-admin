@@ -910,6 +910,12 @@ class CallCenterSpaceController extends Controller
             'type_vehicule' => 'Type de vehicule',
             'statut' => 'Statut',
         ];
+
+        if ($this->hasColumn('annonce_concessionnaires', 'created_at')) {
+            $selects[] = 'annonce_concessionnaires.created_at as date_creation';
+            $columns['date_creation'] = 'Date creation';
+        }
+
         $searchColumns = [
             'users.nom',
             'users.prenoms',
@@ -1100,6 +1106,8 @@ class CallCenterSpaceController extends Controller
     {
         $villeLabel = $this->resolveLabelColumn('villes');
         $communeLabel = $this->resolveLabelColumn('communes');
+        $hasCallFollowUp = $this->hasColumn('etablissements', 'call_center_deja_appele')
+            && $this->hasColumn('etablissements', 'call_center_commentaire');
 
         $query = DB::table('etablissements')
             ->leftJoin('professionnels', 'professionnels.id', '=', 'etablissements.professionnel_id');
@@ -1112,15 +1120,6 @@ class CallCenterSpaceController extends Controller
             'etablissements.adresse',
             DB::raw("TRIM(CONCAT(COALESCE(professionnels.prenoms, ''), ' ', COALESCE(professionnels.nom, ''))) as professionnel"),
             'etablissements.statut',
-            DB::raw("
-                CONCAT(
-                    '<div class=\"d-flex flex-wrap gap-1\">',
-                    '<a class=\"btn btn-sm btn-outline-primary mr-1 mb-1\" href=\"', '" . route('call-center.etablissements') . "/', etablissements.id, '/articles', '\">Articles</a>',
-                    '<a class=\"btn btn-sm btn-outline-warning mr-1 mb-1\" href=\"', '" . route('call-center.etablissements') . "/', etablissements.id, '/promotions', '\">Promotions</a>',
-                    '<a class=\"btn btn-sm btn-outline-success mb-1\" href=\"', '" . route('call-center.etablissements') . "/', etablissements.id, '/abonnements', '\">Abonnements</a>',
-                    '</div>'
-                ) as actions
-            "),
         ];
         $columns = [
             'name' => 'Nom',
@@ -1131,6 +1130,16 @@ class CallCenterSpaceController extends Controller
             'professionnel' => 'Professionnel',
             'actions' => 'Actions',
         ];
+
+        if ($this->hasColumn('etablissements', 'created_at')) {
+            $selects[] = 'etablissements.created_at as date_creation';
+            $columns['date_creation'] = 'Date creation';
+        }
+
+        if ($hasCallFollowUp) {
+            $selects[] = 'etablissements.call_center_deja_appele';
+            $selects[] = 'etablissements.call_center_commentaire';
+        }
 
         if (Schema::hasTable('categorie_services') && $this->hasColumn('etablissements', 'categorie_service_id')) {
             $query->leftJoin('categorie_services', 'categorie_services.id', '=', 'etablissements.categorie_service_id');
@@ -1230,6 +1239,47 @@ class CallCenterSpaceController extends Controller
                 $this->statusFilter($request->input('statut')),
             ]
         );
+    }
+
+    public function updateEtablissementCallFollowUp(Request $request, int $etablissement)
+    {
+        abort_unless(Schema::hasTable('etablissements'), 404);
+        abort_unless($this->hasColumn('etablissements', 'call_center_deja_appele'), 404);
+        abort_unless($this->hasColumn('etablissements', 'call_center_commentaire'), 404);
+
+        $request->validate([
+            'call_center_deja_appele' => ['sometimes', 'required', 'boolean'],
+            'call_center_commentaire' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $current = DB::table('etablissements')
+            ->where('id', $etablissement)
+            ->first(['id', 'call_center_deja_appele', 'call_center_commentaire']);
+
+        abort_unless($current, 404);
+
+        $dejaAppele = $request->has('call_center_deja_appele')
+            ? $request->boolean('call_center_deja_appele')
+            : (bool) $current->call_center_deja_appele;
+
+        $data = ['call_center_deja_appele' => $dejaAppele];
+
+        if ($request->has('call_center_commentaire')) {
+            $data['call_center_commentaire'] = $request->input('call_center_commentaire');
+        }
+
+        if ($this->hasColumn('etablissements', 'call_center_called_at')) {
+            $data['call_center_called_at'] = $dejaAppele ? now() : null;
+        }
+
+        DB::table('etablissements')
+            ->where('id', $etablissement)
+            ->update($data);
+
+        return back()->with([
+            'type' => 'alert-success',
+            'message' => 'Suivi appel enregistre avec succes.',
+        ]);
     }
 
     public function etablissementArticles(Request $request, int $etablissement)
@@ -1435,12 +1485,22 @@ class CallCenterSpaceController extends Controller
         string $menu,
         Builder $query,
         array $columns,
-        array $filters
+        array $filters,
+        ?callable $decorateRows = null
     ) {
+        if (array_key_exists('date_creation', $columns)) {
+            $this->applyDateCreationFilter($query, $request);
+            $filters = array_merge($filters, $this->dateCreationFilters($request));
+        }
+
         $items = $query
             ->orderByDesc($this->resolveOrderColumn(array_keys($columns)))
             ->paginate(15)
             ->withQueryString();
+
+        if ($decorateRows !== null) {
+            $items->setCollection($items->getCollection()->map($decorateRows));
+        }
 
         return view('call-centers.table', [
             'title' => $title,
@@ -1515,6 +1575,35 @@ class CallCenterSpaceController extends Controller
         }
 
         $query->where("{$table}.statut", $status);
+    }
+
+    private function applyDateCreationFilter(Builder $query, Request $request): void
+    {
+        if ($request->filled('date_from')) {
+            $query->havingRaw('DATE(date_creation) >= ?', [$request->input('date_from')]);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->havingRaw('DATE(date_creation) <= ?', [$request->input('date_to')]);
+        }
+    }
+
+    private function dateCreationFilters(Request $request): array
+    {
+        return [
+            [
+                'name' => 'date_from',
+                'label' => 'Date debut',
+                'type' => 'date',
+                'value' => $request->input('date_from', ''),
+            ],
+            [
+                'name' => 'date_to',
+                'label' => 'Date fin',
+                'type' => 'date',
+                'value' => $request->input('date_to', ''),
+            ],
+        ];
     }
 
     private function resolveOrderColumn(array $aliases): string

@@ -51,4 +51,13 @@ class Commercial extends Model
     {
         return $this->belongsTo(Parrain::class, 'parrain_id');
     }
+    public function wallet()
+    {
+        return $this->hasOne(CommercialWallet::class, 'commercial_id');
+    }
+
+    public function walletTransactions()
+    {
+        return $this->hasMany(CommercialWalletTransaction::class, 'commercial_id');
+    }
 }

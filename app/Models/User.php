@@ -45,4 +45,12 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Commercial::class, 'commercial_id');
     }
+
+    /**
+     * Relation avec les abonnements usagers
+     */
+    public function abonnementUsagers()
+    {
+        return $this->hasMany(Abonnement_usager::class, 'user_id');
+    }
 }
