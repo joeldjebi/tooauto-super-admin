@@ -320,7 +320,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/etablissement.toggleStatus', [EtablissementController::class, 'toggleStatusEtablissement'])->name('etablissement.toggleStatus');
 
     // Routes pour les promotions
-    Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
+    // Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
+    Route::get('/promotions', 'App\Http\Controllers\PromotionController@index')->name('promotions.index');
     Route::get('/promotions/create', [PromotionController::class, 'create'])->name('promotions.create');
     Route::post('/promotions', [PromotionController::class, 'store'])->name('promotions.store');
     Route::get('/promotions/{id}', [PromotionController::class, 'show'])->name('promotions.show');
@@ -338,7 +339,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/delete-commercial/{id}', [CommercialController::class, 'destroy'])->name('commercial.destroy');
     Route::post('/commercial/{id}/activer', [CommercialController::class, 'activer'])->name('commercial.activer');
     Route::post('/commercial/{id}/desactiver', [CommercialController::class, 'desactiver'])->name('commercial.desactiver');
-    
+
     Route::get('/commerciaux/{code}/filleuls', [CommercialController::class, 'filleulsParCode'])->name('commercial.filleuls');
     Route::post('/commercial-wallet/commission-setting', [CommercialController::class, 'updateCommissionSetting'])->name('commercial.wallet.commission-setting');
     Route::post('/commercial-wallet/{id}/payout', [CommercialController::class, 'payout'])->name('commercial.wallet.payout');
