@@ -23,6 +23,7 @@ class PromotionController extends Controller
      */
     public function index(Request $request)
     {
+
         $query = Promotion::with(['etablissement:id,name', 'createdBy:id,nom,prenoms,email']);
 
         // Filtres
@@ -204,13 +205,13 @@ class PromotionController extends Controller
     public function toggleStatus($id)
     {
         $promotion = Promotion::findOrFail($id);
-        
+
         $promotion->update([
             'statut' => $promotion->statut ? 0 : 1
         ]);
 
         $status = $promotion->statut ? 'activée' : 'désactivée';
-        
+
         return redirect()->route('promotions.index')
             ->with('success', "Promotion {$status} avec succès.");
     }
