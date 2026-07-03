@@ -21,7 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Routing\Redirector; 
+use Illuminate\Routing\Redirector;
 use Session;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -63,7 +63,7 @@ class UsagerController extends Controller
         });
 
         // dd($data["usagers"]);
-        
+
         return view('usagers.index',$data);
     }
 
@@ -91,7 +91,7 @@ class UsagerController extends Controller
             'prenoms' => 'required|string',
             'statut' => 'required',
         ]);
-    
+
         // Récupérer la catégorie
         $usager = User::find($id);
         if (!$usager) {
@@ -99,7 +99,7 @@ class UsagerController extends Controller
             session()->flash('message', 'Usager introuvable');
             return back();
         }
-    
+
         // Mise à jour du libellé
         $usager->email = html_entity_decode($request->email);
         $usager->indicatif = html_entity_decode($request->indicatif);
@@ -107,7 +107,7 @@ class UsagerController extends Controller
         $usager->nom = html_entity_decode($request->nom);
         $usager->prenoms = html_entity_decode($request->prenoms);
         $usager->statut = html_entity_decode($request->statut);
-    
+
         // Sauvegarde des modifications
         if ($usager->save()) {
             session()->flash('type', 'alert-success');
@@ -116,7 +116,7 @@ class UsagerController extends Controller
             session()->flash('type', 'alert-danger');
             session()->flash('message', 'Une erreur est survenue lors de la mise à jour');
         }
-    
+
         return back();
     }
 
@@ -227,7 +227,7 @@ class UsagerController extends Controller
         return back();
     }
 
-    
+
 
     /**
      * Display the specified resource.
@@ -277,7 +277,7 @@ class UsagerController extends Controller
         $vehiculeFilter = $request->get('vehicule_filter', '');
         $alertFilter = $request->get('alert_filter', '');
         $concessionnaireFilter = $request->get('concessionnaire_filter', '');
-        
+
         // Paramètres de pagination personnalisés
         $perPage = $request->get('per_page', 10); // 10 éléments par défaut
         $perPage = in_array($perPage, [5, 10, 25, 50]) ? $perPage : 10; // Sécurité
@@ -329,7 +329,7 @@ class UsagerController extends Controller
         $concessionnairesQuery = AnnonceConcessionnaire::select(['id', 'type_de_demande_id', 'type_de_vehicule_id', 'marque_id', 'modele', 'concessionaire_id', 'statut', 'created_at'])
             ->with([
                 'typeDeDemande:id,libelle',
-                'typeDeVehicule:id,libelle', 
+                'typeDeVehicule:id,libelle',
                 'marque:id,libelle',
                 'concessionnaire:id,name'
             ])
@@ -345,7 +345,7 @@ class UsagerController extends Controller
 
         // Debug: Vérifier les types d'alertes disponibles
         $data["debug_type_alerts"] = \App\Models\Type_alert::all();
-        
+
         // Debug: Vérifier une alerte spécifique
         if ($data["alerts"]->count() > 0) {
             $firstAlert = $data["alerts"]->first();
@@ -393,7 +393,10 @@ class UsagerController extends Controller
             $dateDebut = $lastActiveAbonnement
                 ? Carbon::parse($lastActiveAbonnement->date_fin)->addDay()
                 : $today;
-            $dateFin = $dateDebut->copy()->addDays((int) $forfait->duree);
+            $months = max(0, (int) $forfait->duree);
+            $dateFin = $months > 0
+                ? $dateDebut->copy()->addMonths($months)->subDay()
+                : $dateDebut->copy();
 
             $abonnement = Abonnement_usager::create([
                 'user_id' => $usager->id,
