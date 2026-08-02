@@ -6,6 +6,8 @@ use App\Models\NotificationCampaign;
 use App\Models\NotificationCampaignLog;
 use App\Models\Type_alert;
 use App\Models\User;
+use App\Models\Ville;
+use App\Models\Commune;
 use App\Services\NotificationCampaignService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +28,12 @@ class NotificationCampaignController extends Controller
         $data['audienceType'] = $audienceType;
         $data['filters'] = $filters;
         $data['typeAlerts'] = Type_alert::orderBy('libelle')->get(['id', 'libelle']);
+        $data['userFilterColumns'] = $this->notificationUserFilterColumns();
+        $data['villes'] = Schema::hasTable('villes') ? Ville::orderBy('libelle')->get(['id', 'libelle']) : collect();
+        $communeNameColumn = Schema::hasColumn('communes', 'libelle') ? 'libelle' : 'nom';
+        $data['communes'] = Schema::hasTable('communes') && Schema::hasColumn('communes', $communeNameColumn)
+            ? Commune::select('id', 'ville_id')->selectRaw($communeNameColumn . ' as libelle')->orderBy($communeNameColumn)->get()
+            : collect();
         $data['selectedUsers'] = $this->selectedUsers($filters);
         $data['previewUsers'] = $service->audienceQuery($audienceType, $filters)
             ->paginate(20, ['*'], 'users_page')
@@ -194,15 +202,21 @@ class NotificationCampaignController extends Controller
 
         if ($audienceType === NotificationCampaign::AUDIENCE_ALERT_EXPIRATION) {
             return collect($filters)
-                ->only(['type_alert_id', 'expires_mode', 'days', 'date_from', 'date_to', 'keyword'])
+                ->only(['type_alert_id', 'expires_mode', 'days', 'date_from', 'date_to', 'keyword', 'statut', 'ville_id', 'commune_id'])
                 ->all();
         }
 
         return collect($filters)
-            ->only(['user_ids', 'keyword'])
+            ->only(['user_ids', 'keyword', 'statut', 'ville_id', 'commune_id'])
             ->all();
     }
 
+    private function notificationUserFilterColumns(): array
+    {
+        return collect(['statut', 'ville_id', 'commune_id'])
+            ->mapWithKeys(fn ($column) => [$column => Schema::hasColumn('users', $column)])
+            ->all();
+    }
     private function selectedUsers(array $filters)
     {
         $ids = $filters['user_ids'] ?? [];

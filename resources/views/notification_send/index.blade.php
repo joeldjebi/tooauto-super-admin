@@ -90,6 +90,35 @@
                         <input type="text" name="filters[keyword]" class="form-control" value="{{ $filters['keyword'] ?? '' }}" placeholder="Nom, téléphone, email">
                     </div>
 
+                    <div class="form-row" data-notification-user-filters>
+                        <div class="form-group col-md-4">
+                            <label>Statut</label>
+                            <select name="filters[statut]" class="form-control" {{ ($userFilterColumns['statut'] ?? false) ? '' : 'disabled' }}>
+                                <option value="">Tous</option>
+                                <option value="1" {{ ($filters['statut'] ?? '') === '1' ? 'selected' : '' }}>Actifs</option>
+                                <option value="0" {{ ($filters['statut'] ?? '') === '0' ? 'selected' : '' }}>Inactifs</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Ville</label>
+                            <select name="filters[ville_id]" class="form-control js-ville-select" {{ ($userFilterColumns['ville_id'] ?? false) ? '' : 'disabled' }}>
+                                <option value="">Toutes</option>
+                                @foreach($villes as $ville)
+                                    <option value="{{ $ville->id }}" {{ ($filters['ville_id'] ?? '') == $ville->id ? 'selected' : '' }}>{{ $ville->libelle }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Commune</label>
+                            <select name="filters[commune_id]" class="form-control js-commune-select" {{ ($userFilterColumns['commune_id'] ?? false) ? '' : 'disabled' }}>
+                                <option value="">Toutes</option>
+                                @foreach($communes as $commune)
+                                    <option value="{{ $commune->id }}" data-ville-id="{{ $commune->ville_id }}" {{ ($filters['commune_id'] ?? '') == $commune->id ? 'selected' : '' }}>{{ $commune->libelle }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
                     @if($audienceType === 'selected_users')
                         <div class="form-group">
                             <label>IDs users manuels</label>
@@ -327,6 +356,37 @@
             return;
         }
 
+        function syncCommunes() {
+            var wrapper = document.querySelector('[data-notification-user-filters]');
+            if (!wrapper) {
+                return;
+            }
+
+            var villeSelect = wrapper.querySelector('.js-ville-select');
+            var communeSelect = wrapper.querySelector('.js-commune-select');
+            if (!villeSelect || !communeSelect || villeSelect.disabled || communeSelect.disabled) {
+                return;
+            }
+
+            var villeId = villeSelect.value;
+            var selectedOptionHidden = false;
+            Array.prototype.forEach.call(communeSelect.options, function (option) {
+                if (!option.value) {
+                    option.hidden = false;
+                    return;
+                }
+
+                var visible = !villeId || option.getAttribute('data-ville-id') === villeId;
+                option.hidden = !visible;
+                if (option.selected && !visible) {
+                    selectedOptionHidden = true;
+                }
+            });
+
+            if (selectedOptionHidden) {
+                communeSelect.value = '';
+            }
+        }
         function syncSelectedUsers() {
             holder.innerHTML = '';
             Array.prototype.forEach.call(document.querySelectorAll('.js-user-checkbox:checked'), function (checkbox) {
@@ -338,6 +398,11 @@
             });
         }
 
+        var villeSelect = document.querySelector('[data-notification-user-filters] .js-ville-select');
+        if (villeSelect) {
+            villeSelect.addEventListener('change', syncCommunes);
+        }
+        syncCommunes();
         Array.prototype.forEach.call(document.querySelectorAll('.js-user-checkbox'), function (checkbox) {
             checkbox.addEventListener('change', syncSelectedUsers);
         });

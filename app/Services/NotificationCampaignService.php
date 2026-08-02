@@ -62,6 +62,9 @@ class NotificationCampaignService
                 ->orderBy('alerts.date_fin');
         }
 
+        $this->whereIfUserColumn($query, 'statut', $filters['statut'] ?? null);
+        $this->whereIfUserColumn($query, 'ville_id', $filters['ville_id'] ?? null);
+        $this->whereIfUserColumn($query, 'commune_id', $filters['commune_id'] ?? null);
         if (!empty($filters['keyword'])) {
             $keyword = '%' . trim($filters['keyword']) . '%';
             $query->where(function ($q) use ($keyword) {
@@ -176,6 +179,12 @@ class NotificationCampaignService
         }
     }
 
+    private function whereIfUserColumn(Builder $query, string $column, $value): void
+    {
+        if ($value !== null && $value !== '' && Schema::hasColumn('users', $column)) {
+            $query->where('users.' . $column, $value);
+        }
+    }
     private function buildPushData(NotificationCampaign $campaign): array
     {
         return array_filter([
