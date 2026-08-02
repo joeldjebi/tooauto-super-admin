@@ -104,7 +104,10 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4 class="card-title mb-0">Messages conseils</h4>
-                    <span class="text-muted">{{ $messages->total() }} élément(s)</span>
+                    <div>
+                        <a href="{{ route('message-conseils.logs') }}" class="btn btn-outline-info btn-sm mr-2">Logs</a>
+                        <span class="text-muted">{{ $messages->total() }} élément(s)</span>
+                    </div>
                 </div>
 
                 <div class="table-responsive">
@@ -158,7 +161,8 @@
                                         @endphp
                                         <span class="badge {{ $classes[$message->status] ?? 'badge-secondary' }}">{{ $labels[$message->status] ?? $message->status }}</span>
                                     </td>
-                                    <td style="min-width: 230px;">
+                                    <td style="min-width: 270px;">
+                                        <a href="{{ route('message-conseils.logs', ['message_conseil_id' => $message->id]) }}" class="btn btn-sm btn-outline-info">Logs</a>
                                         @if($message->status !== 'sending')
                                             <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#editMessageConseil{{ $message->id }}">Modifier</button>
                                         @endif

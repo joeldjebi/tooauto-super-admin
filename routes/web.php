@@ -349,6 +349,7 @@ Route::middleware(['auth'])->group(function () {
     // Routes pour les messages conseils programmés
     Route::get('/message-conseils', [DashboardController::class, 'indexMessageConseil'])->name('message-conseils.index');
     Route::post('/message-conseils', [DashboardController::class, 'storeMessageConseil'])->name('message-conseils.store');
+    Route::get('/message-conseils/logs', [DashboardController::class, 'logsMessageConseil'])->name('message-conseils.logs');
     Route::post('/message-conseils/{messageConseil}/update', [DashboardController::class, 'updateMessageConseil'])->name('message-conseils.update');
     Route::post('/message-conseils/{messageConseil}/send-now', [DashboardController::class, 'sendMessageConseilNow'])->name('message-conseils.send-now');
     Route::post('/message-conseils/{messageConseil}/cancel', [DashboardController::class, 'cancelMessageConseil'])->name('message-conseils.cancel');

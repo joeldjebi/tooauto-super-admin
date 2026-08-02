@@ -58,6 +58,7 @@ use App\Models\AnnonceConcessionnaire;
 use App\Models\RdvConcessionnaire;
 use App\Models\UserConcessionnaire;
 use App\Models\MessageConseil;
+use App\Models\MessageConseilLog;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
@@ -134,6 +135,61 @@ class DashboardController extends Controller
         return view('message_conseils.index', $data);
     }
 
+    public function logsMessageConseil(Request $request)
+    {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+
+        $query = MessageConseilLog::query()
+            ->with(['messageConseil:id,title,status', 'user'])
+            ->latest('sent_at')
+            ->latest('created_at');
+
+        if ($request->filled('message_conseil_id')) {
+            $query->where('message_conseil_id', $request->message_conseil_id);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('sent_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('sent_at', '<=', $request->date_to);
+        }
+
+        if ($request->filled('keyword')) {
+            $keyword = '%' . trim($request->keyword) . '%';
+            $query->where(function ($q) use ($keyword) {
+                $q->where('fcm_token', 'like', $keyword)
+                    ->orWhere('error_message', 'like', $keyword)
+                    ->orWhereHas('user', function ($userQuery) use ($keyword) {
+                        foreach (['nom', 'prenoms', 'name', 'email', 'telephone', 'mobile'] as $column) {
+                            if (Schema::hasColumn('users', $column)) {
+                                $userQuery->orWhere($column, 'like', $keyword);
+                            }
+                        }
+                    });
+            });
+        }
+
+        $data['title'] = 'Logs messages conseils';
+        $data['menu'] = 'message-conseils';
+        $data['logs'] = $query->paginate(25)->appends($request->query());
+        $data['messages'] = MessageConseil::orderBy('created_at', 'desc')->get(['id', 'title', 'status', 'sent_at', 'scheduled_at']);
+        $data['selectedMessage'] = $request->filled('message_conseil_id')
+            ? MessageConseil::find($request->message_conseil_id)
+            : null;
+        $data['stats'] = [
+            'total' => MessageConseilLog::count(),
+            'sent' => MessageConseilLog::where('status', 'sent')->count(),
+            'failed' => MessageConseilLog::where('status', 'failed')->count(),
+        ];
+
+        return view('message_conseils.logs', $data);
+    }
     public function storeMessageConseil(Request $request, MessageConseilService $messageConseilService)
     {
         abort_unless(auth()->user()?->isSuperAdmin(), 403);

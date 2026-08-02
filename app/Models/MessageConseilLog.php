@@ -26,4 +26,9 @@ class MessageConseilLog extends Model
     {
         return $this->belongsTo(MessageConseil::class);
     }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
