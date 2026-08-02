@@ -9,7 +9,7 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule): void
     {
-        //
+        $schedule->command('message-conseils:send-due')->everyMinute()->withoutOverlapping();
     }
 
     protected function commands(): void

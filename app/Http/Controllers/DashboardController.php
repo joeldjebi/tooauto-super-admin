@@ -57,6 +57,7 @@ use App\Models\VehiculeConcessionnaire;
 use App\Models\AnnonceConcessionnaire;
 use App\Models\RdvConcessionnaire;
 use App\Models\UserConcessionnaire;
+use App\Models\MessageConseil;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
@@ -67,6 +68,7 @@ use App\Models\Station;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Services\WasabiService;
+use App\Services\MessageConseilService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -110,6 +112,132 @@ class DashboardController extends Controller
 
 
         return view('dashboard',$data);
+    }
+    public function indexMessageConseil(Request $request, MessageConseilService $messageConseilService)
+    {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+
+        $filters = $this->cleanMessageConseilFilters($request->input('filters', []));
+
+        $data['title'] = 'Messages conseils';
+        $data['menu'] = 'message-conseils';
+        $data['messages'] = MessageConseil::orderBy('created_at', 'desc')->paginate(12);
+        $data['villes'] = Schema::hasTable('villes') ? Ville::orderBy('libelle')->get(['id', 'libelle']) : collect();
+        $data['communes'] = Schema::hasTable('communes') ? Commune::orderBy('libelle')->get(['id', 'libelle', 'ville_id']) : collect();
+        $data['availableColumns'] = $this->messageConseilUserColumns();
+        $data['previewFilters'] = $filters;
+        $data['previewCount'] = $messageConseilService->countAudience($filters);
+
+        return view('message_conseils.index', $data);
+    }
+
+    public function storeMessageConseil(Request $request, MessageConseilService $messageConseilService)
+    {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'body' => 'required|string|max:1000',
+            'image_url' => 'nullable|url|max:500',
+            'action_url' => 'nullable|url|max:500',
+            'scheduled_at' => 'nullable|date',
+            'send_now' => 'nullable|boolean',
+            'filters' => 'nullable|array',
+        ]);
+
+        $sendNow = $request->boolean('send_now');
+        $scheduledAt = $sendNow ? now() : ($validated['scheduled_at'] ?? null);
+
+        if (!$sendNow && empty($scheduledAt)) {
+            return back()->withErrors(['scheduled_at' => 'Choisissez une date de programmation ou envoyez maintenant.'])->withInput();
+        }
+
+        $message = MessageConseil::create([
+            'title' => html_entity_decode($validated['title']),
+            'body' => html_entity_decode($validated['body']),
+            'image_url' => $validated['image_url'] ?? null,
+            'action_url' => $validated['action_url'] ?? null,
+            'filters' => $this->cleanMessageConseilFilters($validated['filters'] ?? []),
+            'scheduled_at' => $scheduledAt,
+            'status' => $sendNow ? MessageConseil::STATUS_SENDING : MessageConseil::STATUS_SCHEDULED,
+            'created_by' => Auth::id(),
+        ]);
+
+        if ($sendNow) {
+            $result = $messageConseilService->send($message);
+            session()->flash('type', $result['success'] ? 'alert-success' : 'alert-danger');
+            session()->flash('message', $result['message']);
+
+            return redirect()->route('message-conseils.index');
+        }
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Message conseil programmé avec succès.');
+
+        return redirect()->route('message-conseils.index');
+    }
+
+    public function sendMessageConseilNow(MessageConseil $messageConseil, MessageConseilService $messageConseilService)
+    {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+
+        if (in_array($messageConseil->status, [MessageConseil::STATUS_SENT, MessageConseil::STATUS_SENDING], true)) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Ce message ne peut pas être envoyé à nouveau depuis cette action.');
+            return back();
+        }
+
+        $result = $messageConseilService->send($messageConseil);
+        session()->flash('type', $result['success'] ? 'alert-success' : 'alert-danger');
+        session()->flash('message', $result['message']);
+
+        return back();
+    }
+
+    public function cancelMessageConseil(MessageConseil $messageConseil)
+    {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+
+        if ($messageConseil->status !== MessageConseil::STATUS_SCHEDULED) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Seuls les messages programmés peuvent être annulés.');
+            return back();
+        }
+
+        $messageConseil->update(['status' => MessageConseil::STATUS_CANCELLED]);
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Programmation annulée.');
+
+        return back();
+    }
+
+    public function destroyMessageConseil(MessageConseil $messageConseil)
+    {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+
+        $messageConseil->delete();
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Message conseil supprimé.');
+
+        return back();
+    }
+
+    private function cleanMessageConseilFilters(array $filters): array
+    {
+        return collect($filters)
+            ->map(fn ($value) => is_string($value) ? trim($value) : $value)
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->only(['keyword', 'statut', 'ville_id', 'commune_id', 'quartier', 'commercial_id', 'indicatif', 'created_from', 'created_to'])
+            ->all();
+    }
+
+    private function messageConseilUserColumns(): array
+    {
+        return collect(['statut', 'ville_id', 'commune_id', 'quartier', 'commercial_id', 'indicatif'])
+            ->mapWithKeys(fn ($column) => [$column => Schema::hasColumn('users', $column)])
+            ->all();
     }
 
     private function getEtablissementsByCommune()

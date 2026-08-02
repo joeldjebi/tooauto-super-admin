@@ -26,6 +26,13 @@
             </a>
             <div class="triangle"></div>
          </li>
+         <li class="nav-item {{ $menu == "message-conseils" ? 'active' : '' }}">
+            <a class="nav-item-hold" href="{{ route('message-conseils.index') }}">
+               <i class="nav-icon i-Speach-Bubble-Dialog"></i>
+               <span class="nav-text">Messages conseils</span>
+            </a>
+            <div class="triangle"></div>
+         </li>
          @endif
          <li class="nav-item" data-item="uikits">
             <a class="nav-item-hold" href="#"

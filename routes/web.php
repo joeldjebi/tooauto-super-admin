@@ -345,6 +345,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/commercial-wallet/{id}/payout', [CommercialController::class, 'payout'])->name('commercial.wallet.payout');
     Route::get('/commercial-wallet/{id}/historique', [CommercialController::class, 'walletHistory'])->name('commercial.wallet.history');
 
+
+    // Routes pour les messages conseils programmés
+    Route::get('/message-conseils', [DashboardController::class, 'indexMessageConseil'])->name('message-conseils.index');
+    Route::post('/message-conseils', [DashboardController::class, 'storeMessageConseil'])->name('message-conseils.store');
+    Route::post('/message-conseils/{messageConseil}/send-now', [DashboardController::class, 'sendMessageConseilNow'])->name('message-conseils.send-now');
+    Route::post('/message-conseils/{messageConseil}/cancel', [DashboardController::class, 'cancelMessageConseil'])->name('message-conseils.cancel');
+    Route::delete('/message-conseils/{messageConseil}', [DashboardController::class, 'destroyMessageConseil'])->name('message-conseils.destroy');
+
     // Routes pour les notifications Firebase (individuelles et groupées)
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/send-device', [NotificationController::class, 'sendToDevice'])->name('notifications.send-device');
