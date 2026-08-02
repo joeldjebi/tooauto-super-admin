@@ -123,7 +123,10 @@ class DashboardController extends Controller
         $data['menu'] = 'message-conseils';
         $data['messages'] = MessageConseil::orderBy('created_at', 'desc')->paginate(12);
         $data['villes'] = Schema::hasTable('villes') ? Ville::orderBy('libelle')->get(['id', 'libelle']) : collect();
-        $data['communes'] = Schema::hasTable('communes') ? Commune::orderBy('libelle')->get(['id', 'libelle', 'ville_id']) : collect();
+        $communeNameColumn = Schema::hasColumn('communes', 'libelle') ? 'libelle' : 'nom';
+        $data['communes'] = Schema::hasTable('communes') && Schema::hasColumn('communes', $communeNameColumn)
+            ? Commune::select('id', 'ville_id')->selectRaw($communeNameColumn . ' as libelle')->orderBy($communeNameColumn)->get()
+            : collect();
         $data['availableColumns'] = $this->messageConseilUserColumns();
         $data['previewFilters'] = $filters;
         $data['previewCount'] = $messageConseilService->countAudience($filters);
