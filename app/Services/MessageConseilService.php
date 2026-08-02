@@ -26,9 +26,6 @@ class MessageConseilService
         $this->whereIfColumn($query, 'commercial_id', $filters['commercial_id'] ?? null);
         $this->whereIfColumn($query, 'indicatif', $filters['indicatif'] ?? null);
 
-        if (!empty($filters['quartier']) && Schema::hasColumn('users', 'quartier')) {
-            $query->where('quartier', 'like', '%' . trim($filters['quartier']) . '%');
-        }
 
         if (!empty($filters['keyword'])) {
             $keyword = '%' . trim($filters['keyword']) . '%';

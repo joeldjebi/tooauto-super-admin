@@ -180,6 +180,45 @@ class DashboardController extends Controller
         return redirect()->route('message-conseils.index');
     }
 
+    public function updateMessageConseil(Request $request, MessageConseil $messageConseil)
+    {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+
+        if ($messageConseil->status === MessageConseil::STATUS_SENDING) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Ce message est en cours d\'envoi et ne peut pas etre modifie maintenant.');
+            return back();
+        }
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'body' => 'required|string|max:1000',
+            'image_url' => 'nullable|url|max:500',
+            'action_url' => 'nullable|url|max:500',
+            'scheduled_at' => 'required|date',
+            'filters' => 'nullable|array',
+        ]);
+
+        $messageConseil->update([
+            'title' => html_entity_decode($validated['title']),
+            'body' => html_entity_decode($validated['body']),
+            'image_url' => $validated['image_url'] ?? null,
+            'action_url' => $validated['action_url'] ?? null,
+            'filters' => $this->cleanMessageConseilFilters($validated['filters'] ?? []),
+            'scheduled_at' => $validated['scheduled_at'],
+            'sent_at' => null,
+            'status' => MessageConseil::STATUS_SCHEDULED,
+            'total_targets' => 0,
+            'success_count' => 0,
+            'failure_count' => 0,
+            'last_error' => null,
+        ]);
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Message conseil modifie et reprogramme avec succes.');
+
+        return redirect()->route('message-conseils.index');
+    }
     public function sendMessageConseilNow(MessageConseil $messageConseil, MessageConseilService $messageConseilService)
     {
         abort_unless(auth()->user()?->isSuperAdmin(), 403);
@@ -232,13 +271,13 @@ class DashboardController extends Controller
         return collect($filters)
             ->map(fn ($value) => is_string($value) ? trim($value) : $value)
             ->filter(fn ($value) => $value !== null && $value !== '')
-            ->only(['keyword', 'statut', 'ville_id', 'commune_id', 'quartier', 'commercial_id', 'indicatif', 'created_from', 'created_to'])
+            ->only(['keyword', 'statut', 'ville_id', 'commune_id', 'commercial_id', 'indicatif', 'created_from', 'created_to'])
             ->all();
     }
 
     private function messageConseilUserColumns(): array
     {
-        return collect(['statut', 'ville_id', 'commune_id', 'quartier', 'commercial_id', 'indicatif'])
+        return collect(['statut', 'ville_id', 'commune_id', 'commercial_id', 'indicatif'])
             ->mapWithKeys(fn ($column) => [$column => Schema::hasColumn('users', $column)])
             ->all();
     }
