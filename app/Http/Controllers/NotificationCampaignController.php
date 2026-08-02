@@ -202,12 +202,12 @@ class NotificationCampaignController extends Controller
 
         if ($audienceType === NotificationCampaign::AUDIENCE_ALERT_EXPIRATION) {
             return collect($filters)
-                ->only(['type_alert_id', 'expires_mode', 'days', 'date_from', 'date_to', 'keyword', 'statut', 'ville_id', 'commune_id'])
+                ->only(['type_alert_id', 'expires_mode', 'days', 'date_from', 'date_to', 'keyword', 'user_id', 'fcm_token', 'statut', 'ville_id', 'commune_id'])
                 ->all();
         }
 
         return collect($filters)
-            ->only(['user_ids', 'keyword', 'statut', 'ville_id', 'commune_id'])
+            ->only(['user_ids', 'keyword', 'user_id', 'fcm_token', 'statut', 'ville_id', 'commune_id'])
             ->all();
     }
 

@@ -65,6 +65,13 @@ class NotificationCampaignService
         $this->whereIfUserColumn($query, 'statut', $filters['statut'] ?? null);
         $this->whereIfUserColumn($query, 'ville_id', $filters['ville_id'] ?? null);
         $this->whereIfUserColumn($query, 'commune_id', $filters['commune_id'] ?? null);
+        if (!empty($filters['user_id']) && is_numeric($filters['user_id'])) {
+            $query->where('users.id', (int) $filters['user_id']);
+        }
+
+        if (!empty($filters['fcm_token'])) {
+            $query->where('users.fcm_token', 'like', '%' . trim($filters['fcm_token']) . '%');
+        }
         if (!empty($filters['keyword'])) {
             $keyword = '%' . trim($filters['keyword']) . '%';
             $query->where(function ($q) use ($keyword) {

@@ -224,6 +224,19 @@
                     <small class="text-muted">Page {{ $previewUsers->currentPage() }} / {{ $previewUsers->lastPage() }}</small>
                     <small class="text-muted">{{ $previewUsers->firstItem() ?? 0 }}-{{ $previewUsers->lastItem() ?? 0 }} sur {{ $previewUsers->total() }}</small>
                 </div>
+                <form method="GET" action="{{ route($indexRoute) }}" id="preview-table-filter-form">
+                    <input type="hidden" name="audience_type" value="{{ $audienceType }}">
+                    @foreach($filters as $key => $value)
+                        @continue(in_array($key, ['user_id', 'keyword', 'fcm_token'], true))
+                        @if(is_array($value))
+                            @foreach($value as $item)
+                                <input type="hidden" name="filters[{{ $key }}][]" value="{{ $item }}">
+                            @endforeach
+                        @else
+                            <input type="hidden" name="filters[{{ $key }}]" value="{{ $value }}">
+                        @endif
+                    @endforeach
+                </form>
                 <div class="table-responsive">
                     <table class="table table-striped table-bordered">
                         <thead>
@@ -237,6 +250,26 @@
                                     <th>Alerte</th>
                                 @endif
                                 <th>Token</th>
+                            </tr>
+                            <tr>
+                                @if($audienceType === 'selected_users')
+                                    <th></th>
+                                @endif
+                                <th>
+                                    <input form="preview-table-filter-form" type="number" name="filters[user_id]" class="form-control form-control-sm" value="{{ $filters['user_id'] ?? '' }}" placeholder="ID">
+                                </th>
+                                <th>
+                                    <input form="preview-table-filter-form" type="text" name="filters[keyword]" class="form-control form-control-sm" value="{{ $filters['keyword'] ?? '' }}" placeholder="Nom, téléphone, email">
+                                </th>
+                                @if($audienceType === 'alert_expiration')
+                                    <th></th>
+                                @endif
+                                <th>
+                                    <div class="d-flex">
+                                        <input form="preview-table-filter-form" type="text" name="filters[fcm_token]" class="form-control form-control-sm mr-1" value="{{ $filters['fcm_token'] ?? '' }}" placeholder="Token">
+                                        <button form="preview-table-filter-form" type="submit" class="btn btn-sm btn-primary">OK</button>
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
