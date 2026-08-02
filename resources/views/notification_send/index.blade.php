@@ -191,6 +191,10 @@
                     <h4 class="card-title mb-0">Prévisualisation</h4>
                     <a href="{{ route($logsRoute) }}" class="btn btn-outline-info btn-sm">Logs</a>
                 </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-muted">Page {{ $previewUsers->currentPage() }} / {{ $previewUsers->lastPage() }}</small>
+                    <small class="text-muted">{{ $previewUsers->firstItem() ?? 0 }}-{{ $previewUsers->lastItem() ?? 0 }} sur {{ $previewUsers->total() }}</small>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-striped table-bordered">
                         <thead>
@@ -238,12 +242,17 @@
                         </tbody>
                     </table>
                 </div>
+                {{ $previewUsers->links() }}
             </div>
         </div>
 
         <div class="card">
             <div class="card-body">
                 <h4 class="card-title mb-3">Campagnes</h4>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-muted">Page {{ $campaigns->currentPage() }} / {{ $campaigns->lastPage() }}</small>
+                    <small class="text-muted">{{ $campaigns->firstItem() ?? 0 }}-{{ $campaigns->lastItem() ?? 0 }} sur {{ $campaigns->total() }}</small>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-striped table-bordered">
                         <thead>

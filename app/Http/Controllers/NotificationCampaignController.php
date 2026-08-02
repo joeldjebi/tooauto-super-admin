@@ -27,9 +27,13 @@ class NotificationCampaignController extends Controller
         $data['filters'] = $filters;
         $data['typeAlerts'] = Type_alert::orderBy('libelle')->get(['id', 'libelle']);
         $data['selectedUsers'] = $this->selectedUsers($filters);
-        $data['previewUsers'] = $service->preview($audienceType, $filters);
+        $data['previewUsers'] = $service->audienceQuery($audienceType, $filters)
+            ->paginate(20, ['*'], 'users_page')
+            ->appends($request->except('users_page'));
         $data['previewCount'] = $service->countAudience($audienceType, $filters);
-        $data['campaigns'] = NotificationCampaign::orderBy('created_at', 'desc')->paginate(10);
+        $data['campaigns'] = NotificationCampaign::orderBy('created_at', 'desc')
+            ->paginate(10, ['*'], 'campaigns_page')
+            ->appends($request->except('campaigns_page'));
         $data['indexRoute'] = $this->routeName('notification-send.index');
         $data['storeRoute'] = $this->routeName('notification-send.store');
         $data['logsRoute'] = $this->routeName('notification-send.logs');
