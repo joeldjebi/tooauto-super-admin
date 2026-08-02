@@ -34,6 +34,7 @@ class CallCenterSpaceController extends Controller
                 ['label' => 'Concessionnaires', 'route' => route('call-center.concessionnaires')],
                 ['label' => 'Etablissements', 'route' => route('call-center.etablissements')],
                 ['label' => 'Autodocs', 'route' => route('call-center.autodocs')],
+                ['label' => 'Notification send', 'route' => route('call-center.notification-send.index')],
             ],
         ]);
     }

@@ -16,6 +16,7 @@ use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\CallCenterUserController;
 use App\Http\Controllers\CallCenterAuthController;
 use App\Http\Controllers\CallCenterSpaceController;
+use App\Http\Controllers\NotificationCampaignController;
 
 // Route::middleware(['auth', 'auth.concessionnaire'])->group(function () {
 Route::middleware(['auth'])->group(function () {
@@ -346,6 +347,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/commercial-wallet/{id}/historique', [CommercialController::class, 'walletHistory'])->name('commercial.wallet.history');
 
 
+    // Routes pour Notification Send
+    Route::get('/notification-send', [NotificationCampaignController::class, 'index'])->name('notification-send.index');
+    Route::post('/notification-send', [NotificationCampaignController::class, 'store'])->name('notification-send.store');
+    Route::get('/notification-send/logs', [NotificationCampaignController::class, 'logs'])->name('notification-send.logs');
+    Route::post('/notification-send/{notificationCampaign}/send-now', [NotificationCampaignController::class, 'sendNow'])->name('notification-send.send-now');
+    Route::post('/notification-send/{notificationCampaign}/cancel', [NotificationCampaignController::class, 'cancel'])->name('notification-send.cancel');
+
     // Routes pour les messages conseils programmés
     Route::get('/message-conseils', [DashboardController::class, 'indexMessageConseil'])->name('message-conseils.index');
     Route::post('/message-conseils', [DashboardController::class, 'storeMessageConseil'])->name('message-conseils.store');
@@ -398,6 +406,11 @@ Route::prefix('call-center')->group(function () {
         Route::get('/etablissements/{etablissement}/promotions', [CallCenterSpaceController::class, 'etablissementPromotions'])->name('call-center.etablissements.promotions');
         Route::get('/etablissements/{etablissement}/abonnements', [CallCenterSpaceController::class, 'etablissementAbonnements'])->name('call-center.etablissements.abonnements');
         Route::get('/autodocs', [CallCenterSpaceController::class, 'autodocs'])->name('call-center.autodocs');
+        Route::get('/notification-send', [NotificationCampaignController::class, 'index'])->name('call-center.notification-send.index');
+        Route::post('/notification-send', [NotificationCampaignController::class, 'store'])->name('call-center.notification-send.store');
+        Route::get('/notification-send/logs', [NotificationCampaignController::class, 'logs'])->name('call-center.notification-send.logs');
+        Route::post('/notification-send/{notificationCampaign}/send-now', [NotificationCampaignController::class, 'sendNow'])->name('call-center.notification-send.send-now');
+        Route::post('/notification-send/{notificationCampaign}/cancel', [NotificationCampaignController::class, 'cancel'])->name('call-center.notification-send.cancel');
         Route::post('/logout', [CallCenterAuthController::class, 'logout'])->name('call-center.logout');
     });
 });

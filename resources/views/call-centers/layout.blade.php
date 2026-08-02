@@ -102,6 +102,7 @@
             ['key' => 'call-center-concessionnaires', 'label' => 'Concessionnaires', 'route' => route('call-center.concessionnaires')],
             ['key' => 'call-center-etablissements', 'label' => 'Etablissements', 'route' => route('call-center.etablissements')],
             ['key' => 'call-center-autodocs', 'label' => 'Autodocs', 'route' => route('call-center.autodocs')],
+            ['key' => 'call-center-notification-send', 'label' => 'Notification send', 'route' => route('call-center.notification-send.index')],
         ];
     @endphp
 

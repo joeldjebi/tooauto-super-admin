@@ -33,6 +33,13 @@
             </a>
             <div class="triangle"></div>
          </li>
+         <li class="nav-item {{ $menu == "notification-send" ? 'active' : '' }}">
+            <a class="nav-item-hold" href="{{ route('notification-send.index') }}">
+               <i class="nav-icon i-Bell"></i>
+               <span class="nav-text">Notification send</span>
+            </a>
+            <div class="triangle"></div>
+         </li>
          @endif
          <li class="nav-item" data-item="uikits">
             <a class="nav-item-hold" href="#"
