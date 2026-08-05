@@ -64,6 +64,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Routes pour les usagers
     Route::get('/usagers', [UsagerController::class, 'indexUsager'])->name('index-usagers');
+    Route::post('/usagers/bulk-change-forfait', [UsagerController::class, 'bulkChangeForfaitUsager'])->name('usagers.bulk-change-forfait');
     Route::post('/usagers/{id}/change-forfait', [UsagerController::class, 'changeForfaitUsager'])->name('usager.change-forfait');
     Route::get('/usagers/{id}', [UsagerController::class, 'showUsager'])->name('usager.show');
     Route::post('/store-usagers', [UsagerController::class, 'storeUsager'])->name('store-usagers');

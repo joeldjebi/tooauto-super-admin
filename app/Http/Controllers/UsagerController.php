@@ -53,6 +53,10 @@ class UsagerController extends Controller
 
         $today = Carbon::today()->toDateString();
 
+        $data["forfait_usagers"] = Forfait_usager::where('statut', 1)
+            ->orderBy('libelle')
+            ->get();
+
         $data["usagers"]->each(function ($usager) use ($today) {
             $activeAbonnement = $usager->abonnementUsagers->first(function ($abonnement) use ($today) {
                 return (int) $abonnement->statut === 1 && $abonnement->date_fin >= $today;
@@ -360,6 +364,59 @@ class UsagerController extends Controller
         return view('usagers.show', $data);
     }
 
+    public function bulkChangeForfaitUsager(Request $request)
+    {
+        $validated = $request->validate([
+            'forfait_id' => 'required|integer|exists:forfait_usagers,id',
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'integer|exists:users,id',
+        ], [
+            'user_ids.required' => 'Sélectionnez au moins un usager.',
+            'user_ids.min' => 'Sélectionnez au moins un usager.',
+        ]);
+
+        $forfait = Forfait_usager::find($validated['forfait_id']);
+        if (!$forfait) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Forfait introuvable.');
+            return back();
+        }
+
+        $userIds = collect($validated['user_ids'])->map(fn ($id) => (int) $id)->unique()->values();
+        $usagers = User::whereIn('id', $userIds)->get();
+
+        DB::beginTransaction();
+
+        try {
+            $createdCount = 0;
+            $commissionCount = 0;
+
+            foreach ($usagers as $usager) {
+                $result = $this->createForfaitAbonnement($usager, $forfait);
+                $createdCount++;
+
+                if ($result['wallet_transaction']) {
+                    $commissionCount++;
+                }
+            }
+
+            DB::commit();
+
+            session()->flash('type', 'alert-success');
+            session()->flash(
+                'message',
+                $createdCount . ' forfait(s) attribué(s) avec succès.' .
+                ($commissionCount > 0 ? ' ' . $commissionCount . ' commission(s) commercial créditée(s).' : '')
+            );
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Une erreur est survenue lors de l\'attribution globale: ' . $e->getMessage());
+        }
+
+        return back();
+    }
     public function changeForfaitUsager(Request $request, $id)
     {
         $validated = $request->validate([
@@ -429,6 +486,42 @@ class UsagerController extends Controller
         return back();
     }
 
+    private function createForfaitAbonnement(User $usager, Forfait_usager $forfait): array
+    {
+        $today = Carbon::today();
+        $lastActiveAbonnement = Abonnement_usager::where('user_id', $usager->id)
+            ->where('statut', 1)
+            ->whereDate('date_fin', '>=', $today->toDateString())
+            ->orderByDesc('date_fin')
+            ->first();
+
+        $dateDebut = $lastActiveAbonnement
+            ? Carbon::parse($lastActiveAbonnement->date_fin)->addDay()
+            : $today;
+        $months = max(0, (int) $forfait->duree);
+        $dateFin = $months > 0
+            ? $dateDebut->copy()->addMonths($months)->subDay()
+            : $dateDebut->copy();
+
+        $abonnement = Abonnement_usager::create([
+            'user_id' => $usager->id,
+            'forfait_id' => $forfait->id,
+            'date_debut' => $dateDebut->toDateString(),
+            'date_fin' => $dateFin->toDateString(),
+            'statut' => 1,
+            'is_free' => ((float) $forfait->prix <= 0) ? 1 : 0,
+        ]);
+
+        $walletTransaction = app(CommercialWalletService::class)
+            ->creditCommissionForAbonnement($abonnement);
+
+        return [
+            'abonnement' => $abonnement,
+            'date_debut' => $dateDebut,
+            'date_fin' => $dateFin,
+            'wallet_transaction' => $walletTransaction,
+        ];
+    }
     /**
      * Show the form for editing the specified resource.
      */

@@ -22,10 +22,33 @@
             <div class="card-body">
                 <h4 class="card-title mb-3">Les usagers</h4>
                 @if($usagers->isNotEmpty() )
+                    <form id="bulk-forfait-form" action="{{ route('usagers.bulk-change-forfait') }}" method="POST" class="mb-3">
+                        @csrf
+                        <div class="row align-items-end">
+                            <div class="col-md-5">
+                                <label>Forfait à attribuer</label>
+                                <select name="forfait_id" class="form-control" required>
+                                    <option value="">Choisir un forfait</option>
+                                    @foreach($forfait_usagers as $forfait)
+                                        <option value="{{ $forfait->id }}">
+                                            {{ $forfait->libelle }} - {{ number_format($forfait->prix, 0, ',', ' ') }} FCFA - {{ $forfait->duree }} mois(s)
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="small text-muted mb-2"><span id="selected-users-count">0</span> usager(s) sélectionné(s)</div>
+                                <button type="submit" class="btn btn-primary" onclick="return confirm('Attribuer ce forfait aux usagers sélectionnés ?')">
+                                    Attribuer globalement
+                                </button>
+                            </div>
+                        </div>
+                    </form>
                     <div class="table-responsive">
                         <table class="display table table-striped table-bordered" id="language_option_table" style="width:100%">
                             <thead>
                                 <tr>
+                                    <th scope="col" style="width: 50px;"><input type="checkbox" id="select-all-usagers"></th>
                                     <th scope="col">#</th>
                                     {{-- <th scope="col">Avatar</th> --}}
                                     <th scope="col">Nom</th>
@@ -103,6 +126,9 @@
                                         </div>
                                     </div>
                                     <tr>
+                                        <td>
+                                            <input type="checkbox" name="user_ids[]" value="{{ $item->id }}" form="bulk-forfait-form" class="js-usager-checkbox">
+                                        </td>
                                         <td>{{ $key + 1 }}</td>
                                         {{-- <td>
                                             <img 
@@ -182,5 +208,36 @@
 </div>
 
 
+<script>
+    (function () {
+        var selectAll = document.getElementById('select-all-usagers');
+        var count = document.getElementById('selected-users-count');
+        var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.js-usager-checkbox'));
 
+        function refreshCount() {
+            var selected = checkboxes.filter(function (checkbox) { return checkbox.checked; }).length;
+            if (count) {
+                count.textContent = selected;
+            }
+            if (selectAll) {
+                selectAll.checked = selected > 0 && selected === checkboxes.length;
+                selectAll.indeterminate = selected > 0 && selected < checkboxes.length;
+            }
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function () {
+                checkboxes.forEach(function (checkbox) {
+                    checkbox.checked = selectAll.checked;
+                });
+                refreshCount();
+            });
+        }
+
+        checkboxes.forEach(function (checkbox) {
+            checkbox.addEventListener('change', refreshCount);
+        });
+        refreshCount();
+    })();
+</script>
 @include('layouts.footer')
