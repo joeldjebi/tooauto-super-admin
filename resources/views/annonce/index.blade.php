@@ -21,14 +21,52 @@
         <div class="card text-left">
             <div class="card-body">
                 <h4 class="card-title mb-3">Les annonces</h4>
-                @if($annonces->isNotEmpty() )
+                @php($filters = $filters ?? [])
+                <form method="GET" action="{{ route('index-annonce') }}" class="mb-4">
+                    <input type="hidden" name="per_page" value="{{ $per_page ?? 50 }}">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label>Recherche</label>
+                            <input type="text" name="search" class="form-control" value="{{ $filters['search'] ?? '' }}" placeholder="Modèle, marque, pièce, usager">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Usager</label>
+                            <input type="text" name="usager" class="form-control" value="{{ $filters['usager'] ?? '' }}" placeholder="Nom ou prénoms">
+                        </div>
+                        <div class="col-md-2">
+                            <label>Marque</label>
+                            <input type="text" name="marque" class="form-control" value="{{ $filters['marque'] ?? '' }}" placeholder="Marque">
+                        </div>
+                        <div class="col-md-2">
+                            <label>Type pièce</label>
+                            <input type="text" name="type_piece" class="form-control" value="{{ $filters['type_piece'] ?? '' }}" placeholder="Type pièce">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary mr-2">Filtrer</button>
+                            <a href="{{ route('index-annonce') }}" class="btn btn-light">Réinitialiser</a>
+                        </div>
+                    </div>
+                </form>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="text-muted">Page {{ $annonces->currentPage() }} - {{ $annonces->count() }} annonce(s) affichée(s)</div>
+                    <form method="GET" action="{{ route('index-annonce') }}" class="d-flex align-items-center">
+                        @foreach(($filters ?? []) as $name => $value)
+                            <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+                        @endforeach
+                        <label class="mb-0 mr-2">Par page</label>
+                        <select name="per_page" class="form-control form-control-sm" onchange="this.form.submit()" style="width: auto;">
+                            @foreach([25, 50, 100] as $option)
+                                <option value="{{ $option }}" {{ ($per_page ?? 50) == $option ? 'selected' : '' }}>{{ $option }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                </div>
+                @if($annonces->count() > 0 )
                     <div class="table-responsive">
-                        <table class="display table table-striped table-bordered" id="language_option_table" style="width:100%">
+                        <table class="table table-striped table-bordered" style="width:100%">
                             <thead>
                                 <tr>
                                     <th scope="col">#</th>
-                                    <th scope="col">Type de demande</th>
-                                    <th scope="col">Type de véhicule</th>
                                     <th scope="col">Marque</th>
                                     <th scope="col">Modèle</th>
                                     <th scope="col">Type de pièce</th>
@@ -50,12 +88,10 @@
                                             </div>
                                             <div class="modal-body">
                                                 <h4 class="card-title mb-3">Détails de l'annonce</h4>
-                                                <p><strong>Type de demande:</strong> {{ $item->typeDeDemande->libelle ?? 'N/A' }}</p>
-                                                <p><strong>Type de véhicule:</strong> {{ $item->typeDeVehicule->libelle ?? 'N/A' }}</p>
                                                 <p><strong>Marque:</strong> {{ $item->marque->libelle ?? 'N/A' }}</p>
                                                 <p><strong>Modèle:</strong> {{ $item->modele ?? 'N/A' }}</p>
-                                                <p><strong>Type de pièce:</strong> {{ $item->typeDePiece->libelle ?? 'N/A' }}</p>
-                                                <p><strong>Utilisateur:</strong> {{ $item->user->name ?? 'N/A' }}</p>
+                                                <p><strong>Type de pièce:</strong> {{ $item->type_de_piece->libelle ?? 'N/A' }}</p>
+                                                <p><strong>Utilisateur:</strong> {{ trim(($item->currentUser->nom ?? '') . ' ' . ($item->currentUser->prenoms ?? '')) ?: 'N/A' }}</p>
 
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
@@ -66,17 +102,7 @@
                                         </div>
                                     </div>
                                     <tr>
-                                        <td>{{ $key + 1 }}</td>
-                                        <td>
-                                            <span class="badge badge-info">
-                                                {{ $item->typeDeDemande->libelle ?? 'N/A' }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-secondary">
-                                                {{ $item->typeDeVehicule->libelle ?? 'N/A' }}
-                                            </span>
-                                        </td>
+                                        <td>{{ (($annonces->currentPage() - 1) * $annonces->perPage()) + $key + 1 }}</td>
                                         <td>
                                             <strong>{{ $item->marque->libelle ?? 'N/A' }}</strong>
                                         </td>
@@ -85,10 +111,10 @@
                                         </td>
                                         <td>
                                             <span class="badge badge-warning">
-                                                {{ $item->typeDePiece->libelle ?? 'N/A' }}
+                                                {{ $item->type_de_piece->libelle ?? 'N/A' }}
                                             </span>
                                         </td>
-                                        <td>{{ $item->user->name ?? 'N/A' }}</td>
+                                        <td>{{ trim(($item->currentUser->nom ?? '') . ' ' . ($item->currentUser->prenoms ?? '')) ?: 'N/A' }}</td>
                                         <td>
                                             <a class="text-success mr-2" href="#" data-toggle="modal" data-target="#id{{ $item->id }}">
                                                 <i class="nav-icon i-Eye font-weight-bold"></i>
@@ -98,6 +124,9 @@
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+                    <div class="mt-3">
+                        {{ $annonces->links() }}
                     </div>
                     @else
                         <p>Aucune annonce enregistrer !</p>

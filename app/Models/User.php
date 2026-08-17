@@ -53,4 +53,19 @@ class User extends Authenticatable
     {
         return $this->hasMany(Abonnement_usager::class, 'user_id');
     }
+
+    public function vehicules()
+    {
+        return $this->hasMany(Vehicule::class, 'user_id');
+    }
+
+    public function alerts()
+    {
+        return $this->hasMany(Alert::class, 'user_id');
+    }
+
+    public function annonces()
+    {
+        return $this->hasMany(Annonce::class, 'usager_id');
+    }
 }

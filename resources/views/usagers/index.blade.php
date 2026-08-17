@@ -21,7 +21,80 @@
         <div class="card text-left">
             <div class="card-body">
                 <h4 class="card-title mb-3">Les usagers</h4>
-                @if($usagers->isNotEmpty() )
+                <form method="GET" action="{{ route('index-usagers') }}" class="mb-4">
+                    <input type="hidden" name="per_page" value="{{ $per_page ?? 50 }}">
+                    <div class="row">
+                        @php
+                            $filterOptions = [
+                                '' => 'Tous',
+                                'with' => 'Avec',
+                                'without' => 'Sans',
+                            ];
+                            $filters = $presence_filters ?? [];
+                        @endphp
+                        <div class="col-md-2">
+                            <label>Véhicule</label>
+                            <select name="vehicule_filter" class="form-control">
+                                @foreach($filterOptions as $value => $label)
+                                    <option value="{{ $value }}" {{ ($filters['vehicule_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label>Type d'alerte</label>
+                            <select name="alerte_filter" class="form-control">
+                                @foreach($filterOptions as $value => $label)
+                                    <option value="{{ $value }}" {{ ($filters['alerte_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label>Abonnement actif</label>
+                            <select name="abonnement_filter" class="form-control">
+                                @foreach($filterOptions as $value => $label)
+                                    <option value="{{ $value }}" {{ ($filters['abonnement_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label>Annonce</label>
+                            <select name="annonce_filter" class="form-control">
+                                @foreach($filterOptions as $value => $label)
+                                    <option value="{{ $value }}" {{ ($filters['annonce_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label>Document</label>
+                            <select name="document_filter" class="form-control">
+                                @foreach($filterOptions as $value => $label)
+                                    <option value="{{ $value }}" {{ ($filters['document_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary mr-2">Filtrer</button>
+                            <a href="{{ route('index-usagers') }}" class="btn btn-light">Réinitialiser</a>
+                        </div>
+                    </div>
+                </form>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="text-muted">
+                        Page {{ $usagers->currentPage() }} - {{ $usagers->count() }} usager(s) affiché(s)
+                    </div>
+                    <form method="GET" action="{{ route('index-usagers') }}" class="d-flex align-items-center">
+                        @foreach(($presence_filters ?? []) as $name => $value)
+                            <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+                        @endforeach
+                        <label class="mb-0 mr-2">Par page</label>
+                        <select name="per_page" class="form-control form-control-sm" onchange="this.form.submit()" style="width: auto;">
+                            @foreach([25, 50, 100] as $option)
+                                <option value="{{ $option }}" {{ ($per_page ?? 50) == $option ? 'selected' : '' }}>{{ $option }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                </div>
+                @if($usagers->count() > 0 )
                     <form id="bulk-forfait-form" action="{{ route('usagers.bulk-change-forfait') }}" method="POST" class="mb-3">
                         @csrf
                         <div class="row align-items-end">
@@ -45,7 +118,7 @@
                         </div>
                     </form>
                     <div class="table-responsive">
-                        <table class="display table table-striped table-bordered" id="language_option_table" style="width:100%">
+                        <table class="table table-striped table-bordered" style="width:100%">
                             <thead>
                                 <tr>
                                     <th scope="col" style="width: 50px;"><input type="checkbox" id="select-all-usagers"></th>
@@ -55,7 +128,11 @@
                                     <th scope="col">Prénoms</th>
                                     <th scope="col">Mobile</th>
                                     <th scope="col">E-mail</th>
+                                    <th scope="col">Véhicules</th>
+                                    <th scope="col">Alertes</th>
                                     <th scope="col">Abonnement</th>
+                                    <th scope="col">Annonces</th>
+                                    <th scope="col">Documents</th>
                                     <th scope="col">Commercial</th>
                                     <th scope="col">Statut</th>
                                     <th scope="col">Actions</th>
@@ -129,7 +206,7 @@
                                         <td>
                                             <input type="checkbox" name="user_ids[]" value="{{ $item->id }}" form="bulk-forfait-form" class="js-usager-checkbox">
                                         </td>
-                                        <td>{{ $key + 1 }}</td>
+                                        <td>{{ (($usagers->currentPage() - 1) * $usagers->perPage()) + $key + 1 }}</td>
                                         {{-- <td>
                                             <img 
                                                 width="50" 
@@ -142,6 +219,16 @@
                                         <td>{{ $item->prenoms }}</td>
                                         <td>{{ $item->indicatif }}{{ $item->mobile }}</td>
                                         <td>{{ $item->email }}</td>
+                                        <td>
+                                            <span class="badge badge-{{ $item->vehicules_count > 0 ? 'success' : 'secondary' }}">
+                                                {{ $item->vehicules_count }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-{{ $item->alerts_count > 0 ? 'success' : 'secondary' }}">
+                                                {{ $item->alerts_count }}
+                                            </span>
+                                        </td>
                                         <td>
                                             @if($item->abonnement_affiche)
                                                 <div>
@@ -159,6 +246,16 @@
                                             @else
                                                 <span class="badge badge-warning">Aucun abonnement</span>
                                             @endif
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-{{ $item->annonces_count > 0 ? 'success' : 'secondary' }}">
+                                                {{ $item->annonces_count }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-{{ $item->autodocs_count > 0 ? 'success' : 'secondary' }}">
+                                                {{ $item->autodocs_count }}
+                                            </span>
                                         </td>
                                         <td>
                                             @if($item->commercial)
@@ -199,8 +296,11 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="mt-3">
+                        {{ $usagers->links() }}
+                    </div>
                     @else
-                        <p>Aucune catégorie enregistrer !'</p>
+                        <p>Aucun usager trouvé.</p>
                 @endif
             </div>
         </div>

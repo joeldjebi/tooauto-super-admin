@@ -132,6 +132,13 @@
                >
             <div class="triangle"></div>
          </li>
+         <li class="nav-item {{ $menu == "partenaires-promo" ? 'active' : '' }}">
+            <a class="nav-item-hold" href="{{ route('partenaires-promo.index') }}"
+               ><i class="nav-icon i-Tag-2"></i>
+               <span class="nav-text">Codes promo</span></a
+               >
+            <div class="triangle"></div>
+         </li>
          <li class="nav-item {{ $menu == "station_service" ? 'active' : '' }}">
             <a class="nav-item-hold" href="{{ route('index-station_service') }}"
                ><i class="nav-icon i-Double-Tap"></i><span class="nav-text">Stations service</span></a

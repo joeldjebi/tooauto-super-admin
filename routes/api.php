@@ -19,6 +19,7 @@ use App\Http\Controllers\InfosController;
 use App\Http\Controllers\TvController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PaiementController;
+use App\Http\Controllers\PromotionController;
 
 /*
 |--------------------------------------------------------------------------

@@ -21,9 +21,49 @@
         <div class="card text-left">
             <div class="card-body">
                 <h4 class="card-title mb-3">Les articles</h4>
-                @if($articles->isNotEmpty() )
+                @php($filters = $filters ?? [])
+                <form method="GET" action="{{ route('index-article') }}" class="mb-4">
+                    <input type="hidden" name="per_page" value="{{ $per_page ?? 50 }}">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label>Recherche</label>
+                            <input type="text" name="search" class="form-control" value="{{ $filters['search'] ?? '' }}" placeholder="Libellé ou établissement">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Établissement</label>
+                            <input type="text" name="etablissement" class="form-control" value="{{ $filters['etablissement'] ?? '' }}" placeholder="Nom établissement">
+                        </div>
+                        <div class="col-md-2">
+                            <label>Prix min</label>
+                            <input type="number" name="prix_min" class="form-control" value="{{ $filters['prix_min'] ?? '' }}" min="0">
+                        </div>
+                        <div class="col-md-2">
+                            <label>Prix max</label>
+                            <input type="number" name="prix_max" class="form-control" value="{{ $filters['prix_max'] ?? '' }}" min="0">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary mr-2">Filtrer</button>
+                            <a href="{{ route('index-article') }}" class="btn btn-light">Réinitialiser</a>
+                        </div>
+                    </div>
+                </form>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="text-muted">Page {{ $articles->currentPage() }} - {{ $articles->count() }} article(s) affiché(s)</div>
+                    <form method="GET" action="{{ route('index-article') }}" class="d-flex align-items-center">
+                        @foreach(($filters ?? []) as $name => $value)
+                            <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+                        @endforeach
+                        <label class="mb-0 mr-2">Par page</label>
+                        <select name="per_page" class="form-control form-control-sm" onchange="this.form.submit()" style="width: auto;">
+                            @foreach([25, 50, 100] as $option)
+                                <option value="{{ $option }}" {{ ($per_page ?? 50) == $option ? 'selected' : '' }}>{{ $option }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                </div>
+                @if($articles->count() > 0 )
                     <div class="table-responsive">
-                        <table class="display table table-striped table-bordered" id="language_option_table" style="width:100%">
+                        <table class="table table-striped table-bordered" style="width:100%">
                             <thead>
                                 <tr>
                                     <th scope="col">#</th>
@@ -74,7 +114,7 @@
                                         </div>
                                     </div>
                                     <tr>
-                                        <td>{{ $key + 1 }}</td>
+                                        <td>{{ (($articles->currentPage() - 1) * $articles->perPage()) + $key + 1 }}</td>
                                         <td>
                                             <img 
                                                 width="50" 
@@ -97,8 +137,11 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="mt-3">
+                        {{ $articles->links() }}
+                    </div>
                     @else
-                        <p>Aucune annonce enregistrer !</p>
+                        <p>Aucun article enregistré !</p>
                 @endif
             </div>
         </div>

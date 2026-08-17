@@ -33,7 +33,7 @@ class UsagerController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function indexUsager()
+    public function indexUsager(Request $request)
     {
         $data['title'] ='Liste des usagers';
         $data['menu'] ='usager';
@@ -42,16 +42,53 @@ class UsagerController extends Controller
             'id' => auth()->user()->id
         ])->first();
 
-        $data["usagers"] = User::with([
-            'commercial',
-            'abonnementUsagers' => function ($query) {
-                $query->with('forfait_usager')
-                    ->orderByDesc('date_fin')
-                    ->orderByDesc('id');
-            },
-        ])->orderBy('id', 'desc')->get();
-
         $today = Carbon::today()->toDateString();
+
+        $presenceFilters = [
+            'vehicule_filter' => $request->get('vehicule_filter'),
+            'alerte_filter' => $request->get('alerte_filter'),
+            'abonnement_filter' => $request->get('abonnement_filter'),
+            'annonce_filter' => $request->get('annonce_filter'),
+            'document_filter' => $request->get('document_filter'),
+        ];
+
+        $perPage = (int) $request->get('per_page', 50);
+        $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
+
+        $usagersQuery = User::select(['id', 'nom', 'prenoms', 'indicatif', 'mobile', 'email', 'statut', 'commercial_id'])
+            ->with([
+                'commercial:id,nom,prenoms,mobile',
+                'abonnementUsagers' => function ($query) {
+                    $query->select(['id', 'user_id', 'forfait_id', 'date_debut', 'date_fin', 'statut', 'is_free'])
+                        ->with('forfait_usager:id,libelle')
+                        ->orderByDesc('date_fin')
+                        ->orderByDesc('id');
+                },
+            ])
+            ->withCount(['vehicules', 'alerts', 'annonces'])
+            ->orderBy('id', 'desc');
+
+        $this->addAutodocsCountSelect($usagersQuery);
+
+        $this->applyRelationPresenceFilter($usagersQuery, 'vehicules', $presenceFilters['vehicule_filter']);
+        $this->applyRelationPresenceFilter($usagersQuery, 'alerts', $presenceFilters['alerte_filter']);
+        $this->applyRelationPresenceFilter($usagersQuery, 'annonces', $presenceFilters['annonce_filter']);
+
+        if ($presenceFilters['abonnement_filter'] === 'with') {
+            $usagersQuery->whereHas('abonnementUsagers', function ($query) use ($today) {
+                $query->where('statut', 1)->whereDate('date_fin', '>=', $today);
+            });
+        } elseif ($presenceFilters['abonnement_filter'] === 'without') {
+            $usagersQuery->whereDoesntHave('abonnementUsagers', function ($query) use ($today) {
+                $query->where('statut', 1)->whereDate('date_fin', '>=', $today);
+            });
+        }
+
+        $this->applyAutodocPresenceFilter($usagersQuery, $presenceFilters['document_filter']);
+
+        $data["usagers"] = $usagersQuery->simplePaginate($perPage)->appends($request->query());
+        $data["presence_filters"] = $presenceFilters;
+        $data["per_page"] = $perPage;
 
         $data["forfait_usagers"] = Forfait_usager::where('statut', 1)
             ->orderBy('libelle')
@@ -69,6 +106,92 @@ class UsagerController extends Controller
         // dd($data["usagers"]);
 
         return view('usagers.index',$data);
+    }
+
+    private function applyRelationPresenceFilter($query, string $relation, ?string $filter): void
+    {
+        if ($filter === 'with') {
+            $query->has($relation);
+        } elseif ($filter === 'without') {
+            $query->doesntHave($relation);
+        }
+    }
+
+    private function applyAutodocPresenceFilter($query, ?string $filter): void
+    {
+        if (! in_array($filter, ['with', 'without'], true) || ! $this->autodocsCanBeLinkedToUsagers()) {
+            return;
+        }
+
+        $method = $filter === 'with' ? 'whereExists' : 'whereNotExists';
+
+        $query->{$method}(function ($subQuery) {
+            $subQuery->selectRaw('1')
+                ->from('autodocs')
+                ->where(function ($documentQuery) {
+                    if (Schema::hasColumn('autodocs', 'user_id')) {
+                        $documentQuery->orWhereColumn('autodocs.user_id', 'users.id');
+                    }
+
+                    if (Schema::hasColumn('autodocs', 'usager_id')) {
+                        $documentQuery->orWhereColumn('autodocs.usager_id', 'users.id');
+                    }
+
+                    if (Schema::hasColumn('autodocs', 'vehicule_id') && Schema::hasTable('vehicules')) {
+                        $documentQuery->orWhereExists(function ($vehiculeQuery) {
+                            $vehiculeQuery->selectRaw('1')
+                                ->from('vehicules')
+                                ->whereColumn('vehicules.id', 'autodocs.vehicule_id')
+                                ->whereColumn('vehicules.user_id', 'users.id');
+                        });
+                    }
+                });
+        });
+    }
+
+    private function addAutodocsCountSelect($query): void
+    {
+        if (! $this->autodocsCanBeLinkedToUsagers()) {
+            $query->selectRaw('0 as autodocs_count');
+            return;
+        }
+
+        $query->selectSub(function ($subQuery) {
+            $subQuery->from('autodocs')
+                ->selectRaw('COUNT(DISTINCT autodocs.id)')
+                ->where(function ($documentQuery) {
+                    if (Schema::hasColumn('autodocs', 'user_id')) {
+                        $documentQuery->orWhereColumn('autodocs.user_id', 'users.id');
+                    }
+
+                    if (Schema::hasColumn('autodocs', 'usager_id')) {
+                        $documentQuery->orWhereColumn('autodocs.usager_id', 'users.id');
+                    }
+
+                    if (Schema::hasColumn('autodocs', 'vehicule_id') && Schema::hasTable('vehicules')) {
+                        $documentQuery->orWhereExists(function ($vehiculeQuery) {
+                            $vehiculeQuery->selectRaw('1')
+                                ->from('vehicules')
+                                ->whereColumn('vehicules.id', 'autodocs.vehicule_id')
+                                ->whereColumn('vehicules.user_id', 'users.id');
+                        });
+                    }
+                });
+        }, 'autodocs_count');
+    }
+
+    private function autodocsCanBeLinkedToUsagers(): bool
+    {
+        return Schema::hasTable('autodocs')
+            && (
+                Schema::hasColumn('autodocs', 'user_id')
+                || Schema::hasColumn('autodocs', 'usager_id')
+                || (
+                    Schema::hasColumn('autodocs', 'vehicule_id')
+                    && Schema::hasTable('vehicules')
+                    && Schema::hasColumn('vehicules', 'user_id')
+                )
+            );
     }
 
     /**

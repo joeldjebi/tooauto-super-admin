@@ -9,6 +9,7 @@ use App\Http\Controllers\UsagerController;
 use App\Http\Controllers\EtablissementController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\CommercialController;
+use App\Http\Controllers\PartenairePromoController;
 use App\Http\Controllers\OffresController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfessionnelController;
@@ -46,13 +47,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/concessionnaire/update/{id}', [ConcessionnaireController::class, 'updateConcessionnaire'])->name('concessionnaire.update');
     Route::delete('/concessionnaires/{id}', [ConcessionnaireController::class, 'destroyConcessionnaire'])->name('concessionnaires.destroy');
 
-    Route::get('/vehicule', [ConcessionnaireController::class, 'indexVehicule'])->name('index-vehicule');
+    Route::get('/vehicule', [DashboardController::class, 'getAllVehicule'])->name('index-vehicule');
     Route::post('/vehicule-store', [ConcessionnaireController::class, 'storeVehicule'])->name('vehicule.store');
     Route::post('/vehicule-update/{id}', [ConcessionnaireController::class, 'updateVehicule'])->name('vehicule.update');
     Route::delete('/vehicule-destroy/{id}', [ConcessionnaireController::class, 'destroyVehicule'])->name('vehicule.destroy');
 
-    Route::get('/annonce', [ConcessionnaireController::class, 'indexAnnonce'])->name('index-annonce');
+    Route::get('/annonce', [DashboardController::class, 'getAllAnnonce'])->name('index-annonce');
     Route::get('/alerte', [DashboardController::class, 'getAllAlert'])->name('index-alerte');
+    Route::delete('/alerte/delete-all', [DashboardController::class, 'deleteAllAlerts'])->name('delete-all-alerts');
     Route::get('/rdv', [ConcessionnaireController::class, 'indexRdvAnnonce'])->name('rdv.index');
     Route::post('/store-rdv/{id}', [ConcessionnaireController::class, 'storeRdvAnnonce'])->name('rdv.store');
     Route::get('/flotte', [ConcessionnaireController::class, 'indexGestionnaireDeFlotte'])->name('flotte');
@@ -322,8 +324,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/etablissement.toggleStatus', [EtablissementController::class, 'toggleStatusEtablissement'])->name('etablissement.toggleStatus');
 
     // Routes pour les promotions
-    // Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
-    Route::get('/promotions', 'App\Http\Controllers\PromotionController@index')->name('promotions.index');
+    Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
     Route::get('/promotions/create', [PromotionController::class, 'create'])->name('promotions.create');
     Route::post('/promotions', [PromotionController::class, 'store'])->name('promotions.store');
     Route::get('/promotions/{id}', [PromotionController::class, 'show'])->name('promotions.show');
@@ -331,6 +332,13 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/promotions/{id}', [PromotionController::class, 'update'])->name('promotions.update');
     Route::delete('/promotions/{id}', [PromotionController::class, 'destroy'])->name('promotions.destroy');
     Route::post('/promotions/{id}/toggle-status', [PromotionController::class, 'toggleStatus'])->name('promotions.toggle-status');
+
+    // Routes pour les partenaires et codes promo
+    Route::get('/partenaires-promo', [PartenairePromoController::class, 'index'])->name('partenaires-promo.index');
+    Route::post('/partenaires-promo', [PartenairePromoController::class, 'store'])->name('partenaires-promo.store');
+    Route::post('/partenaires-promo/{id}', [PartenairePromoController::class, 'update'])->name('partenaires-promo.update');
+    Route::post('/partenaires-promo/{id}/toggle-status', [PartenairePromoController::class, 'toggleStatus'])->name('partenaires-promo.toggle-status');
+    Route::delete('/partenaires-promo/{id}', [PartenairePromoController::class, 'destroy'])->name('partenaires-promo.destroy');
 
     Route::post('/logout', [DashboardController::class, 'logout'])->name('logout');
 
@@ -346,6 +354,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/commercial-wallet/commission-setting', [CommercialController::class, 'updateCommissionSetting'])->name('commercial.wallet.commission-setting');
     Route::post('/commercial-wallet/{id}/payout', [CommercialController::class, 'payout'])->name('commercial.wallet.payout');
     Route::get('/commercial-wallet/{id}/historique', [CommercialController::class, 'walletHistory'])->name('commercial.wallet.history');
+
 
 
     // Routes pour Notification Send

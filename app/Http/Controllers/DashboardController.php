@@ -3350,7 +3350,7 @@ class DashboardController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function getAllAnnonce()
+    public function getAllAnnonce(Request $request)
     {
         $data['title'] = "Les annonces";
         $data['menu'] ='annonces';
@@ -3365,9 +3365,63 @@ class DashboardController extends Controller
             session()->flash('message', 'Une erreur est survenue!');
         }
 
-        $data["annonces"] = Annonce::orderBy('id', 'desc')
-        ->with('marque', 'currentUser', 'type_de_piece')
-        ->get();
+        $perPage = (int) $request->get('per_page', 50);
+        $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
+
+        $annonceFilters = [
+            'search' => trim((string) $request->get('search', '')),
+            'usager' => trim((string) $request->get('usager', '')),
+            'marque' => trim((string) $request->get('marque', '')),
+            'type_piece' => trim((string) $request->get('type_piece', '')),
+        ];
+
+        $annoncesQuery = Annonce::select(['id', 'marque_id', 'type_de_piece_id', 'usager_id', 'modele', 'created_at'])
+            ->with([
+                'marque:id,libelle',
+                'currentUser:id,nom,prenoms',
+                'type_de_piece:id,libelle',
+            ]);
+
+        if ($annonceFilters['search'] !== '') {
+            $annoncesQuery->where(function ($query) use ($annonceFilters) {
+                $query->where('modele', 'like', '%' . $annonceFilters['search'] . '%')
+                    ->orWhereHas('marque', function ($marqueQuery) use ($annonceFilters) {
+                        $marqueQuery->where('libelle', 'like', '%' . $annonceFilters['search'] . '%');
+                    })
+                    ->orWhereHas('type_de_piece', function ($pieceQuery) use ($annonceFilters) {
+                        $pieceQuery->where('libelle', 'like', '%' . $annonceFilters['search'] . '%');
+                    })
+                    ->orWhereHas('currentUser', function ($userQuery) use ($annonceFilters) {
+                        $userQuery->where('nom', 'like', '%' . $annonceFilters['search'] . '%')
+                            ->orWhere('prenoms', 'like', '%' . $annonceFilters['search'] . '%');
+                    });
+            });
+        }
+
+        if ($annonceFilters['usager'] !== '') {
+            $annoncesQuery->whereHas('currentUser', function ($query) use ($annonceFilters) {
+                $query->where('nom', 'like', '%' . $annonceFilters['usager'] . '%')
+                    ->orWhere('prenoms', 'like', '%' . $annonceFilters['usager'] . '%');
+            });
+        }
+
+        if ($annonceFilters['marque'] !== '') {
+            $annoncesQuery->whereHas('marque', function ($query) use ($annonceFilters) {
+                $query->where('libelle', 'like', '%' . $annonceFilters['marque'] . '%');
+            });
+        }
+
+        if ($annonceFilters['type_piece'] !== '') {
+            $annoncesQuery->whereHas('type_de_piece', function ($query) use ($annonceFilters) {
+                $query->where('libelle', 'like', '%' . $annonceFilters['type_piece'] . '%');
+            });
+        }
+
+        $data["annonces"] = $annoncesQuery->orderBy('id', 'desc')
+            ->simplePaginate($perPage)
+            ->appends($request->query());
+        $data["per_page"] = $perPage;
+        $data["filters"] = $annonceFilters;
         // dd($data["annonces"]);
         return view('annonce.index',$data);
     }
@@ -3375,7 +3429,7 @@ class DashboardController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function getAllArticle()
+    public function getAllArticle(Request $request)
     {
         $data['title'] = "Les articles";
         $data['menu'] ='articles';
@@ -3390,9 +3444,47 @@ class DashboardController extends Controller
             session()->flash('message', 'Une erreur est survenue!');
         }
 
-        $data["articles"] = Article::orderBy('id', 'desc')
-        ->with('etablissement')
-        ->get();
+        $perPage = (int) $request->get('per_page', 50);
+        $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
+
+        $articleFilters = [
+            'search' => trim((string) $request->get('search', '')),
+            'etablissement' => trim((string) $request->get('etablissement', '')),
+            'prix_min' => $request->get('prix_min'),
+            'prix_max' => $request->get('prix_max'),
+        ];
+
+        $articlesQuery = Article::select(['id', 'libelle', 'amount', 'image', 'description', 'etablissement_id', 'created_at'])
+            ->with('etablissement:id,name');
+
+        if ($articleFilters['search'] !== '') {
+            $articlesQuery->where(function ($query) use ($articleFilters) {
+                $query->where('libelle', 'like', '%' . $articleFilters['search'] . '%')
+                    ->orWhereHas('etablissement', function ($etablissementQuery) use ($articleFilters) {
+                        $etablissementQuery->where('name', 'like', '%' . $articleFilters['search'] . '%');
+                    });
+            });
+        }
+
+        if ($articleFilters['etablissement'] !== '') {
+            $articlesQuery->whereHas('etablissement', function ($query) use ($articleFilters) {
+                $query->where('name', 'like', '%' . $articleFilters['etablissement'] . '%');
+            });
+        }
+
+        if (is_numeric($articleFilters['prix_min'])) {
+            $articlesQuery->where('amount', '>=', $articleFilters['prix_min']);
+        }
+
+        if (is_numeric($articleFilters['prix_max'])) {
+            $articlesQuery->where('amount', '<=', $articleFilters['prix_max']);
+        }
+
+        $data["articles"] = $articlesQuery->orderBy('id', 'desc')
+            ->simplePaginate($perPage)
+            ->appends($request->query());
+        $data["per_page"] = $perPage;
+        $data["filters"] = $articleFilters;
         // dd($data["article"]);
         return view('article.index',$data);
     }
@@ -3400,7 +3492,7 @@ class DashboardController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function getAllVehicule()
+    public function getAllVehicule(Request $request)
     {
         $data['title'] = "Les vehicules";
         $data['menu'] ='vehicules';
@@ -3415,9 +3507,89 @@ class DashboardController extends Controller
             session()->flash('message', 'Une erreur est survenue!');
         }
 
-        $data["vehicules"] = vehicule::orderBy('id', 'desc')
-        ->with('user', 'type_de_vehicule', 'marque', 'type_de_carburant')
-        ->get();
+        $perPage = (int) $request->get('per_page', 50);
+        $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
+
+        $vehiculeFilters = [
+            'search' => trim((string) $request->get('search', '')),
+            'usager' => trim((string) $request->get('usager', '')),
+            'marque' => trim((string) $request->get('marque', '')),
+            'type_vehicule' => trim((string) $request->get('type_vehicule', '')),
+            'carburant' => trim((string) $request->get('carburant', '')),
+        ];
+
+        $vehiculesQuery = Vehicule::select([
+                'id',
+                'carte_grise',
+                'matricule',
+                'photos',
+                'user_id',
+                'type_de_vehicule_id',
+                'marque_id',
+                'type_de_carburant_id',
+                'couleur',
+                'created_at',
+            ])
+            ->with([
+                'user:id,nom,prenoms,mobile',
+                'typeDeVehicule:id,libelle',
+                'marque:id,libelle',
+                'typeDeCarburant:id,libelle',
+            ]);
+
+        if ($vehiculeFilters['search'] !== '') {
+            $vehiculesQuery->where(function ($query) use ($vehiculeFilters) {
+                $query->where('matricule', 'like', '%' . $vehiculeFilters['search'] . '%')
+                    ->orWhere('carte_grise', 'like', '%' . $vehiculeFilters['search'] . '%')
+                    ->orWhere('couleur', 'like', '%' . $vehiculeFilters['search'] . '%')
+                    ->orWhereHas('user', function ($userQuery) use ($vehiculeFilters) {
+                        $userQuery->where('nom', 'like', '%' . $vehiculeFilters['search'] . '%')
+                            ->orWhere('prenoms', 'like', '%' . $vehiculeFilters['search'] . '%')
+                            ->orWhere('mobile', 'like', '%' . $vehiculeFilters['search'] . '%');
+                    })
+                    ->orWhereHas('marque', function ($marqueQuery) use ($vehiculeFilters) {
+                        $marqueQuery->where('libelle', 'like', '%' . $vehiculeFilters['search'] . '%');
+                    })
+                    ->orWhereHas('typeDeVehicule', function ($typeQuery) use ($vehiculeFilters) {
+                        $typeQuery->where('libelle', 'like', '%' . $vehiculeFilters['search'] . '%');
+                    })
+                    ->orWhereHas('typeDeCarburant', function ($carburantQuery) use ($vehiculeFilters) {
+                        $carburantQuery->where('libelle', 'like', '%' . $vehiculeFilters['search'] . '%');
+                    });
+            });
+        }
+
+        if ($vehiculeFilters['usager'] !== '') {
+            $vehiculesQuery->whereHas('user', function ($query) use ($vehiculeFilters) {
+                $query->where('nom', 'like', '%' . $vehiculeFilters['usager'] . '%')
+                    ->orWhere('prenoms', 'like', '%' . $vehiculeFilters['usager'] . '%')
+                    ->orWhere('mobile', 'like', '%' . $vehiculeFilters['usager'] . '%');
+            });
+        }
+
+        if ($vehiculeFilters['marque'] !== '') {
+            $vehiculesQuery->whereHas('marque', function ($query) use ($vehiculeFilters) {
+                $query->where('libelle', 'like', '%' . $vehiculeFilters['marque'] . '%');
+            });
+        }
+
+        if ($vehiculeFilters['type_vehicule'] !== '') {
+            $vehiculesQuery->whereHas('typeDeVehicule', function ($query) use ($vehiculeFilters) {
+                $query->where('libelle', 'like', '%' . $vehiculeFilters['type_vehicule'] . '%');
+            });
+        }
+
+        if ($vehiculeFilters['carburant'] !== '') {
+            $vehiculesQuery->whereHas('typeDeCarburant', function ($query) use ($vehiculeFilters) {
+                $query->where('libelle', 'like', '%' . $vehiculeFilters['carburant'] . '%');
+            });
+        }
+
+        $data["vehicules"] = $vehiculesQuery->orderBy('id', 'desc')
+            ->simplePaginate($perPage)
+            ->appends($request->query());
+        $data["per_page"] = $perPage;
+        $data["filters"] = $vehiculeFilters;
         // dd($data["article"]);
         return view('vehicule.index',$data);
     }
