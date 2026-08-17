@@ -21,9 +21,13 @@
         <div class="card text-left">
             <div class="card-body">
                 <h4 class="card-title mb-3">Les annonces</h4>
-                @php($filters = $filters ?? [])
+                @php
+                    $filters = $filters ?? [];
+                    $perPageOptions = [25, 50, 100];
+                    $currentPerPage = $per_page ?? 50;
+                @endphp
                 <form method="GET" action="{{ route('index-annonce') }}" class="mb-4">
-                    <input type="hidden" name="per_page" value="{{ $per_page ?? 50 }}">
+	                    <input type="hidden" name="per_page" value="{{ $currentPerPage }}">
                     <div class="row">
                         <div class="col-md-3">
                             <label>Recherche</label>
@@ -50,13 +54,13 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="text-muted">Page {{ $annonces->currentPage() }} - {{ $annonces->count() }} annonce(s) affichée(s)</div>
                     <form method="GET" action="{{ route('index-annonce') }}" class="d-flex align-items-center">
-                        @foreach(($filters ?? []) as $name => $value)
+                        @foreach($filters as $name => $value)
                             <input type="hidden" name="{{ $name }}" value="{{ $value }}">
                         @endforeach
                         <label class="mb-0 mr-2">Par page</label>
                         <select name="per_page" class="form-control form-control-sm" onchange="this.form.submit()" style="width: auto;">
-                            @foreach([25, 50, 100] as $option)
-                                <option value="{{ $option }}" {{ ($per_page ?? 50) == $option ? 'selected' : '' }}>{{ $option }}</option>
+                            @foreach($perPageOptions as $option)
+                                <option value="{{ $option }}" {{ $currentPerPage == $option ? 'selected' : '' }}>{{ $option }}</option>
                             @endforeach
                         </select>
                     </form>

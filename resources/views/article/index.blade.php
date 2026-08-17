@@ -21,9 +21,13 @@
         <div class="card text-left">
             <div class="card-body">
                 <h4 class="card-title mb-3">Les articles</h4>
-                @php($filters = $filters ?? [])
+                @php
+                    $filters = $filters ?? [];
+                    $perPageOptions = [25, 50, 100];
+                    $currentPerPage = $per_page ?? 50;
+                @endphp
                 <form method="GET" action="{{ route('index-article') }}" class="mb-4">
-                    <input type="hidden" name="per_page" value="{{ $per_page ?? 50 }}">
+                    <input type="hidden" name="per_page" value="{{ $currentPerPage }}">
                     <div class="row">
                         <div class="col-md-3">
                             <label>Recherche</label>
@@ -31,7 +35,14 @@
                         </div>
                         <div class="col-md-3">
                             <label>Établissement</label>
-                            <input type="text" name="etablissement" class="form-control" value="{{ $filters['etablissement'] ?? '' }}" placeholder="Nom établissement">
+                            <select name="etablissement_id" class="form-control js-select-filter-ajax" data-placeholder="Tous les établissements" data-url="{{ route('etablissement.filter-options') }}">
+                                <option value=""></option>
+                                @if($selected_etablissement_filter_option)
+                                    <option value="{{ $selected_etablissement_filter_option->id }}" selected>
+                                        {{ $selected_etablissement_filter_option->name }}
+                                    </option>
+                                @endif
+                            </select>
                         </div>
                         <div class="col-md-2">
                             <label>Prix min</label>
@@ -50,13 +61,13 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="text-muted">Page {{ $articles->currentPage() }} - {{ $articles->count() }} article(s) affiché(s)</div>
                     <form method="GET" action="{{ route('index-article') }}" class="d-flex align-items-center">
-                        @foreach(($filters ?? []) as $name => $value)
+                        @foreach($filters as $name => $value)
                             <input type="hidden" name="{{ $name }}" value="{{ $value }}">
                         @endforeach
                         <label class="mb-0 mr-2">Par page</label>
                         <select name="per_page" class="form-control form-control-sm" onchange="this.form.submit()" style="width: auto;">
-                            @foreach([25, 50, 100] as $option)
-                                <option value="{{ $option }}" {{ ($per_page ?? 50) == $option ? 'selected' : '' }}>{{ $option }}</option>
+                            @foreach($perPageOptions as $option)
+                                <option value="{{ $option }}" {{ $currentPerPage == $option ? 'selected' : '' }}>{{ $option }}</option>
                             @endforeach
                         </select>
                     </form>
@@ -153,3 +164,29 @@
 
 
 @include('layouts.footer')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('.js-select-filter-ajax').select2({
+            allowClear: true,
+            width: '100%',
+            minimumInputLength: 1,
+            placeholder: function () {
+                return $(this).data('placeholder');
+            },
+            ajax: {
+                delay: 250,
+                dataType: 'json',
+                url: function () {
+                    return $(this).data('url');
+                },
+                data: function (params) {
+                    return { q: params.term || '' };
+                },
+                processResults: function (data) {
+                    return data;
+                }
+            }
+        });
+    });
+</script>

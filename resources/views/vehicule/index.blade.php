@@ -21,29 +21,62 @@
         <div class="card text-left">
             <div class="card-body">
                 <h4 class="card-title mb-3">Les vehicules</h4>
-                @php($filters = $filters ?? [])
+                @php
+                    $filters = $filters ?? [];
+                    $perPageOptions = [25, 50, 100];
+                    $currentPerPage = $per_page ?? 50;
+                @endphp
                 <form method="GET" action="{{ route('index-vehicule') }}" class="mb-4">
-                    <input type="hidden" name="per_page" value="{{ $per_page ?? 50 }}">
+                    <input type="hidden" name="per_page" value="{{ $currentPerPage }}">
                     <div class="row">
                         <div class="col-md-3">
-                            <label>Recherche</label>
-                            <input type="text" name="search" class="form-control" value="{{ $filters['search'] ?? '' }}" placeholder="Matricule, carte grise, usager...">
+                            <label>Véhicule</label>
+                            <select name="vehicule_id" class="form-control js-select-filter-ajax" data-placeholder="Tous les véhicules" data-url="{{ route('vehicule.filter-options') }}">
+                                <option value=""></option>
+                                @if($selected_vehicule_filter_option)
+                                    <option value="{{ $selected_vehicule_filter_option->id }}" selected>
+                                        {{ ($selected_vehicule_filter_option->matricule ?: 'Sans matricule') . ' - ' . ($selected_vehicule_filter_option->carte_grise ?: 'Sans carte grise') . ' - ' . (trim(($selected_vehicule_filter_option->user->nom ?? '') . ' ' . ($selected_vehicule_filter_option->user->prenoms ?? '')) ?: 'Usager non renseigné') }}
+                                    </option>
+                                @endif
+                            </select>
                         </div>
                         <div class="col-md-2">
                             <label>Usager</label>
-                            <input type="text" name="usager" class="form-control" value="{{ $filters['usager'] ?? '' }}" placeholder="Nom, mobile">
+                            <select name="user_id" class="form-control js-select-filter-ajax" data-placeholder="Tous les usagers" data-url="{{ route('usager-vehicule.filter-options') }}">
+                                <option value=""></option>
+                                @if($selected_usager_filter_option)
+                                    <option value="{{ $selected_usager_filter_option->id }}" selected>
+                                        {{ (trim(($selected_usager_filter_option->nom ?? '') . ' ' . ($selected_usager_filter_option->prenoms ?? '')) ?: 'Sans nom') . ($selected_usager_filter_option->mobile ? ' - ' . $selected_usager_filter_option->mobile : '') }}
+                                    </option>
+                                @endif
+                            </select>
                         </div>
                         <div class="col-md-2">
                             <label>Marque</label>
-                            <input type="text" name="marque" class="form-control" value="{{ $filters['marque'] ?? '' }}" placeholder="Marque">
+                            <select name="marque_id" class="form-control js-select-filter" data-placeholder="Toutes les marques">
+                                <option value="">Toutes les marques</option>
+                                @foreach($marque_filter_options as $marqueOption)
+                                    <option value="{{ $marqueOption->id }}" {{ (string) ($filters['marque_id'] ?? '') === (string) $marqueOption->id ? 'selected' : '' }}>{{ $marqueOption->libelle }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-md-2">
                             <label>Type véhicule</label>
-                            <input type="text" name="type_vehicule" class="form-control" value="{{ $filters['type_vehicule'] ?? '' }}" placeholder="Type">
+                            <select name="type_de_vehicule_id" class="form-control js-select-filter" data-placeholder="Tous les types">
+                                <option value="">Tous les types</option>
+                                @foreach($type_vehicule_filter_options as $typeOption)
+                                    <option value="{{ $typeOption->id }}" {{ (string) ($filters['type_de_vehicule_id'] ?? '') === (string) $typeOption->id ? 'selected' : '' }}>{{ $typeOption->libelle }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-md-2">
                             <label>Carburant</label>
-                            <input type="text" name="carburant" class="form-control" value="{{ $filters['carburant'] ?? '' }}" placeholder="Carburant">
+                            <select name="type_de_carburant_id" class="form-control js-select-filter" data-placeholder="Tous les carburants">
+                                <option value="">Tous les carburants</option>
+                                @foreach($carburant_filter_options as $carburantOption)
+                                    <option value="{{ $carburantOption->id }}" {{ (string) ($filters['type_de_carburant_id'] ?? '') === (string) $carburantOption->id ? 'selected' : '' }}>{{ $carburantOption->libelle }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-md-1 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary mr-2">Filtrer</button>
@@ -56,13 +89,13 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="text-muted">Page {{ $vehicules->currentPage() }} - {{ $vehicules->count() }} véhicule(s) affiché(s)</div>
                     <form method="GET" action="{{ route('index-vehicule') }}" class="d-flex align-items-center">
-                        @foreach(($filters ?? []) as $name => $value)
+                        @foreach($filters as $name => $value)
                             <input type="hidden" name="{{ $name }}" value="{{ $value }}">
                         @endforeach
                         <label class="mb-0 mr-2">Par page</label>
                         <select name="per_page" class="form-control form-control-sm" onchange="this.form.submit()" style="width: auto;">
-                            @foreach([25, 50, 100] as $option)
-                                <option value="{{ $option }}" {{ ($per_page ?? 50) == $option ? 'selected' : '' }}>{{ $option }}</option>
+                            @foreach($perPageOptions as $option)
+                                <option value="{{ $option }}" {{ $currentPerPage == $option ? 'selected' : '' }}>{{ $option }}</option>
                             @endforeach
                         </select>
                     </form>
@@ -158,3 +191,37 @@
 
 
 @include('layouts.footer')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('.js-select-filter').select2({
+            allowClear: true,
+            width: '100%',
+            placeholder: function () {
+                return $(this).data('placeholder');
+            }
+        });
+
+        $('.js-select-filter-ajax').select2({
+            allowClear: true,
+            width: '100%',
+            minimumInputLength: 1,
+            placeholder: function () {
+                return $(this).data('placeholder');
+            },
+            ajax: {
+                delay: 250,
+                dataType: 'json',
+                url: function () {
+                    return $(this).data('url');
+                },
+                data: function (params) {
+                    return { q: params.term || '' };
+                },
+                processResults: function (data) {
+                    return data;
+                }
+            }
+        });
+    });
+</script>

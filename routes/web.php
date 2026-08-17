@@ -48,6 +48,8 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/concessionnaires/{id}', [ConcessionnaireController::class, 'destroyConcessionnaire'])->name('concessionnaires.destroy');
 
     Route::get('/vehicule', [DashboardController::class, 'getAllVehicule'])->name('index-vehicule');
+    Route::get('/vehicule-filter-options', [DashboardController::class, 'searchVehiculeFilterOptions'])->name('vehicule.filter-options');
+    Route::get('/usager-vehicule-filter-options', [DashboardController::class, 'searchUsagerVehiculeFilterOptions'])->name('usager-vehicule.filter-options');
     Route::post('/vehicule-store', [ConcessionnaireController::class, 'storeVehicule'])->name('vehicule.store');
     Route::post('/vehicule-update/{id}', [ConcessionnaireController::class, 'updateVehicule'])->name('vehicule.update');
     Route::delete('/vehicule-destroy/{id}', [ConcessionnaireController::class, 'destroyVehicule'])->name('vehicule.destroy');
@@ -101,6 +103,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Routes pour les articles
     Route::get('/articles', [DashboardController::class, 'getAllArticle'])->name('index-article');
+    Route::get('/etablissement-filter-options', [DashboardController::class, 'searchEtablissementFilterOptions'])->name('etablissement.filter-options');
 
     // Routes pour les abonnements
     Route::get('/abonnement-pro', [DashboardController::class, 'getAbonnementPro'])->name('abonnement-pro');

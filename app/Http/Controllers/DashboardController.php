@@ -3449,7 +3449,7 @@ class DashboardController extends Controller
 
         $articleFilters = [
             'search' => trim((string) $request->get('search', '')),
-            'etablissement' => trim((string) $request->get('etablissement', '')),
+            'etablissement_id' => $request->get('etablissement_id'),
             'prix_min' => $request->get('prix_min'),
             'prix_max' => $request->get('prix_max'),
         ];
@@ -3466,10 +3466,8 @@ class DashboardController extends Controller
             });
         }
 
-        if ($articleFilters['etablissement'] !== '') {
-            $articlesQuery->whereHas('etablissement', function ($query) use ($articleFilters) {
-                $query->where('name', 'like', '%' . $articleFilters['etablissement'] . '%');
-            });
+        if (is_numeric($articleFilters['etablissement_id'])) {
+            $articlesQuery->where('etablissement_id', $articleFilters['etablissement_id']);
         }
 
         if (is_numeric($articleFilters['prix_min'])) {
@@ -3485,6 +3483,9 @@ class DashboardController extends Controller
             ->appends($request->query());
         $data["per_page"] = $perPage;
         $data["filters"] = $articleFilters;
+        $data["selected_etablissement_filter_option"] = is_numeric($articleFilters['etablissement_id'])
+            ? Etablissement::select(['id', 'name'])->find($articleFilters['etablissement_id'])
+            : null;
         // dd($data["article"]);
         return view('article.index',$data);
     }
@@ -3511,11 +3512,11 @@ class DashboardController extends Controller
         $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
 
         $vehiculeFilters = [
-            'search' => trim((string) $request->get('search', '')),
-            'usager' => trim((string) $request->get('usager', '')),
-            'marque' => trim((string) $request->get('marque', '')),
-            'type_vehicule' => trim((string) $request->get('type_vehicule', '')),
-            'carburant' => trim((string) $request->get('carburant', '')),
+            'vehicule_id' => $request->get('vehicule_id'),
+            'user_id' => $request->get('user_id'),
+            'marque_id' => $request->get('marque_id'),
+            'type_de_vehicule_id' => $request->get('type_de_vehicule_id'),
+            'type_de_carburant_id' => $request->get('type_de_carburant_id'),
         ];
 
         $vehiculesQuery = Vehicule::select([
@@ -3537,52 +3538,24 @@ class DashboardController extends Controller
                 'typeDeCarburant:id,libelle',
             ]);
 
-        if ($vehiculeFilters['search'] !== '') {
-            $vehiculesQuery->where(function ($query) use ($vehiculeFilters) {
-                $query->where('matricule', 'like', '%' . $vehiculeFilters['search'] . '%')
-                    ->orWhere('carte_grise', 'like', '%' . $vehiculeFilters['search'] . '%')
-                    ->orWhere('couleur', 'like', '%' . $vehiculeFilters['search'] . '%')
-                    ->orWhereHas('user', function ($userQuery) use ($vehiculeFilters) {
-                        $userQuery->where('nom', 'like', '%' . $vehiculeFilters['search'] . '%')
-                            ->orWhere('prenoms', 'like', '%' . $vehiculeFilters['search'] . '%')
-                            ->orWhere('mobile', 'like', '%' . $vehiculeFilters['search'] . '%');
-                    })
-                    ->orWhereHas('marque', function ($marqueQuery) use ($vehiculeFilters) {
-                        $marqueQuery->where('libelle', 'like', '%' . $vehiculeFilters['search'] . '%');
-                    })
-                    ->orWhereHas('typeDeVehicule', function ($typeQuery) use ($vehiculeFilters) {
-                        $typeQuery->where('libelle', 'like', '%' . $vehiculeFilters['search'] . '%');
-                    })
-                    ->orWhereHas('typeDeCarburant', function ($carburantQuery) use ($vehiculeFilters) {
-                        $carburantQuery->where('libelle', 'like', '%' . $vehiculeFilters['search'] . '%');
-                    });
-            });
+        if (is_numeric($vehiculeFilters['vehicule_id'])) {
+            $vehiculesQuery->where('id', $vehiculeFilters['vehicule_id']);
         }
 
-        if ($vehiculeFilters['usager'] !== '') {
-            $vehiculesQuery->whereHas('user', function ($query) use ($vehiculeFilters) {
-                $query->where('nom', 'like', '%' . $vehiculeFilters['usager'] . '%')
-                    ->orWhere('prenoms', 'like', '%' . $vehiculeFilters['usager'] . '%')
-                    ->orWhere('mobile', 'like', '%' . $vehiculeFilters['usager'] . '%');
-            });
+        if (is_numeric($vehiculeFilters['user_id'])) {
+            $vehiculesQuery->where('user_id', $vehiculeFilters['user_id']);
         }
 
-        if ($vehiculeFilters['marque'] !== '') {
-            $vehiculesQuery->whereHas('marque', function ($query) use ($vehiculeFilters) {
-                $query->where('libelle', 'like', '%' . $vehiculeFilters['marque'] . '%');
-            });
+        if (is_numeric($vehiculeFilters['marque_id'])) {
+            $vehiculesQuery->where('marque_id', $vehiculeFilters['marque_id']);
         }
 
-        if ($vehiculeFilters['type_vehicule'] !== '') {
-            $vehiculesQuery->whereHas('typeDeVehicule', function ($query) use ($vehiculeFilters) {
-                $query->where('libelle', 'like', '%' . $vehiculeFilters['type_vehicule'] . '%');
-            });
+        if (is_numeric($vehiculeFilters['type_de_vehicule_id'])) {
+            $vehiculesQuery->where('type_de_vehicule_id', $vehiculeFilters['type_de_vehicule_id']);
         }
 
-        if ($vehiculeFilters['carburant'] !== '') {
-            $vehiculesQuery->whereHas('typeDeCarburant', function ($query) use ($vehiculeFilters) {
-                $query->where('libelle', 'like', '%' . $vehiculeFilters['carburant'] . '%');
-            });
+        if (is_numeric($vehiculeFilters['type_de_carburant_id'])) {
+            $vehiculesQuery->where('type_de_carburant_id', $vehiculeFilters['type_de_carburant_id']);
         }
 
         $data["vehicules"] = $vehiculesQuery->orderBy('id', 'desc')
@@ -3590,8 +3563,113 @@ class DashboardController extends Controller
             ->appends($request->query());
         $data["per_page"] = $perPage;
         $data["filters"] = $vehiculeFilters;
+        $data["selected_vehicule_filter_option"] = is_numeric($vehiculeFilters['vehicule_id'])
+            ? Vehicule::select(['id', 'matricule', 'carte_grise', 'user_id'])
+                ->with('user:id,nom,prenoms,mobile')
+                ->find($vehiculeFilters['vehicule_id'])
+            : null;
+        $data["selected_usager_filter_option"] = is_numeric($vehiculeFilters['user_id'])
+            ? User::select(['id', 'nom', 'prenoms', 'mobile'])->find($vehiculeFilters['user_id'])
+            : null;
+        $data["marque_filter_options"] = Marque::select(['id', 'libelle'])->orderBy('libelle')->get();
+        $data["type_vehicule_filter_options"] = Type_de_vehicule::select(['id', 'libelle'])->orderBy('libelle')->get();
+        $data["carburant_filter_options"] = Type_de_Carburant::select(['id', 'libelle'])->orderBy('libelle')->get();
         // dd($data["article"]);
         return view('vehicule.index',$data);
+    }
+
+    public function searchVehiculeFilterOptions(Request $request)
+    {
+        $term = trim((string) $request->get('q', ''));
+
+        $vehicules = Vehicule::select(['id', 'matricule', 'carte_grise', 'user_id'])
+            ->with('user:id,nom,prenoms,mobile')
+            ->when($term !== '', function ($query) use ($term) {
+                $query->where(function ($searchQuery) use ($term) {
+                    $searchQuery->where('matricule', 'like', '%' . $term . '%')
+                        ->orWhere('carte_grise', 'like', '%' . $term . '%')
+                        ->orWhereHas('user', function ($userQuery) use ($term) {
+                            $userQuery->where('nom', 'like', '%' . $term . '%')
+                                ->orWhere('prenoms', 'like', '%' . $term . '%')
+                                ->orWhere('mobile', 'like', '%' . $term . '%');
+                        });
+                });
+            })
+            ->orderBy('matricule')
+            ->limit(20)
+            ->get()
+            ->map(function ($vehicule) {
+                return [
+                    'id' => $vehicule->id,
+                    'text' => $this->formatVehiculeFilterOption($vehicule),
+                ];
+            });
+
+        return response()->json(['results' => $vehicules]);
+    }
+
+    public function searchUsagerVehiculeFilterOptions(Request $request)
+    {
+        $term = trim((string) $request->get('q', ''));
+
+        $usagers = User::select(['id', 'nom', 'prenoms', 'mobile'])
+            ->whereHas('vehicules')
+            ->when($term !== '', function ($query) use ($term) {
+                $query->where(function ($searchQuery) use ($term) {
+                    $searchQuery->where('nom', 'like', '%' . $term . '%')
+                        ->orWhere('prenoms', 'like', '%' . $term . '%')
+                        ->orWhere('mobile', 'like', '%' . $term . '%');
+                });
+            })
+            ->orderBy('nom')
+            ->limit(20)
+            ->get()
+            ->map(function ($usager) {
+                return [
+                    'id' => $usager->id,
+                    'text' => $this->formatUsagerFilterOption($usager),
+                ];
+            });
+
+        return response()->json(['results' => $usagers]);
+    }
+
+    public function searchEtablissementFilterOptions(Request $request)
+    {
+        $term = trim((string) $request->get('q', ''));
+
+        $etablissements = Etablissement::select(['id', 'name'])
+            ->whereNotNull('name')
+            ->when($term !== '', function ($query) use ($term) {
+                $query->where('name', 'like', '%' . $term . '%');
+            })
+            ->orderBy('name')
+            ->limit(20)
+            ->get()
+            ->map(function ($etablissement) {
+                return [
+                    'id' => $etablissement->id,
+                    'text' => $etablissement->name,
+                ];
+            });
+
+        return response()->json(['results' => $etablissements]);
+    }
+
+    private function formatVehiculeFilterOption($vehicule): string
+    {
+        $usager = trim(($vehicule->user->nom ?? '') . ' ' . ($vehicule->user->prenoms ?? ''));
+
+        return ($vehicule->matricule ?: 'Sans matricule')
+            . ' - ' . ($vehicule->carte_grise ?: 'Sans carte grise')
+            . ' - ' . ($usager ?: 'Usager non renseigné');
+    }
+
+    private function formatUsagerFilterOption($usager): string
+    {
+        $name = trim(($usager->nom ?? '') . ' ' . ($usager->prenoms ?? '')) ?: 'Sans nom';
+
+        return $name . ($usager->mobile ? ' - ' . $usager->mobile : '');
     }
 
     /**

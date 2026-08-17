@@ -21,22 +21,24 @@
         <div class="card text-left">
             <div class="card-body">
                 <h4 class="card-title mb-3">Les usagers</h4>
+                @php
+                    $presenceFilters = $presence_filters ?? [];
+                    $perPageOptions = [25, 50, 100];
+                    $currentPerPage = $per_page ?? 50;
+                    $filterOptions = [
+                        '' => 'Tous',
+                        'with' => 'Avec',
+                        'without' => 'Sans',
+                    ];
+                @endphp
                 <form method="GET" action="{{ route('index-usagers') }}" class="mb-4">
-                    <input type="hidden" name="per_page" value="{{ $per_page ?? 50 }}">
+                    <input type="hidden" name="per_page" value="{{ $currentPerPage }}">
                     <div class="row">
-                        @php
-                            $filterOptions = [
-                                '' => 'Tous',
-                                'with' => 'Avec',
-                                'without' => 'Sans',
-                            ];
-                            $filters = $presence_filters ?? [];
-                        @endphp
                         <div class="col-md-2">
                             <label>Véhicule</label>
                             <select name="vehicule_filter" class="form-control">
                                 @foreach($filterOptions as $value => $label)
-                                    <option value="{{ $value }}" {{ ($filters['vehicule_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    <option value="{{ $value }}" {{ ($presenceFilters['vehicule_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -44,7 +46,7 @@
                             <label>Type d'alerte</label>
                             <select name="alerte_filter" class="form-control">
                                 @foreach($filterOptions as $value => $label)
-                                    <option value="{{ $value }}" {{ ($filters['alerte_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    <option value="{{ $value }}" {{ ($presenceFilters['alerte_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -52,7 +54,7 @@
                             <label>Abonnement actif</label>
                             <select name="abonnement_filter" class="form-control">
                                 @foreach($filterOptions as $value => $label)
-                                    <option value="{{ $value }}" {{ ($filters['abonnement_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    <option value="{{ $value }}" {{ ($presenceFilters['abonnement_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -60,7 +62,7 @@
                             <label>Annonce</label>
                             <select name="annonce_filter" class="form-control">
                                 @foreach($filterOptions as $value => $label)
-                                    <option value="{{ $value }}" {{ ($filters['annonce_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    <option value="{{ $value }}" {{ ($presenceFilters['annonce_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -68,7 +70,7 @@
                             <label>Document</label>
                             <select name="document_filter" class="form-control">
                                 @foreach($filterOptions as $value => $label)
-                                    <option value="{{ $value }}" {{ ($filters['document_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    <option value="{{ $value }}" {{ ($presenceFilters['document_filter'] ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -83,13 +85,13 @@
                         Page {{ $usagers->currentPage() }} - {{ $usagers->count() }} usager(s) affiché(s)
                     </div>
                     <form method="GET" action="{{ route('index-usagers') }}" class="d-flex align-items-center">
-                        @foreach(($presence_filters ?? []) as $name => $value)
+                        @foreach($presenceFilters as $name => $value)
                             <input type="hidden" name="{{ $name }}" value="{{ $value }}">
                         @endforeach
                         <label class="mb-0 mr-2">Par page</label>
                         <select name="per_page" class="form-control form-control-sm" onchange="this.form.submit()" style="width: auto;">
-                            @foreach([25, 50, 100] as $option)
-                                <option value="{{ $option }}" {{ ($per_page ?? 50) == $option ? 'selected' : '' }}>{{ $option }}</option>
+                            @foreach($perPageOptions as $option)
+                                <option value="{{ $option }}" {{ $currentPerPage == $option ? 'selected' : '' }}>{{ $option }}</option>
                             @endforeach
                         </select>
                     </form>
