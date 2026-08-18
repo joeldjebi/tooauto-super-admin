@@ -405,6 +405,7 @@ Route::prefix('call-center')->group(function () {
         Route::get('/users/{user}/autodocs', [CallCenterSpaceController::class, 'userAutodocs'])->name('call-center.users.autodocs');
         Route::get('/users/{user}/autodocs/{autodoc}/details', [CallCenterSpaceController::class, 'autodocDetails'])->name('call-center.users.autodocs.details');
         Route::get('/professionnels', [CallCenterSpaceController::class, 'professionnels'])->name('call-center.professionnels');
+        Route::post('/professionnels/{professionnel}/suivi-appel', [CallCenterSpaceController::class, 'updateProfessionnelCallFollowUp'])->name('call-center.professionnels.suivi-appel');
         Route::get('/professionnels/{professionnel}/details', [CallCenterSpaceController::class, 'professionnelDetails'])->name('call-center.professionnels.details');
         Route::get('/vehicules', [CallCenterSpaceController::class, 'vehicules'])->name('call-center.vehicules');
         Route::get('/vehicules/{vehicule}/details', [CallCenterSpaceController::class, 'vehiculeDetails'])->name('call-center.vehicules.details');
@@ -414,6 +415,7 @@ Route::prefix('call-center')->group(function () {
         Route::get('/annonce-concessionnaires', [CallCenterSpaceController::class, 'annonceConcessionnaires'])->name('call-center.annonce-concessionnaires');
         Route::get('/annonce-etablissements', [CallCenterSpaceController::class, 'annonceEtablissements'])->name('call-center.annonce-etablissements');
         Route::get('/concessionnaires', [CallCenterSpaceController::class, 'concessionnaires'])->name('call-center.concessionnaires');
+        Route::post('/concessionnaires/{concessionnaire}/suivi-appel', [CallCenterSpaceController::class, 'updateConcessionnaireCallFollowUp'])->name('call-center.concessionnaires.suivi-appel');
         Route::get('/etablissements', [CallCenterSpaceController::class, 'etablissements'])->name('call-center.etablissements');
         Route::post('/etablissements/{etablissement}/suivi-appel', [CallCenterSpaceController::class, 'updateEtablissementCallFollowUp'])->name('call-center.etablissements.suivi-appel');
         Route::get('/etablissements/{etablissement}/articles', [CallCenterSpaceController::class, 'etablissementArticles'])->name('call-center.etablissements.articles');

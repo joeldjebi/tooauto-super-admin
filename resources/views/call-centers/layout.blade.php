@@ -54,6 +54,7 @@
         }
         .cc-main {
             padding: 28px;
+            min-width: 0;
         }
         .cc-topbar {
             display: flex;
@@ -76,6 +77,7 @@
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+            min-width: 0;
             padding: 22px;
         }
         .cc-card-header {
@@ -120,11 +122,28 @@
         .cc-table-wrap {
             border: 1px solid #e5e7eb;
             border-radius: 8px;
-            overflow: auto;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-color: #94a3b8 #e5e7eb;
+            scrollbar-width: thin;
+        }
+        .cc-table-wrap::-webkit-scrollbar {
+            height: 10px;
+        }
+        .cc-table-wrap::-webkit-scrollbar-track {
+            background: #e5e7eb;
+            border-radius: 999px;
+        }
+        .cc-table-wrap::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 999px;
         }
         .cc-table {
             margin-bottom: 0;
-            min-width: 980px;
+            min-width: 100%;
+            width: max-content;
         }
         .cc-table thead th {
             position: sticky;
@@ -142,7 +161,13 @@
         .cc-table td {
             color: #334155;
             font-size: .88rem;
+            max-width: 260px;
             vertical-align: top;
+            white-space: nowrap;
+        }
+        .cc-table td:not(.cc-table-actions) {
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .cc-table tbody tr:hover {
             background: #f8fafc;
@@ -150,6 +175,17 @@
         .cc-table-actions {
             min-width: 260px;
             max-width: 340px;
+        }
+        .cc-follow-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-width: 130px;
+        }
+        .cc-follow-badges .badge {
+            font-size: .76rem;
+            line-height: 1.2;
+            padding: 5px 7px;
         }
         .cc-actions-dropdown {
             position: relative;
@@ -229,6 +265,72 @@
             }
             .cc-card-header {
                 flex-direction: column;
+            }
+            .cc-table-wrap {
+                border: 0;
+                overflow: visible;
+            }
+            .cc-table {
+                display: block;
+                min-width: 0;
+                width: 100%;
+            }
+            .cc-table thead {
+                display: none;
+            }
+            .cc-table tbody,
+            .cc-table tr,
+            .cc-table td {
+                display: block;
+                width: 100%;
+            }
+            .cc-table tbody tr {
+                background: #fff;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                margin-bottom: 12px;
+                padding: 8px 0;
+            }
+            .cc-table td {
+                align-items: flex-start;
+                border-top: 0;
+                display: flex;
+                gap: 14px;
+                justify-content: space-between;
+                max-width: none;
+                padding: 8px 12px;
+                white-space: normal;
+            }
+            .cc-table td::before {
+                color: #64748b;
+                content: attr(data-label);
+                flex: 0 0 38%;
+                font-size: .72rem;
+                font-weight: 800;
+                letter-spacing: .03em;
+                text-transform: uppercase;
+            }
+            .cc-table td > * {
+                max-width: 62%;
+            }
+            .cc-table-actions {
+                max-width: none;
+                min-width: 0;
+            }
+            .cc-table-actions::before {
+                padding-top: 6px;
+            }
+            .cc-actions-dropdown,
+            .cc-actions-toggle {
+                width: 100%;
+            }
+            .cc-actions-menu {
+                position: static;
+                width: 100%;
+            }
+            .cc-follow-badges {
+                justify-content: flex-end;
+                min-width: 0;
             }
         }
     </style>

@@ -41,8 +41,7 @@ class CallCenterSpaceController extends Controller
 
     public function users(Request $request)
     {
-        $hasCallFollowUp = $this->hasColumn('users', 'call_center_deja_appele')
-            && $this->hasColumn('users', 'call_center_commentaire');
+        $hasCallFollowUp = $this->hasCallFollowUpColumns('users');
         $query = DB::table('users');
 
         $selects = ['users.id as row_id'];
@@ -91,23 +90,32 @@ class CallCenterSpaceController extends Controller
             $query->where('users.call_center_deja_appele', $request->boolean('call_center_deja_appele'));
         }
 
+        $columns = [
+            'nom' => 'Nom',
+            'prenoms' => 'Prenoms',
+            'nom_affiche' => 'Nom affiche',
+            'email' => 'Email',
+            'mobile' => 'Mobile',
+            'telephone' => 'Telephone',
+            'commercial' => 'Commercial',
+            'statut' => 'Statut',
+        ];
+
+        if ($hasCallFollowUp) {
+            $columns['suivi_appel'] = 'Suivi appel';
+        }
+
+        $columns += [
+            'date_creation' => 'Date creation',
+            'actions' => 'Actions',
+        ];
+
         return $this->renderList(
             $request,
             'Users',
             'call-center-users',
             $query->select($selects),
-            [
-                'nom' => 'Nom',
-                'prenoms' => 'Prenoms',
-                'nom_affiche' => 'Nom affiche',
-                'email' => 'Email',
-                'mobile' => 'Mobile',
-                'telephone' => 'Telephone',
-                'commercial' => 'Commercial',
-                'statut' => 'Statut',
-                'date_creation' => 'Date creation',
-                'actions' => 'Actions',
-            ],
+            $columns,
             array_filter([
                 [
                     'name' => 'search',
@@ -133,55 +141,7 @@ class CallCenterSpaceController extends Controller
 
     public function updateUserCallFollowUp(Request $request, int $user)
     {
-        if (
-            ! Schema::hasTable('users')
-            || ! $this->hasColumn('users', 'call_center_deja_appele')
-            || ! $this->hasColumn('users', 'call_center_commentaire')
-        ) {
-            return back()->with([
-                'type' => 'alert-danger',
-                'message' => "Le suivi d'appel des usagers n'est pas encore disponible. Lancez la migration avant d'enregistrer une note.",
-            ]);
-        }
-
-        $request->validate([
-            'call_center_deja_appele' => ['sometimes', 'required', 'boolean'],
-            'call_center_commentaire' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        $current = DB::table('users')
-            ->where('id', $user)
-            ->first(['id', 'call_center_deja_appele', 'call_center_commentaire']);
-
-        if (! $current) {
-            return back()->with([
-                'type' => 'alert-danger',
-                'message' => 'Usager introuvable.',
-            ]);
-        }
-
-        $dejaAppele = $request->has('call_center_deja_appele')
-            ? $request->boolean('call_center_deja_appele')
-            : (bool) $current->call_center_deja_appele;
-
-        $data = ['call_center_deja_appele' => $dejaAppele];
-
-        if ($request->has('call_center_commentaire')) {
-            $data['call_center_commentaire'] = $request->input('call_center_commentaire');
-        }
-
-        if ($this->hasColumn('users', 'call_center_called_at')) {
-            $data['call_center_called_at'] = $dejaAppele ? now() : null;
-        }
-
-        DB::table('users')
-            ->where('id', $user)
-            ->update($data);
-
-        return back()->with([
-            'type' => 'alert-success',
-            'message' => 'Suivi appel enregistre avec succes.',
-        ]);
+        return $this->updateCallFollowUp($request, 'users', $user, 'Usager');
     }
 
     public function userAlerts(Request $request, int $user)
@@ -513,7 +473,27 @@ class CallCenterSpaceController extends Controller
 
     public function professionnels(Request $request)
     {
+        $hasCallFollowUp = $this->hasCallFollowUpColumns('professionnels');
         $query = DB::table('professionnels');
+        $selects = [
+            'professionnels.id as row_id',
+            'professionnels.nom',
+            'professionnels.prenoms',
+            'professionnels.role',
+            'professionnels.email',
+            'professionnels.mobile',
+            'professionnels.statut',
+            'professionnels.created_at as date_creation',
+            DB::raw("CONCAT('<a class=\"btn btn-sm btn-outline-primary\" href=\"', '" . route('call-center.professionnels') . "/', professionnels.id, '/details', '\">Details</a>') as actions"),
+        ];
+        $columns = [
+            'nom' => 'Nom',
+            'prenoms' => 'Prenoms',
+            'role' => 'Role',
+            'email' => 'Email',
+            'mobile' => 'Mobile',
+            'statut' => 'Statut',
+        ];
 
         $this->applySearch($query, $request->string('search')->toString(), [
             'professionnels.nom',
@@ -528,32 +508,25 @@ class CallCenterSpaceController extends Controller
             $query->where('professionnels.role', $request->input('role'));
         }
 
+        if ($hasCallFollowUp) {
+            $selects[] = 'professionnels.call_center_deja_appele';
+            $selects[] = 'professionnels.call_center_commentaire';
+            $columns['suivi_appel'] = 'Suivi appel';
+            $this->applyCallFollowUpFilter($query, 'professionnels', $request);
+        }
+
+        $columns += [
+            'date_creation' => 'Date creation',
+            'actions' => 'Actions',
+        ];
+
         return $this->renderList(
             $request,
             'Professionnels',
             'call-center-professionnels',
-            $query->select([
-                'professionnels.id as row_id',
-                'professionnels.nom',
-                'professionnels.prenoms',
-                'professionnels.role',
-                'professionnels.email',
-                'professionnels.mobile',
-                'professionnels.statut',
-                'professionnels.created_at as date_creation',
-                DB::raw("CONCAT('<a class=\"btn btn-sm btn-outline-primary\" href=\"', '" . route('call-center.professionnels') . "/', professionnels.id, '/details', '\">Details</a>') as actions"),
-            ]),
-            [
-                'nom' => 'Nom',
-                'prenoms' => 'Prenoms',
-                'role' => 'Role',
-                'email' => 'Email',
-                'mobile' => 'Mobile',
-                'statut' => 'Statut',
-                'date_creation' => 'Date creation',
-                'actions' => 'Actions',
-            ],
-            [
+            $query->select($selects),
+            $columns,
+            array_values(array_filter([
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
@@ -569,8 +542,14 @@ class CallCenterSpaceController extends Controller
                     'options' => $this->distinctOptions('professionnels', 'role', 'role'),
                 ],
                 $this->statusFilter($request->input('statut')),
-            ]
+                $hasCallFollowUp ? $this->callFollowUpFilter($request->input('call_center_deja_appele')) : null,
+            ]))
         );
+    }
+
+    public function updateProfessionnelCallFollowUp(Request $request, int $professionnel)
+    {
+        return $this->updateCallFollowUp($request, 'professionnels', $professionnel, 'Professionnel');
     }
 
     public function professionnelDetails(int $professionnel)
@@ -1122,8 +1101,10 @@ class CallCenterSpaceController extends Controller
 
     public function concessionnaires(Request $request)
     {
+        $hasCallFollowUp = $this->hasCallFollowUpColumns('concessionnaires');
         $query = DB::table('concessionnaires');
         $selects = [
+            'concessionnaires.id as row_id',
             'concessionnaires.name',
             'concessionnaires.email',
             'concessionnaires.contact',
@@ -1155,6 +1136,13 @@ class CallCenterSpaceController extends Controller
         $this->applySearch($query, $request->string('search')->toString(), $searchColumns);
         $this->applyStatusFilter($query, 'concessionnaires', $request->input('statut'));
 
+        if ($hasCallFollowUp) {
+            $selects[] = 'concessionnaires.call_center_deja_appele';
+            $selects[] = 'concessionnaires.call_center_commentaire';
+            $columns['suivi_appel'] = 'Suivi appel';
+            $this->applyCallFollowUpFilter($query, 'concessionnaires', $request);
+        }
+
         return $this->renderList(
             $request,
             'Concessionnaires',
@@ -1163,8 +1151,9 @@ class CallCenterSpaceController extends Controller
             $columns + [
                 'statut' => 'Statut',
                 'date_creation' => 'Date creation',
+                'actions' => 'Actions',
             ],
-            [
+            array_values(array_filter([
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
@@ -1173,8 +1162,14 @@ class CallCenterSpaceController extends Controller
                     'value' => $request->input('search', ''),
                 ],
                 $this->statusFilter($request->input('statut')),
-            ]
+                $hasCallFollowUp ? $this->callFollowUpFilter($request->input('call_center_deja_appele')) : null,
+            ]))
         );
+    }
+
+    public function updateConcessionnaireCallFollowUp(Request $request, int $concessionnaire)
+    {
+        return $this->updateCallFollowUp($request, 'concessionnaires', $concessionnaire, 'Concessionnaire');
     }
 
     public function etablissements(Request $request)
@@ -1203,7 +1198,6 @@ class CallCenterSpaceController extends Controller
             'mobile_fix' => 'Mobile fixe',
             'adresse' => 'Adresse',
             'professionnel' => 'Professionnel',
-            'actions' => 'Actions',
         ];
 
         if ($this->hasColumn('etablissements', 'created_at')) {
@@ -1214,6 +1208,7 @@ class CallCenterSpaceController extends Controller
         if ($hasCallFollowUp) {
             $selects[] = 'etablissements.call_center_deja_appele';
             $selects[] = 'etablissements.call_center_commentaire';
+            $columns['suivi_appel'] = 'Suivi appel';
         }
 
         if (Schema::hasTable('categorie_services') && $this->hasColumn('etablissements', 'categorie_service_id')) {
@@ -1274,6 +1269,10 @@ class CallCenterSpaceController extends Controller
             $query->where('etablissements.commune_id', $request->input('commune_id'));
         }
 
+        if ($hasCallFollowUp) {
+            $this->applyCallFollowUpFilter($query, 'etablissements', $request);
+        }
+
         return $this->renderList(
             $request,
             'Etablissements',
@@ -1281,8 +1280,9 @@ class CallCenterSpaceController extends Controller
             $query->select($selects),
             $columns + [
                 'statut' => 'Statut',
+                'actions' => 'Actions',
             ],
-            [
+            array_values(array_filter([
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
@@ -1312,49 +1312,14 @@ class CallCenterSpaceController extends Controller
                     'options' => $this->smartTableOptions('communes'),
                 ],
                 $this->statusFilter($request->input('statut')),
-            ]
+                $hasCallFollowUp ? $this->callFollowUpFilter($request->input('call_center_deja_appele')) : null,
+            ]))
         );
     }
 
     public function updateEtablissementCallFollowUp(Request $request, int $etablissement)
     {
-        abort_unless(Schema::hasTable('etablissements'), 404);
-        abort_unless($this->hasColumn('etablissements', 'call_center_deja_appele'), 404);
-        abort_unless($this->hasColumn('etablissements', 'call_center_commentaire'), 404);
-
-        $request->validate([
-            'call_center_deja_appele' => ['sometimes', 'required', 'boolean'],
-            'call_center_commentaire' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        $current = DB::table('etablissements')
-            ->where('id', $etablissement)
-            ->first(['id', 'call_center_deja_appele', 'call_center_commentaire']);
-
-        abort_unless($current, 404);
-
-        $dejaAppele = $request->has('call_center_deja_appele')
-            ? $request->boolean('call_center_deja_appele')
-            : (bool) $current->call_center_deja_appele;
-
-        $data = ['call_center_deja_appele' => $dejaAppele];
-
-        if ($request->has('call_center_commentaire')) {
-            $data['call_center_commentaire'] = $request->input('call_center_commentaire');
-        }
-
-        if ($this->hasColumn('etablissements', 'call_center_called_at')) {
-            $data['call_center_called_at'] = $dejaAppele ? now() : null;
-        }
-
-        DB::table('etablissements')
-            ->where('id', $etablissement)
-            ->update($data);
-
-        return back()->with([
-            'type' => 'alert-success',
-            'message' => 'Suivi appel enregistre avec succes.',
-        ]);
+        return $this->updateCallFollowUp($request, 'etablissements', $etablissement, 'Etablissement');
     }
 
     public function etablissementArticles(Request $request, int $etablissement)
@@ -1698,6 +1663,82 @@ class CallCenterSpaceController extends Controller
                 ['value' => '0', 'label' => 'Inactif'],
             ],
         ];
+    }
+
+    private function callFollowUpFilter(mixed $value): array
+    {
+        return [
+            'name' => 'call_center_deja_appele',
+            'label' => 'Appel',
+            'type' => 'select',
+            'value' => (string) ($value ?? ''),
+            'options' => [
+                ['value' => '1', 'label' => 'Deja appele'],
+                ['value' => '0', 'label' => 'Non appele'],
+            ],
+        ];
+    }
+
+    private function hasCallFollowUpColumns(string $table): bool
+    {
+        return $this->hasColumn($table, 'call_center_deja_appele')
+            && $this->hasColumn($table, 'call_center_commentaire');
+    }
+
+    private function applyCallFollowUpFilter(Builder $query, string $table, Request $request): void
+    {
+        if ($request->filled('call_center_deja_appele')) {
+            $query->where("{$table}.call_center_deja_appele", $request->boolean('call_center_deja_appele'));
+        }
+    }
+
+    private function updateCallFollowUp(Request $request, string $table, int $id, string $label)
+    {
+        if (! Schema::hasTable($table) || ! $this->hasCallFollowUpColumns($table)) {
+            return back()->with([
+                'type' => 'alert-danger',
+                'message' => "Le suivi d'appel {$label} n'est pas encore disponible. Creez les colonnes avant d'enregistrer une note.",
+            ]);
+        }
+
+        $request->validate([
+            'call_center_deja_appele' => ['sometimes', 'required', 'boolean'],
+            'call_center_commentaire' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $current = DB::table($table)
+            ->where('id', $id)
+            ->first(['id', 'call_center_deja_appele', 'call_center_commentaire']);
+
+        if (! $current) {
+            return back()->with([
+                'type' => 'alert-danger',
+                'message' => "{$label} introuvable.",
+            ]);
+        }
+
+        $dejaAppele = $request->has('call_center_deja_appele')
+            ? $request->boolean('call_center_deja_appele')
+            : (bool) $current->call_center_deja_appele;
+
+        $data = ['call_center_deja_appele' => $dejaAppele];
+
+        if ($request->has('call_center_commentaire')) {
+            $data['call_center_commentaire'] = $request->input('call_center_commentaire');
+        }
+
+        if ($this->hasColumn($table, 'call_center_called_at')) {
+            $data['call_center_called_at'] = $dejaAppele ? now() : null;
+        }
+
+        DB::table($table)
+            ->where('id', $id)
+            ->update($data);
+
+        return back()->with([
+            'type' => 'alert-success',
+            'message' => 'Suivi appel enregistre avec succes.',
+        ]);
     }
 
     private function tableOptions(string $table, string $valueColumn, string $labelColumn): array

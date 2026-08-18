@@ -139,10 +139,35 @@
                                             }
                                         }
                                     @endphp
-                                    <td class="{{ $key === 'actions' ? 'cc-table-actions' : '' }}">
-                                        @if ($key === 'actions' && ($menu ?? '') === 'call-center-users')
+                                    <td class="{{ $key === 'actions' ? 'cc-table-actions' : '' }}" data-label="{{ $key === 'date_creation' ? 'Date' : ($columns[$key] ?? '') }}">
+                                        @if ($key === 'suivi_appel')
                                             @php
-                                                $userId = $item->row_id ?? null;
+                                                $hasCallFollowUp = property_exists($item, 'call_center_deja_appele') && property_exists($item, 'call_center_commentaire');
+                                                $dejaAppele = (string) ($item->call_center_deja_appele ?? '0') === '1';
+                                                $callCommentaire = trim((string) ($item->call_center_commentaire ?? ''));
+                                            @endphp
+
+                                            @if($hasCallFollowUp)
+                                                <div class="cc-follow-badges">
+                                                    <span class="badge {{ $dejaAppele ? 'badge-success' : 'badge-light border' }}">
+                                                        {{ $dejaAppele ? 'Deja appele' : 'Non appele' }}
+                                                    </span>
+                                                    @if($callCommentaire !== '')
+                                                        <span class="badge badge-info">Commente</span>
+                                                    @endif
+                                                </div>
+                                            @else
+                                                -
+                                            @endif
+                                        @elseif ($key === 'actions' && in_array(($menu ?? ''), ['call-center-users', 'call-center-professionnels', 'call-center-etablissements', 'call-center-concessionnaires'], true))
+                                            @php
+                                                $entityId = $item->row_id ?? null;
+                                                $routeName = [
+                                                    'call-center-users' => 'call-center.users.suivi-appel',
+                                                    'call-center-professionnels' => 'call-center.professionnels.suivi-appel',
+                                                    'call-center-etablissements' => 'call-center.etablissements.suivi-appel',
+                                                    'call-center-concessionnaires' => 'call-center.concessionnaires.suivi-appel',
+                                                ][$menu] ?? null;
                                                 $hasCallFollowUp = property_exists($item, 'call_center_deja_appele') && property_exists($item, 'call_center_commentaire');
                                                 $dejaAppele = (string) ($item->call_center_deja_appele ?? '0') === '1';
                                                 $callCommentaire = $hasCallFollowUp ? (string) ($item->call_center_commentaire ?? '') : '';
@@ -151,80 +176,21 @@
                                                 $statusClass = $dejaAppele ? 'btn-outline-secondary' : 'btn-outline-success';
                                                 $badgeLabel = $dejaAppele ? 'Deja appele' : 'Non appele';
                                                 $badgeClass = $dejaAppele ? 'badge-success' : 'badge-light';
-                                                $commentBlockId = 'cc-user-comment-' . $userId;
+                                                $commentBlockId = 'cc-comment-' . ($menu ?? 'item') . '-' . $entityId;
                                             @endphp
 
-                                            <details class="cc-actions-dropdown">
-                                                <summary class="btn btn-sm btn-outline-primary cc-actions-toggle">Actions</summary>
-                                                <div class="cc-actions-menu">
-                                                    <div class="cc-action-links">
-                                                        {!! $value !!}
-                                                    </div>
-
-                                                    @if($userId)
-                                                        <div class="cc-call-panel">
-                                                            <span class="badge {{ $badgeClass }}">{{ $badgeLabel }}</span>
-
-                                                            <div class="cc-action-buttons mt-2">
-                                                                @if($hasCallFollowUp)
-                                                                    <form action="{{ route('call-center.users.suivi-appel', $userId) }}" method="POST" class="d-inline">
-                                                                        @csrf
-                                                                        <input type="hidden" name="call_center_deja_appele" value="{{ $nextStatus }}">
-                                                                        <button type="submit" class="btn btn-sm {{ $statusClass }}">{{ $statusLabel }}</button>
-                                                                    </form>
-
-                                                                    <button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('{{ $commentBlockId }}').classList.toggle('d-none')">
-                                                                        Noter / commenter
-                                                                    </button>
-                                                                @else
-                                                                    <button type="button" class="btn btn-sm btn-outline-info" disabled title="Lancez la migration pour activer le suivi d'appel">
-                                                                        Noter / commenter
-                                                                    </button>
-                                                                @endif
-                                                            </div>
-                                                        </div>
-
-                                                        @if($callCommentaire !== '')
-                                                            <div class="cc-note-preview">
-                                                                {{ \Illuminate\Support\Str::limit($callCommentaire, 80) }}
-                                                            </div>
-                                                        @endif
-
-                                                        @if($hasCallFollowUp)
-                                                            <div id="{{ $commentBlockId }}" class="d-none cc-note-editor">
-                                                                <form action="{{ route('call-center.users.suivi-appel', $userId) }}" method="POST">
-                                                                    @csrf
-                                                                    <textarea name="call_center_commentaire" class="form-control form-control-sm mb-2" rows="3" placeholder="Note ou commentaire d'appel">{{ $callCommentaire }}</textarea>
-                                                                    <button type="submit" class="btn btn-sm btn-primary">Enregistrer</button>
-                                                                </form>
-                                                            </div>
-                                                        @else
-                                                            <div class="small text-danger mt-1">Migration requise.</div>
-                                                        @endif
-                                                    @endif
-                                                </div>
-                                            </details>
-                                        @elseif ($key === 'actions' && ($menu ?? '') === 'call-center-etablissements')
-                                            @php
-                                                $etablissementId = $item->row_id ?? null;
-                                                $hasCallFollowUp = property_exists($item, 'call_center_deja_appele') && property_exists($item, 'call_center_commentaire');
-                                                $dejaAppele = (string) ($item->call_center_deja_appele ?? '0') === '1';
-                                                $nextStatus = $dejaAppele ? '0' : '1';
-                                                $statusLabel = $dejaAppele ? 'Marquer non appele' : 'Marquer appele';
-                                                $statusClass = $dejaAppele ? 'btn-outline-secondary' : 'btn-outline-success';
-                                                $badgeLabel = $dejaAppele ? 'Deja appele' : 'Non appele';
-                                                $badgeClass = $dejaAppele ? 'badge-success' : 'badge-light';
-                                                $commentBlockId = 'cc-comment-' . $etablissementId;
-                                            @endphp
-
-                                            @if($etablissementId)
+                                            @if($entityId)
                                                 <details class="cc-actions-dropdown">
                                                     <summary class="btn btn-sm btn-outline-primary cc-actions-toggle">Actions</summary>
                                                     <div class="cc-actions-menu">
                                                         <div class="cc-action-links">
-                                                            <a class="btn btn-sm btn-outline-primary" href="{{ route('call-center.etablissements.articles', $etablissementId) }}">Articles</a>
-                                                            <a class="btn btn-sm btn-outline-warning" href="{{ route('call-center.etablissements.promotions', $etablissementId) }}">Promotions</a>
-                                                            <a class="btn btn-sm btn-outline-success" href="{{ route('call-center.etablissements.abonnements', $etablissementId) }}">Abonnements</a>
+                                                            @if(($menu ?? '') === 'call-center-etablissements')
+                                                                <a class="btn btn-sm btn-outline-primary" href="{{ route('call-center.etablissements.articles', $entityId) }}">Articles</a>
+                                                                <a class="btn btn-sm btn-outline-warning" href="{{ route('call-center.etablissements.promotions', $entityId) }}">Promotions</a>
+                                                                <a class="btn btn-sm btn-outline-success" href="{{ route('call-center.etablissements.abonnements', $entityId) }}">Abonnements</a>
+                                                            @elseif($value)
+                                                                {!! $value !!}
+                                                            @endif
                                                         </div>
 
                                                         @if($hasCallFollowUp)
@@ -232,25 +198,33 @@
                                                                 <span class="badge {{ $badgeClass }}">{{ $badgeLabel }}</span>
 
                                                                 <div class="cc-action-buttons mt-2">
-                                                                    <form action="{{ route('call-center.etablissements.suivi-appel', $etablissementId) }}" method="POST" class="d-inline">
+                                                                    <form action="{{ route($routeName, $entityId) }}" method="POST" class="d-inline">
                                                                         @csrf
                                                                         <input type="hidden" name="call_center_deja_appele" value="{{ $nextStatus }}">
                                                                         <button type="submit" class="btn btn-sm {{ $statusClass }}">{{ $statusLabel }}</button>
                                                                     </form>
 
                                                                     <button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('{{ $commentBlockId }}').classList.toggle('d-none')">
-                                                                        Commentaire
+                                                                        Noter / commenter
                                                                     </button>
                                                                 </div>
                                                             </div>
 
+                                                            @if($callCommentaire !== '')
+                                                                <div class="cc-note-preview">
+                                                                    {{ \Illuminate\Support\Str::limit($callCommentaire, 80) }}
+                                                                </div>
+                                                            @endif
+
                                                             <div id="{{ $commentBlockId }}" class="d-none cc-note-editor">
-                                                                <form action="{{ route('call-center.etablissements.suivi-appel', $etablissementId) }}" method="POST">
+                                                                <form action="{{ route($routeName, $entityId) }}" method="POST">
                                                                     @csrf
-                                                                    <textarea name="call_center_commentaire" class="form-control form-control-sm mb-2" rows="3" placeholder="Commentaire">{{ $item->call_center_commentaire }}</textarea>
+                                                                    <textarea name="call_center_commentaire" class="form-control form-control-sm mb-2" rows="3" placeholder="Note ou commentaire d'appel">{{ $callCommentaire }}</textarea>
                                                                     <button type="submit" class="btn btn-sm btn-primary">Enregistrer</button>
                                                                 </form>
                                                             </div>
+                                                        @else
+                                                            <div class="small text-danger mt-2">Migration requise.</div>
                                                         @endif
                                                     </div>
                                                 </details>
