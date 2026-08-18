@@ -73,9 +73,149 @@
         }
         .cc-card {
             background: #fff;
-            border-radius: 18px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
             padding: 22px;
+        }
+        .cc-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        .cc-card-title {
+            margin: 0;
+            color: #102a43;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+        .cc-card-subtitle {
+            margin: 4px 0 0;
+            color: #6b7280;
+            font-size: .9rem;
+        }
+        .cc-filter-panel {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 18px;
+        }
+        .cc-filter-panel label {
+            color: #475569;
+            font-size: .78rem;
+            font-weight: 700;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+        }
+        .cc-date-filter {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .cc-table-wrap {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: auto;
+        }
+        .cc-table {
+            margin-bottom: 0;
+            min-width: 980px;
+        }
+        .cc-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #f8fafc;
+            border-bottom: 1px solid #dbe3ef;
+            color: #334155;
+            font-size: .76rem;
+            font-weight: 800;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .cc-table td {
+            color: #334155;
+            font-size: .88rem;
+            vertical-align: top;
+        }
+        .cc-table tbody tr:hover {
+            background: #f8fafc;
+        }
+        .cc-table-actions {
+            min-width: 260px;
+            max-width: 340px;
+        }
+        .cc-actions-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .cc-actions-dropdown summary {
+            list-style: none;
+        }
+        .cc-actions-dropdown summary::-webkit-details-marker {
+            display: none;
+        }
+        .cc-actions-toggle {
+            min-width: 110px;
+        }
+        .cc-actions-menu {
+            background: #fff;
+            border: 1px solid #dbe3ef;
+            border-radius: 8px;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, .14);
+            margin-top: 6px;
+            padding: 10px;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            width: 280px;
+            z-index: 20;
+        }
+        .cc-actions-dropdown[open] .cc-actions-toggle {
+            background: #102a43;
+            border-color: #102a43;
+            color: #fff;
+        }
+        .cc-action-links,
+        .cc-action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .cc-call-panel {
+            border-top: 1px solid #e5e7eb;
+            margin-top: 8px;
+            padding-top: 8px;
+        }
+        .cc-note-preview {
+            background: #f8fafc;
+            border-left: 3px solid #38bdf8;
+            border-radius: 6px;
+            color: #475569;
+            font-size: .8rem;
+            margin-top: 8px;
+            padding: 7px 9px;
+        }
+        .cc-note-editor {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-top: 8px;
+            min-width: 260px;
+            padding: 10px;
+        }
+        .cc-empty-state {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            color: #64748b;
+            padding: 18px;
+            text-align: center;
         }
         @media (max-width: 900px) {
             .cc-shell {
@@ -83,6 +223,12 @@
             }
             .cc-sidebar {
                 padding-bottom: 12px;
+            }
+            .cc-main {
+                padding: 18px;
+            }
+            .cc-card-header {
+                flex-direction: column;
             }
         }
     </style>

@@ -13,21 +13,21 @@
     @endphp
 
     <div class="cc-card">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="cc-card-header">
             <div>
-                <h5 class="mb-1">{{ $title }}</h5>
-                <p class="text-muted mb-0">Liste filtrable des donnees disponibles.</p>
+                <h5 class="cc-card-title">{{ $title }}</h5>
+                <p class="cc-card-subtitle">Liste filtrable des donnees disponibles.</p>
             </div>
             <div class="d-flex align-items-center gap-2">
                 @if(!empty($backUrl))
                     <a href="{{ $backUrl }}" class="btn btn-outline-secondary mr-2">{{ $backLabel ?? 'Retour' }}</a>
                 @endif
-                <span class="badge badge-light">{{ $items->total() }} element(s)</span>
+                <span class="badge badge-light border">{{ $items->total() }} element(s)</span>
             </div>
         </div>
 
         @if($standardFilters->isNotEmpty() || $dateFilters->isNotEmpty())
-            <form method="GET" class="mb-4">
+            <form method="GET" class="cc-filter-panel">
                 @if($standardFilters->isNotEmpty())
                     <div class="row">
                         @foreach ($standardFilters as $filter)
@@ -58,7 +58,7 @@
                 @endif
 
                 @if($dateFilters->isNotEmpty())
-                    <div class="border rounded p-3 mb-3 bg-light">
+                    <div class="cc-date-filter">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <strong>Filtrer par date</strong>
                             <small class="text-muted">Date de creation</small>
@@ -112,12 +112,12 @@
         @endif
 
         @if($items->count() > 0)
-            <div class="table-responsive">
-                <table class="table table-striped table-bordered">
+            <div class="cc-table-wrap">
+                <table class="table table-hover cc-table">
                     <thead>
                         <tr>
                             @foreach ($columns as $key => $label)
-                                <th>{{ $key === 'date_creation' ? 'Date' : $label }}</th>
+                                <th class="{{ $key === 'actions' ? 'cc-table-actions' : '' }}">{{ $key === 'date_creation' ? 'Date' : $label }}</th>
                             @endforeach
                         </tr>
                     </thead>
@@ -139,8 +139,72 @@
                                             }
                                         }
                                     @endphp
-                                    <td>
-                                        @if ($key === 'actions' && ($menu ?? '') === 'call-center-etablissements')
+                                    <td class="{{ $key === 'actions' ? 'cc-table-actions' : '' }}">
+                                        @if ($key === 'actions' && ($menu ?? '') === 'call-center-users')
+                                            @php
+                                                $userId = $item->row_id ?? null;
+                                                $hasCallFollowUp = property_exists($item, 'call_center_deja_appele') && property_exists($item, 'call_center_commentaire');
+                                                $dejaAppele = (string) ($item->call_center_deja_appele ?? '0') === '1';
+                                                $callCommentaire = $hasCallFollowUp ? (string) ($item->call_center_commentaire ?? '') : '';
+                                                $nextStatus = $dejaAppele ? '0' : '1';
+                                                $statusLabel = $dejaAppele ? 'Marquer non appele' : 'Marquer appele';
+                                                $statusClass = $dejaAppele ? 'btn-outline-secondary' : 'btn-outline-success';
+                                                $badgeLabel = $dejaAppele ? 'Deja appele' : 'Non appele';
+                                                $badgeClass = $dejaAppele ? 'badge-success' : 'badge-light';
+                                                $commentBlockId = 'cc-user-comment-' . $userId;
+                                            @endphp
+
+                                            <details class="cc-actions-dropdown">
+                                                <summary class="btn btn-sm btn-outline-primary cc-actions-toggle">Actions</summary>
+                                                <div class="cc-actions-menu">
+                                                    <div class="cc-action-links">
+                                                        {!! $value !!}
+                                                    </div>
+
+                                                    @if($userId)
+                                                        <div class="cc-call-panel">
+                                                            <span class="badge {{ $badgeClass }}">{{ $badgeLabel }}</span>
+
+                                                            <div class="cc-action-buttons mt-2">
+                                                                @if($hasCallFollowUp)
+                                                                    <form action="{{ route('call-center.users.suivi-appel', $userId) }}" method="POST" class="d-inline">
+                                                                        @csrf
+                                                                        <input type="hidden" name="call_center_deja_appele" value="{{ $nextStatus }}">
+                                                                        <button type="submit" class="btn btn-sm {{ $statusClass }}">{{ $statusLabel }}</button>
+                                                                    </form>
+
+                                                                    <button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('{{ $commentBlockId }}').classList.toggle('d-none')">
+                                                                        Noter / commenter
+                                                                    </button>
+                                                                @else
+                                                                    <button type="button" class="btn btn-sm btn-outline-info" disabled title="Lancez la migration pour activer le suivi d'appel">
+                                                                        Noter / commenter
+                                                                    </button>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+
+                                                        @if($callCommentaire !== '')
+                                                            <div class="cc-note-preview">
+                                                                {{ \Illuminate\Support\Str::limit($callCommentaire, 80) }}
+                                                            </div>
+                                                        @endif
+
+                                                        @if($hasCallFollowUp)
+                                                            <div id="{{ $commentBlockId }}" class="d-none cc-note-editor">
+                                                                <form action="{{ route('call-center.users.suivi-appel', $userId) }}" method="POST">
+                                                                    @csrf
+                                                                    <textarea name="call_center_commentaire" class="form-control form-control-sm mb-2" rows="3" placeholder="Note ou commentaire d'appel">{{ $callCommentaire }}</textarea>
+                                                                    <button type="submit" class="btn btn-sm btn-primary">Enregistrer</button>
+                                                                </form>
+                                                            </div>
+                                                        @else
+                                                            <div class="small text-danger mt-1">Migration requise.</div>
+                                                        @endif
+                                                    @endif
+                                                </div>
+                                            </details>
+                                        @elseif ($key === 'actions' && ($menu ?? '') === 'call-center-etablissements')
                                             @php
                                                 $etablissementId = $item->row_id ?? null;
                                                 $hasCallFollowUp = property_exists($item, 'call_center_deja_appele') && property_exists($item, 'call_center_commentaire');
@@ -154,37 +218,42 @@
                                             @endphp
 
                                             @if($etablissementId)
-                                                <div class="d-flex flex-wrap gap-1">
-                                                    <a class="btn btn-sm btn-outline-primary mr-1 mb-1" href="{{ route('call-center.etablissements.articles', $etablissementId) }}">Articles</a>
-                                                    <a class="btn btn-sm btn-outline-warning mr-1 mb-1" href="{{ route('call-center.etablissements.promotions', $etablissementId) }}">Promotions</a>
-                                                    <a class="btn btn-sm btn-outline-success mr-1 mb-1" href="{{ route('call-center.etablissements.abonnements', $etablissementId) }}">Abonnements</a>
-                                                </div>
+                                                <details class="cc-actions-dropdown">
+                                                    <summary class="btn btn-sm btn-outline-primary cc-actions-toggle">Actions</summary>
+                                                    <div class="cc-actions-menu">
+                                                        <div class="cc-action-links">
+                                                            <a class="btn btn-sm btn-outline-primary" href="{{ route('call-center.etablissements.articles', $etablissementId) }}">Articles</a>
+                                                            <a class="btn btn-sm btn-outline-warning" href="{{ route('call-center.etablissements.promotions', $etablissementId) }}">Promotions</a>
+                                                            <a class="btn btn-sm btn-outline-success" href="{{ route('call-center.etablissements.abonnements', $etablissementId) }}">Abonnements</a>
+                                                        </div>
 
-                                                @if($hasCallFollowUp)
-                                                    <div class="mb-1">
-                                                        <span class="badge {{ $badgeClass }}">{{ $badgeLabel }}</span>
+                                                        @if($hasCallFollowUp)
+                                                            <div class="cc-call-panel">
+                                                                <span class="badge {{ $badgeClass }}">{{ $badgeLabel }}</span>
+
+                                                                <div class="cc-action-buttons mt-2">
+                                                                    <form action="{{ route('call-center.etablissements.suivi-appel', $etablissementId) }}" method="POST" class="d-inline">
+                                                                        @csrf
+                                                                        <input type="hidden" name="call_center_deja_appele" value="{{ $nextStatus }}">
+                                                                        <button type="submit" class="btn btn-sm {{ $statusClass }}">{{ $statusLabel }}</button>
+                                                                    </form>
+
+                                                                    <button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('{{ $commentBlockId }}').classList.toggle('d-none')">
+                                                                        Commentaire
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            <div id="{{ $commentBlockId }}" class="d-none cc-note-editor">
+                                                                <form action="{{ route('call-center.etablissements.suivi-appel', $etablissementId) }}" method="POST">
+                                                                    @csrf
+                                                                    <textarea name="call_center_commentaire" class="form-control form-control-sm mb-2" rows="3" placeholder="Commentaire">{{ $item->call_center_commentaire }}</textarea>
+                                                                    <button type="submit" class="btn btn-sm btn-primary">Enregistrer</button>
+                                                                </form>
+                                                            </div>
+                                                        @endif
                                                     </div>
-
-                                                    <div class="d-flex flex-wrap gap-1 mt-1">
-                                                        <form action="{{ route('call-center.etablissements.suivi-appel', $etablissementId) }}" method="POST" class="d-inline mr-1 mb-1">
-                                                            @csrf
-                                                            <input type="hidden" name="call_center_deja_appele" value="{{ $nextStatus }}">
-                                                            <button type="submit" class="btn btn-sm {{ $statusClass }}">{{ $statusLabel }}</button>
-                                                        </form>
-
-                                                        <button type="button" class="btn btn-sm btn-outline-info mb-1" onclick="document.getElementById('{{ $commentBlockId }}').classList.toggle('d-none')">
-                                                            Commentaire
-                                                        </button>
-                                                    </div>
-
-                                                    <div id="{{ $commentBlockId }}" class="d-none mt-2" style="min-width: 240px;">
-                                                        <form action="{{ route('call-center.etablissements.suivi-appel', $etablissementId) }}" method="POST">
-                                                            @csrf
-                                                            <textarea name="call_center_commentaire" class="form-control form-control-sm mb-2" rows="3" placeholder="Commentaire">{{ $item->call_center_commentaire }}</textarea>
-                                                            <button type="submit" class="btn btn-sm btn-primary">Enregistrer</button>
-                                                        </form>
-                                                    </div>
-                                                @endif
+                                                </details>
                                             @else
                                                 -
                                             @endif
@@ -205,7 +274,7 @@
                 {{ $items->links() }}
             </div>
         @else
-            <div class="alert alert-light border mb-0">
+            <div class="cc-empty-state">
                 Aucune donnee disponible pour cette liste avec les filtres actuels.
             </div>
         @endif

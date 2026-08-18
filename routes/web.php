@@ -398,6 +398,7 @@ Route::prefix('call-center')->group(function () {
     Route::middleware(['auth:call_center'])->group(function () {
         Route::get('/dashboard', [CallCenterSpaceController::class, 'dashboard'])->name('call-center.dashboard');
         Route::get('/users', [CallCenterSpaceController::class, 'users'])->name('call-center.users');
+        Route::post('/users/{user}/suivi-appel', [CallCenterSpaceController::class, 'updateUserCallFollowUp'])->name('call-center.users.suivi-appel');
         Route::get('/users/{user}/alertes', [CallCenterSpaceController::class, 'userAlerts'])->name('call-center.users.alerts');
         Route::get('/users/{user}/vehicules', [CallCenterSpaceController::class, 'userVehicules'])->name('call-center.users.vehicules');
         Route::get('/users/{user}/annonces', [CallCenterSpaceController::class, 'userAnnonces'])->name('call-center.users.annonces');

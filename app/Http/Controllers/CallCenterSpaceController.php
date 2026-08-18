@@ -41,9 +41,11 @@ class CallCenterSpaceController extends Controller
 
     public function users(Request $request)
     {
+        $hasCallFollowUp = $this->hasColumn('users', 'call_center_deja_appele')
+            && $this->hasColumn('users', 'call_center_commentaire');
         $query = DB::table('users');
 
-        $selects = [];
+        $selects = ['users.id as row_id'];
         $searchColumns = [];
 
         $this->pushSelect($selects, 'users.nom', 'nom');
@@ -77,8 +79,17 @@ class CallCenterSpaceController extends Controller
             $selects[] = DB::raw("TRIM(CONCAT(COALESCE(commercials.prenoms, ''), ' ', COALESCE(commercials.nom, ''))) as commercial");
         }
 
+        if ($hasCallFollowUp) {
+            $selects[] = 'users.call_center_deja_appele';
+            $selects[] = 'users.call_center_commentaire';
+        }
+
         $this->applySearch($query, $request->string('search')->toString(), $searchColumns);
         $this->applyStatusFilter($query, 'users', $request->input('statut'));
+
+        if ($hasCallFollowUp && $request->filled('call_center_deja_appele')) {
+            $query->where('users.call_center_deja_appele', $request->boolean('call_center_deja_appele'));
+        }
 
         return $this->renderList(
             $request,
@@ -97,7 +108,7 @@ class CallCenterSpaceController extends Controller
                 'date_creation' => 'Date creation',
                 'actions' => 'Actions',
             ],
-            [
+            array_filter([
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
@@ -106,8 +117,71 @@ class CallCenterSpaceController extends Controller
                     'value' => $request->input('search', ''),
                 ],
                 $this->statusFilter($request->input('statut')),
-            ]
+                $hasCallFollowUp ? [
+                    'name' => 'call_center_deja_appele',
+                    'label' => 'Appel',
+                    'type' => 'select',
+                    'value' => $request->input('call_center_deja_appele', ''),
+                    'options' => [
+                        ['value' => '1', 'label' => 'Deja appele'],
+                        ['value' => '0', 'label' => 'Non appele'],
+                    ],
+                ] : null,
+            ])
         );
+    }
+
+    public function updateUserCallFollowUp(Request $request, int $user)
+    {
+        if (
+            ! Schema::hasTable('users')
+            || ! $this->hasColumn('users', 'call_center_deja_appele')
+            || ! $this->hasColumn('users', 'call_center_commentaire')
+        ) {
+            return back()->with([
+                'type' => 'alert-danger',
+                'message' => "Le suivi d'appel des usagers n'est pas encore disponible. Lancez la migration avant d'enregistrer une note.",
+            ]);
+        }
+
+        $request->validate([
+            'call_center_deja_appele' => ['sometimes', 'required', 'boolean'],
+            'call_center_commentaire' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $current = DB::table('users')
+            ->where('id', $user)
+            ->first(['id', 'call_center_deja_appele', 'call_center_commentaire']);
+
+        if (! $current) {
+            return back()->with([
+                'type' => 'alert-danger',
+                'message' => 'Usager introuvable.',
+            ]);
+        }
+
+        $dejaAppele = $request->has('call_center_deja_appele')
+            ? $request->boolean('call_center_deja_appele')
+            : (bool) $current->call_center_deja_appele;
+
+        $data = ['call_center_deja_appele' => $dejaAppele];
+
+        if ($request->has('call_center_commentaire')) {
+            $data['call_center_commentaire'] = $request->input('call_center_commentaire');
+        }
+
+        if ($this->hasColumn('users', 'call_center_called_at')) {
+            $data['call_center_called_at'] = $dejaAppele ? now() : null;
+        }
+
+        DB::table('users')
+            ->where('id', $user)
+            ->update($data);
+
+        return back()->with([
+            'type' => 'alert-success',
+            'message' => 'Suivi appel enregistre avec succes.',
+        ]);
     }
 
     public function userAlerts(Request $request, int $user)
