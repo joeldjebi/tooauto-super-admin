@@ -59,6 +59,22 @@
     $requestDate = function ($lavage) use ($dateColumn) {
         return $dateColumn ? ($lavage->{$dateColumn} ?? null) : ($lavage->created_at ?? null);
     };
+
+    $fieldLabels = [
+        'nom' => 'Nom',
+        'prenoms' => 'Prénoms',
+        'name' => 'Nom',
+        'mobile' => 'Mobile',
+        'telephone' => 'Téléphone',
+        'contact' => 'Contact',
+        'email' => 'Email',
+        'adresse' => 'Adresse',
+        'adresse_map' => 'Adresse map',
+        'longitude' => 'Longitude',
+        'latitude' => 'Latitude',
+        'statut' => 'Statut',
+        'password' => 'Mot de passe',
+    ];
 @endphp
 
 <div class="row">
@@ -141,10 +157,14 @@
                                     <th>Commercial</th>
                                     <th>Adresse</th>
                                     <th>Statut</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($demandes as $index => $lavage)
+                                    @php
+                                        $modalId = 'editLavage' . ($lavage->lavage_id ?? $lavage->id);
+                                    @endphp
                                     <tr>
                                         <td>{{ $demandes->firstItem() + $index }}</td>
                                         <td>{{ $formatDate($requestDate($lavage)) }}</td>
@@ -155,7 +175,89 @@
                                         <td>{{ $commercialName($lavage) }}</td>
                                         <td>{{ $lavage->station_adresse ?? $lavage->adresse ?? 'Non défini' }}</td>
                                         <td>{{ $statuts[(string) ($lavage->statut ?? '')] ?? ($lavage->statut ?? $lavage->station_statut ?? 'Non défini') }}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#{{ $modalId }}">
+                                                Modifier
+                                            </button>
+                                        </td>
                                     </tr>
+
+                                    <div class="modal fade" id="{{ $modalId }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                        <div class="modal-dialog modal-lg" role="document">
+                                            <div class="modal-content">
+                                                <form action="{{ route('lavages.update', ['id' => $lavage->lavage_id ?? $lavage->id]) }}" method="post">
+                                                    @csrf
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Modifier le lavage</h5>
+                                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                            <span aria-hidden="true">×</span>
+                                                        </button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        @if(!empty($lavageEditableColumns))
+                                                            <h5 class="mb-3">Infos admin lavage</h5>
+                                                            <div class="row">
+                                                                @foreach($lavageEditableColumns as $column)
+                                                                    @if($column !== 'password')
+                                                                        <div class="col-md-6">
+                                                                            <div class="form-group">
+                                                                                <label>{{ $fieldLabels[$column] ?? ucfirst($column) }}</label>
+                                                                                @if($column === 'statut')
+                                                                                    <select name="lavage[{{ $column }}]" class="form-control">
+                                                                                        <option value="1" {{ (string) ($lavage->{$column} ?? '') === '1' ? 'selected' : '' }}>Actif</option>
+                                                                                        <option value="0" {{ (string) ($lavage->{$column} ?? '') === '0' ? 'selected' : '' }}>Inactif</option>
+                                                                                    </select>
+                                                                                @else
+                                                                                    <input type="{{ $column === 'email' ? 'email' : 'text' }}" name="lavage[{{ $column }}]" class="form-control" value="{{ $lavage->{$column} ?? '' }}">
+                                                                                @endif
+                                                                            </div>
+                                                                        </div>
+                                                                    @endif
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+
+                                                        @if(in_array('password', $lavageEditableColumns ?? [], true))
+                                                            <h5 class="mb-3 mt-2">Infos d'authentification</h5>
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <div class="form-group">
+                                                                        <label>Mot de passe</label>
+                                                                        <input type="password" name="lavage[password]" class="form-control" placeholder="Laisser vide pour conserver l'actuel">
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        @endif
+
+                                                        @if(!empty($stationEditableColumns))
+                                                            <h5 class="mb-3 mt-2">Infos établissement lavage</h5>
+                                                            <div class="row">
+                                                                @foreach($stationEditableColumns as $column)
+                                                                    <div class="col-md-6">
+                                                                        <div class="form-group">
+                                                                            <label>{{ $fieldLabels[$column] ?? ucfirst($column) }}</label>
+                                                                            @if($column === 'statut')
+                                                                                <select name="station[{{ $column }}]" class="form-control">
+                                                                                    <option value="1" {{ (string) ($lavage->{'station_' . $column} ?? '') === '1' ? 'selected' : '' }}>Actif</option>
+                                                                                    <option value="0" {{ (string) ($lavage->{'station_' . $column} ?? '') === '0' ? 'selected' : '' }}>Inactif</option>
+                                                                                </select>
+                                                                            @else
+                                                                                <input type="text" name="station[{{ $column }}]" class="form-control" value="{{ $lavage->{'station_' . $column} ?? '' }}">
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                                                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
                                 @endforeach
                             </tbody>
                         </table>

@@ -99,6 +99,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/prestataire-lavages/{id}', [DashboardController::class, 'updatePrestataireLavage'])->name('prestataire-lavages.update');
     Route::delete('/prestataire-lavages/{id}', [DashboardController::class, 'destroyPrestataireLavage'])->name('prestataire-lavages.destroy');
     Route::get('/demande-lavages', [DashboardController::class, 'indexDemandeLavage'])->name('demande-lavages.index');
+    Route::post('/lavages/{id}/update', [DashboardController::class, 'updateLavage'])->name('lavages.update');
     Route::post('/demande-lavages/{id}', [DashboardController::class, 'updateDemandeLavage'])->name('demande-lavages.update');
 
     // Routes pour les articles

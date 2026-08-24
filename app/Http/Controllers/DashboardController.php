@@ -7132,7 +7132,7 @@ class DashboardController extends Controller
             return back();
         }
 
-        $query = DB::table('lavages')->select('lavages.*');
+        $query = DB::table('lavages')->select('lavages.*')->addSelect('lavages.id as lavage_id');
         $hasStations = Schema::hasTable('station_de_lavages');
         $lavageStationKey = collect(['station_de_lavage_id', 'station_id'])
             ->first(fn ($column) => Schema::hasColumn('lavages', $column));
@@ -7259,8 +7259,151 @@ class DashboardController extends Controller
         $data['prestataires'] = $hasStations
             ? DB::table('station_de_lavages')->orderBy(Schema::hasColumn('station_de_lavages', 'name') ? 'name' : 'id')->get()
             : collect();
+        $data['lavageEditableColumns'] = $this->existingColumns('lavages', [
+            'nom',
+            'prenoms',
+            'name',
+            'mobile',
+            'telephone',
+            'contact',
+            'email',
+            'statut',
+            'password',
+        ]);
+        $data['stationEditableColumns'] = $hasStations ? $this->existingColumns('station_de_lavages', [
+            'name',
+            'nom',
+            'contact',
+            'mobile',
+            'telephone',
+            'adresse',
+            'adresse_map',
+            'longitude',
+            'latitude',
+            'statut',
+        ]) : [];
 
         return view('lavages.demandes', $data);
+    }
+
+    public function updateLavage(Request $request, $id)
+    {
+        if (!Schema::hasTable('lavages')) {
+            session()->flash('type', 'alert-warning');
+            session()->flash('message', 'La table des lavages est introuvable.');
+            return back();
+        }
+
+        $lavage = DB::table('lavages')->where('id', $id)->first();
+        if (!$lavage) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Lavage introuvable.');
+            return back();
+        }
+
+        $lavageColumns = $this->existingColumns('lavages', [
+            'nom',
+            'prenoms',
+            'name',
+            'mobile',
+            'telephone',
+            'contact',
+            'email',
+            'statut',
+            'password',
+        ]);
+        $stationColumns = Schema::hasTable('station_de_lavages') ? $this->existingColumns('station_de_lavages', [
+            'name',
+            'nom',
+            'contact',
+            'mobile',
+            'telephone',
+            'adresse',
+            'adresse_map',
+            'longitude',
+            'latitude',
+            'statut',
+        ]) : [];
+
+        $rules = [];
+        foreach ($lavageColumns as $column) {
+            $rules['lavage.' . $column] = $column === 'password' ? 'nullable|string|min:6' : 'nullable|string|max:255';
+        }
+
+        foreach ($stationColumns as $column) {
+            $rules['station.' . $column] = 'nullable|string|max:255';
+        }
+
+        $validated = $request->validate($rules);
+        $lavageData = [];
+        foreach (($validated['lavage'] ?? []) as $column => $value) {
+            if (!in_array($column, $lavageColumns, true)) {
+                continue;
+            }
+
+            if ($column === 'password') {
+                if ($value !== null && $value !== '') {
+                    $lavageData[$column] = Hash::make($value);
+                }
+                continue;
+            }
+
+            $lavageData[$column] = $value;
+        }
+
+        if (!empty($lavageData)) {
+            if (Schema::hasColumn('lavages', 'updated_at')) {
+                $lavageData['updated_at'] = now();
+            }
+
+            DB::table('lavages')->where('id', $id)->update($lavageData);
+        }
+
+        $stationId = $this->resolveLavageStationId($lavage);
+        $stationData = [];
+        foreach (($validated['station'] ?? []) as $column => $value) {
+            if (in_array($column, $stationColumns, true)) {
+                $stationData[$column] = $value;
+            }
+        }
+
+        if ($stationId && !empty($stationData)) {
+            if (Schema::hasColumn('station_de_lavages', 'updated_at')) {
+                $stationData['updated_at'] = now();
+            }
+
+            DB::table('station_de_lavages')->where('id', $stationId)->update($stationData);
+        }
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Lavage mis à jour avec succès.');
+
+        return back();
+    }
+
+    private function existingColumns(string $table, array $columns): array
+    {
+        if (!Schema::hasTable($table)) {
+            return [];
+        }
+
+        return array_values(array_filter($columns, fn ($column) => Schema::hasColumn($table, $column)));
+    }
+
+    private function resolveLavageStationId(object $lavage): ?int
+    {
+        foreach (['station_de_lavage_id', 'station_id'] as $column) {
+            if (Schema::hasColumn('lavages', $column) && !empty($lavage->{$column})) {
+                return (int) $lavage->{$column};
+            }
+        }
+
+        if (Schema::hasTable('station_de_lavages') && Schema::hasColumn('station_de_lavages', 'lavage_id')) {
+            $station = DB::table('station_de_lavages')->where('lavage_id', $lavage->id)->first();
+            return $station ? (int) $station->id : null;
+        }
+
+        return null;
     }
 
     public function updateDemandeLavage(Request $request, $id)
