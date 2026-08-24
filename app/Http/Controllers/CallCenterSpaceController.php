@@ -854,6 +854,17 @@ class CallCenterSpaceController extends Controller
             'statut' => 'Statut',
             'date_creation' => 'Date creation',
         ];
+
+        if ($this->hasColumn('station_de_lavages', 'created_by') && Schema::hasTable('commercials')) {
+            $query->leftJoin('commercials', 'commercials.id', '=', 'station_de_lavages.created_by');
+            $selects[] = DB::raw("TRIM(CONCAT(COALESCE(commercials.prenoms, ''), ' ', COALESCE(commercials.nom, ''))) as commercial");
+            $columns['commercial'] = 'Commercial';
+
+            if ($request->filled('commercial_id')) {
+                $query->where('station_de_lavages.created_by', $request->input('commercial_id'));
+            }
+        }
+
         $searchColumns = [];
         $this->pushSearchColumn($searchColumns, 'station_de_lavages.name');
         $this->pushSearchColumn($searchColumns, 'station_de_lavages.contact');
@@ -876,6 +887,7 @@ class CallCenterSpaceController extends Controller
                     'placeholder' => 'Nom, contact, adresse',
                     'value' => $request->input('search', ''),
                 ],
+                $this->stationLavageCommercialFilter($request->input('commercial_id')),
                 $this->statusFilter($request->input('statut')),
             ]))
         );
@@ -1662,6 +1674,35 @@ class CallCenterSpaceController extends Controller
                 ['value' => '1', 'label' => 'Actif'],
                 ['value' => '0', 'label' => 'Inactif'],
             ],
+        ];
+    }
+
+    private function stationLavageCommercialFilter(mixed $value): ?array
+    {
+        if (! Schema::hasTable('station_de_lavages')
+            || ! Schema::hasTable('commercials')
+            || ! $this->hasColumn('station_de_lavages', 'created_by')) {
+            return null;
+        }
+
+        $commercials = DB::table('commercials')
+            ->join('station_de_lavages', 'station_de_lavages.created_by', '=', 'commercials.id')
+            ->whereNotNull('station_de_lavages.created_by')
+            ->select('commercials.id', 'commercials.nom', 'commercials.prenoms', 'commercials.mobile')
+            ->distinct()
+            ->orderBy('commercials.nom')
+            ->orderBy('commercials.prenoms')
+            ->get();
+
+        return [
+            'name' => 'commercial_id',
+            'label' => 'Commercial',
+            'type' => 'select',
+            'value' => (string) ($value ?? ''),
+            'options' => $commercials->map(fn ($commercial) => [
+                'value' => $commercial->id,
+                'label' => trim(($commercial->nom ?? '') . ' ' . ($commercial->prenoms ?? '')) . (!empty($commercial->mobile) ? ' - ' . $commercial->mobile : ''),
+            ])->all(),
         ];
     }
 

@@ -16,6 +16,7 @@ use App\Models\Forfait_usager;
 use App\Models\Station_de_lavage;
 use App\Models\PrestataireLavage;
 use App\Models\DemandeLavage;
+use App\Models\Commercial;
 use App\Models\Categorie_service;
 use App\Models\Sous_categorie_service;
 use App\Models\Ss_categorie_service;
@@ -7104,9 +7105,9 @@ class DashboardController extends Controller
         return back();
     }
 
-    public function indexDemandeLavage()
+    public function indexDemandeLavage(Request $request)
     {
-        $data['title'] = 'Demandes lavage';
+        $data['title'] = 'Liste des lavages';
         $data['menu'] = 'demande_lavage';
         $data['user'] = Auth::user();
 
@@ -7116,8 +7117,148 @@ class DashboardController extends Controller
             return back();
         }
 
-        $data['demandes'] = DemandeLavage::with('prestataire')->orderBy('id', 'desc')->get();
-        $data['prestataires'] = PrestataireLavage::where('statut', 1)->orderBy('nom')->get();
+        $filters = [
+            'search' => trim((string) $request->get('search', '')),
+            'commercial_id' => $request->get('commercial_id'),
+            'prestataire_lavage_id' => $request->get('prestataire_lavage_id'),
+            'statut' => $request->get('statut'),
+            'date_from' => $request->get('date_from'),
+            'date_to' => $request->get('date_to'),
+        ];
+
+        if (!Schema::hasTable('lavages')) {
+            session()->flash('type', 'alert-warning');
+            session()->flash('message', 'La table des lavages est introuvable.');
+            return back();
+        }
+
+        $query = DB::table('lavages')->select('lavages.*');
+        $hasStations = Schema::hasTable('station_de_lavages');
+        $lavageStationKey = collect(['station_de_lavage_id', 'station_id'])
+            ->first(fn ($column) => Schema::hasColumn('lavages', $column));
+        $stationLavageKey = $hasStations && Schema::hasColumn('station_de_lavages', 'lavage_id') ? 'lavage_id' : null;
+        $joinedStations = false;
+
+        if ($hasStations && $lavageStationKey) {
+            $query->leftJoin('station_de_lavages', 'station_de_lavages.id', '=', 'lavages.' . $lavageStationKey);
+            $joinedStations = true;
+        } elseif ($hasStations && $stationLavageKey) {
+            $query->leftJoin('station_de_lavages', 'station_de_lavages.' . $stationLavageKey, '=', 'lavages.id');
+            $joinedStations = true;
+        }
+
+        if ($joinedStations) {
+            foreach (['id', 'name', 'nom', 'contact', 'mobile', 'telephone', 'adresse', 'adresse_map', 'longitude', 'latitude', 'statut', 'created_by', 'created_at'] as $column) {
+                if (Schema::hasColumn('station_de_lavages', $column)) {
+                    $query->addSelect('station_de_lavages.' . $column . ' as station_' . $column);
+                }
+            }
+        }
+
+        if (Schema::hasTable('commercials')) {
+            $hasLavageCreatedBy = Schema::hasColumn('lavages', 'created_by');
+            $hasStationCreatedBy = $joinedStations && Schema::hasColumn('station_de_lavages', 'created_by');
+            $commercialColumn = null;
+
+            if ($hasLavageCreatedBy && $hasStationCreatedBy) {
+                $commercialColumn = 'COALESCE(lavages.created_by, station_de_lavages.created_by)';
+            } elseif ($hasLavageCreatedBy) {
+                $commercialColumn = 'lavages.created_by';
+            } elseif ($hasStationCreatedBy) {
+                $commercialColumn = 'station_de_lavages.created_by';
+            }
+
+            if ($commercialColumn) {
+                $query->leftJoin('commercials', 'commercials.id', '=', DB::raw($commercialColumn))
+                    ->addSelect(
+                        'commercials.id as commercial_id',
+                        'commercials.nom as commercial_nom',
+                        'commercials.prenoms as commercial_prenoms',
+                        'commercials.mobile as commercial_mobile'
+                    );
+            }
+        }
+
+        if ($filters['search'] !== '') {
+            $query->where(function ($searchQuery) use ($filters, $joinedStations) {
+                foreach (['nom', 'prenoms', 'name', 'mobile', 'telephone', 'contact', 'email', 'adresse', 'statut'] as $column) {
+                    if (Schema::hasColumn('lavages', $column)) {
+                        $searchQuery->orWhere('lavages.' . $column, 'like', '%' . $filters['search'] . '%');
+                    }
+                }
+
+                if ($joinedStations) {
+                    foreach (['name', 'nom', 'contact', 'mobile', 'telephone', 'adresse', 'statut'] as $column) {
+                        if (Schema::hasColumn('station_de_lavages', $column)) {
+                            $searchQuery->orWhere('station_de_lavages.' . $column, 'like', '%' . $filters['search'] . '%');
+                        }
+                    }
+                }
+            });
+        }
+
+        if (!empty($filters['commercial_id'])) {
+            $query->where(function ($commercialQuery) use ($filters, $joinedStations) {
+                if (Schema::hasColumn('lavages', 'created_by')) {
+                    $commercialQuery->orWhere('lavages.created_by', $filters['commercial_id']);
+                }
+
+                if ($joinedStations && Schema::hasColumn('station_de_lavages', 'created_by')) {
+                    $commercialQuery->orWhere('station_de_lavages.created_by', $filters['commercial_id']);
+                }
+            });
+        }
+
+        if (!empty($filters['prestataire_lavage_id']) && $lavageStationKey) {
+            $query->where('lavages.' . $lavageStationKey, $filters['prestataire_lavage_id']);
+        } elseif (!empty($filters['prestataire_lavage_id']) && $stationLavageKey) {
+            $query->where('station_de_lavages.id', $filters['prestataire_lavage_id']);
+        }
+
+        if (!empty($filters['statut'])) {
+            $query->where(function ($statutQuery) use ($filters, $joinedStations) {
+                if (Schema::hasColumn('lavages', 'statut')) {
+                    $statutQuery->orWhere('lavages.statut', $filters['statut']);
+                }
+
+                if ($joinedStations && Schema::hasColumn('station_de_lavages', 'statut')) {
+                    $statutQuery->orWhere('station_de_lavages.statut', $filters['statut']);
+                }
+            });
+        }
+
+        $dateColumn = collect(['created_at', 'date_creation', 'date_lavage'])
+            ->first(fn ($column) => Schema::hasColumn('lavages', $column));
+        if ($dateColumn && !empty($filters['date_from'])) {
+            $query->whereDate('lavages.' . $dateColumn, '>=', $filters['date_from']);
+        }
+
+        if ($dateColumn && !empty($filters['date_to'])) {
+            $query->whereDate('lavages.' . $dateColumn, '<=', $filters['date_to']);
+        }
+
+        $data['filters'] = $filters;
+        $data['dateColumn'] = $dateColumn;
+        $data['demandes'] = $query->orderBy('lavages.id', 'desc')->paginate(25)->withQueryString();
+        $commercialIds = collect();
+        if (Schema::hasColumn('lavages', 'created_by')) {
+            $commercialIds = $commercialIds->merge(
+                DB::table('lavages')->whereNotNull('created_by')->pluck('created_by')
+            );
+        }
+
+        if ($hasStations && Schema::hasColumn('station_de_lavages', 'created_by')) {
+            $commercialIds = $commercialIds->merge(
+                DB::table('station_de_lavages')->whereNotNull('created_by')->pluck('created_by')
+            );
+        }
+
+        $data['commercials'] = $commercialIds->filter()->unique()->isNotEmpty()
+            ? Commercial::whereIn('id', $commercialIds->filter()->unique()->values())->orderBy('nom')->orderBy('prenoms')->get(['id', 'nom', 'prenoms', 'mobile'])
+            : collect();
+        $data['prestataires'] = $hasStations
+            ? DB::table('station_de_lavages')->orderBy(Schema::hasColumn('station_de_lavages', 'name') ? 'name' : 'id')->get()
+            : collect();
 
         return view('lavages.demandes', $data);
     }

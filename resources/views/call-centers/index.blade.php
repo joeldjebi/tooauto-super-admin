@@ -56,16 +56,24 @@
                                         <td>{{ $user->mobile }}</td>
                                         <td>{{ $user->email }}</td>
                                         <td>
-                                            <a class="text-success mr-2" href="{{ route('call-centers.edit', $user->id) }}">
-                                                <i class="nav-icon i-Pen-2 font-weight-bold"></i>
-                                            </a>
-                                            <form action="{{ route('call-centers.destroy', $user->id) }}" method="POST" style="display:inline;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="text-danger" style="background:none; border:none; cursor:pointer;" onclick="return confirm('Supprimer ce user call center ?')">
-                                                    <i class="nav-icon i-Close-Window font-weight-bold"></i>
+                                            <div class="dropdown">
+                                                <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="callCenterActions{{ $user->id }}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                    Actions
                                                 </button>
-                                            </form>
+                                                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="callCenterActions{{ $user->id }}">
+                                                    <a class="dropdown-item" href="{{ route('call-centers.edit', $user->id) }}">
+                                                        Modifier
+                                                    </a>
+                                                    <div class="dropdown-divider"></div>
+                                                    <form action="{{ route('call-centers.destroy', $user->id) }}" method="POST">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Supprimer ce user call center ?')">
+                                                            Supprimer
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach

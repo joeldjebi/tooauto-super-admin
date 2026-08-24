@@ -186,6 +186,13 @@
               </a>
             <div class="triangle"></div>
          </li>
+         <li class="nav-item {{ $menu == "demande_lavage" ? 'active' : '' }}">
+              <a class="nav-item-hold" href="{{ route('demande-lavages.index') }}">
+                 <i class="nav-icon i-Car-2"></i>
+                 <span class="nav-text">Lavages</span>
+              </a>
+            <div class="triangle"></div>
+         </li>
          <li class="nav-item {{ $menu == "qrcode-generate" ? 'active' : '' }}">
             <a class="nav-item-hold" href="{{ route('index-qrcode-generate') }}">
                <i class="nav-icon i-Double-Tap"></i>

@@ -156,45 +156,54 @@
                                         <td>{{ $item->statut == 1 ? 'Actif' : 'Inactif' }}</td>
                                         <td>{{ $item->created_at->format('d/m/Y H:i') }}</td>
                                         <td>
-                                            <a class="text-success mr-2" href="#" data-toggle="modal" data-target="#id{{ $item->id }}">
-                                                <i class="nav-icon i-Pen-2 font-weight-bold"></i>
-                                            </a>
-                                            <form action="{{ route('commercial.destroy', ['id' => $item->id]) }}" method="POST"  style="display:inline;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="text-danger" style="background:none; border:none; cursor:pointer;" id="delete">
-                                                    <i class="nav-icon i-Close-Window font-weight-bold"></i>
+                                            <div class="dropdown">
+                                                <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="commercialActions{{ $item->id }}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                    Actions
                                                 </button>
-                                            </form> 
-                                            {{-- pour activer --}}
-                                            @if ($item->statut == 0)
-                                                <form action="{{ route('commercial.activer', ['id' => $item->id]) }}" method="POST"  style="display:inline;">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-success">
-                                                        Activer
+                                                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="commercialActions{{ $item->id }}">
+                                                    <button type="button" class="dropdown-item" data-toggle="modal" data-target="#id{{ $item->id }}">
+                                                        Modifier
                                                     </button>
-                                                </form> 
-                                            @endif
-                                            {{-- pour desactiver --}}
-                                            @if ($item->statut == 1)
-                                                <form action="{{ route('commercial.desactiver', ['id' => $item->id]) }}" method="POST"  style="display:inline;">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-danger">
-                                                        Désactiver
+                                                    <button type="button" class="dropdown-item" data-toggle="modal" data-target="#walletPayout{{ $item->id }}">
+                                                        Reversement
                                                     </button>
-                                                </form> 
-                                            @endif
-                                            <button type="button" class="btn btn-warning ml-1" data-toggle="modal" data-target="#walletPayout{{ $item->id }}">
-                                                Reversement
-                                            </button>
-                                            <a href="{{ route('commercial.wallet.history', ['id' => $item->id]) }}" class="btn btn-secondary ml-1">
-                                                Historique wallet
-                                            </a>
-                                            @if($item->parrain)
-                                                <a href="{{ route('commercial.filleuls', ['code' => $item->parrain->code]) }}" class="btn btn-info ml-1">
-                                                    Filleuls
-                                                </a>
-                                            @endif
+                                                    <a href="{{ route('commercial.wallet.history', ['id' => $item->id]) }}" class="dropdown-item">
+                                                        Historique wallet
+                                                    </a>
+                                                    @if($item->parrain)
+                                                        <a href="{{ route('commercial.filleuls', ['code' => $item->parrain->code]) }}" class="dropdown-item">
+                                                            Filleuls
+                                                        </a>
+                                                    @endif
+                                                    <a href="{{ route('demande-lavages.index', ['commercial_id' => $item->id]) }}" class="dropdown-item">
+                                                        Lavages
+                                                    </a>
+                                                    <div class="dropdown-divider"></div>
+                                                    @if ($item->statut == 0)
+                                                        <form action="{{ route('commercial.activer', ['id' => $item->id]) }}" method="POST">
+                                                            @csrf
+                                                            <button type="submit" class="dropdown-item text-success">
+                                                                Activer
+                                                            </button>
+                                                        </form>
+                                                    @endif
+                                                    @if ($item->statut == 1)
+                                                        <form action="{{ route('commercial.desactiver', ['id' => $item->id]) }}" method="POST">
+                                                            @csrf
+                                                            <button type="submit" class="dropdown-item text-warning">
+                                                                Désactiver
+                                                            </button>
+                                                        </form>
+                                                    @endif
+                                                    <form action="{{ route('commercial.destroy', ['id' => $item->id]) }}" method="POST">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="dropdown-item text-danger" id="delete">
+                                                            Supprimer
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
