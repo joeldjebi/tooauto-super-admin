@@ -65,6 +65,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\File;
 use Session;
 use App\Models\Station;
 use Illuminate\Support\Facades\Auth;
@@ -7145,10 +7146,17 @@ class DashboardController extends Controller
         } elseif ($hasStations && $stationLavageKey) {
             $query->leftJoin('station_de_lavages', 'station_de_lavages.' . $stationLavageKey, '=', 'lavages.id');
             $joinedStations = true;
+        } elseif (
+            $hasStations
+            && Schema::hasColumn('lavages', 'created_by')
+            && Schema::hasColumn('station_de_lavages', 'created_by')
+        ) {
+            $query->leftJoin('station_de_lavages', 'station_de_lavages.created_by', '=', 'lavages.created_by');
+            $joinedStations = true;
         }
 
         if ($joinedStations) {
-            foreach (['id', 'name', 'nom', 'contact', 'mobile', 'telephone', 'adresse', 'adresse_map', 'longitude', 'latitude', 'statut', 'created_by', 'created_at'] as $column) {
+            foreach (['id', 'name', 'nom', 'contact', 'mobile', 'telephone', 'adresse', 'adresse_map', 'longitude', 'latitude', 'logo', 'statut', 'created_by', 'created_at'] as $column) {
                 if (Schema::hasColumn('station_de_lavages', $column)) {
                     $query->addSelect('station_de_lavages.' . $column . ' as station_' . $column);
                 }
@@ -7181,7 +7189,7 @@ class DashboardController extends Controller
 
         if ($filters['search'] !== '') {
             $query->where(function ($searchQuery) use ($filters, $joinedStations) {
-                foreach (['nom', 'prenoms', 'name', 'mobile', 'telephone', 'contact', 'email', 'adresse', 'statut'] as $column) {
+                foreach (['first_name', 'last_name', 'nom', 'prenoms', 'name', 'mobile', 'telephone', 'contact', 'email', 'adresse', 'statut'] as $column) {
                     if (Schema::hasColumn('lavages', $column)) {
                         $searchQuery->orWhere('lavages.' . $column, 'like', '%' . $filters['search'] . '%');
                     }
@@ -7209,13 +7217,13 @@ class DashboardController extends Controller
             });
         }
 
-        if (!empty($filters['prestataire_lavage_id']) && $lavageStationKey) {
-            $query->where('lavages.' . $lavageStationKey, $filters['prestataire_lavage_id']);
-        } elseif (!empty($filters['prestataire_lavage_id']) && $stationLavageKey) {
+        if (!empty($filters['prestataire_lavage_id']) && $joinedStations) {
             $query->where('station_de_lavages.id', $filters['prestataire_lavage_id']);
+        } elseif (!empty($filters['prestataire_lavage_id']) && $lavageStationKey) {
+            $query->where('lavages.' . $lavageStationKey, $filters['prestataire_lavage_id']);
         }
 
-        if (!empty($filters['statut'])) {
+        if ($filters['statut'] !== null && $filters['statut'] !== '') {
             $query->where(function ($statutQuery) use ($filters, $joinedStations) {
                 if (Schema::hasColumn('lavages', 'statut')) {
                     $statutQuery->orWhere('lavages.statut', $filters['statut']);
@@ -7260,6 +7268,9 @@ class DashboardController extends Controller
             ? DB::table('station_de_lavages')->orderBy(Schema::hasColumn('station_de_lavages', 'name') ? 'name' : 'id')->get()
             : collect();
         $data['lavageEditableColumns'] = $this->existingColumns('lavages', [
+            'first_name',
+            'last_name',
+            'role',
             'nom',
             'prenoms',
             'name',
@@ -7280,6 +7291,7 @@ class DashboardController extends Controller
             'adresse_map',
             'longitude',
             'latitude',
+            'logo',
             'statut',
         ]) : [];
 
@@ -7302,6 +7314,9 @@ class DashboardController extends Controller
         }
 
         $lavageColumns = $this->existingColumns('lavages', [
+            'first_name',
+            'last_name',
+            'role',
             'nom',
             'prenoms',
             'name',
@@ -7322,6 +7337,7 @@ class DashboardController extends Controller
             'adresse_map',
             'longitude',
             'latitude',
+            'logo',
             'statut',
         ]) : [];
 
@@ -7331,6 +7347,11 @@ class DashboardController extends Controller
         }
 
         foreach ($stationColumns as $column) {
+            if ($column === 'logo') {
+                $rules['station.logo'] = 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:8048';
+                continue;
+            }
+
             $rules['station.' . $column] = 'nullable|string|max:255';
         }
 
@@ -7359,12 +7380,28 @@ class DashboardController extends Controller
             DB::table('lavages')->where('id', $id)->update($lavageData);
         }
 
-        $stationId = $this->resolveLavageStationId($lavage);
+        $stationId = $this->resolveLavageStationId($lavage, $request->get('station_id'));
         $stationData = [];
         foreach (($validated['station'] ?? []) as $column => $value) {
-            if (in_array($column, $stationColumns, true)) {
+            if ($column !== 'logo' && in_array($column, $stationColumns, true)) {
                 $stationData[$column] = $value;
             }
+        }
+
+        if ($stationId && in_array('logo', $stationColumns, true) && $request->hasFile('station.logo')) {
+            $station = DB::table('station_de_lavages')->where('id', $stationId)->first();
+            $logoPath = $station?->logo;
+
+            if ($logoPath && File::exists(public_path('station_de_lavage/logo/' . $logoPath))) {
+                File::delete(public_path('station_de_lavage/logo/' . $logoPath));
+            }
+
+            File::ensureDirectoryExists(public_path('station_de_lavage/logo'));
+
+            $logo = $request->file('station.logo');
+            $logoName = 'logo-' . $stationId . '-' . time() . '.' . $logo->getClientOriginalExtension();
+            $logo->move(public_path('station_de_lavage/logo'), $logoName);
+            $stationData['logo'] = $logoName;
         }
 
         if ($stationId && !empty($stationData)) {
@@ -7381,6 +7418,29 @@ class DashboardController extends Controller
         return back();
     }
 
+    public function destroyLavage($id)
+    {
+        if (!Schema::hasTable('lavages')) {
+            session()->flash('type', 'alert-warning');
+            session()->flash('message', 'La table des lavages est introuvable.');
+            return back();
+        }
+
+        $lavage = DB::table('lavages')->where('id', $id)->first();
+        if (!$lavage) {
+            session()->flash('type', 'alert-danger');
+            session()->flash('message', 'Lavage introuvable.');
+            return back();
+        }
+
+        DB::table('lavages')->where('id', $id)->delete();
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Lavage supprimé avec succès.');
+
+        return back();
+    }
+
     private function existingColumns(string $table, array $columns): array
     {
         if (!Schema::hasTable($table)) {
@@ -7390,8 +7450,12 @@ class DashboardController extends Controller
         return array_values(array_filter($columns, fn ($column) => Schema::hasColumn($table, $column)));
     }
 
-    private function resolveLavageStationId(object $lavage): ?int
+    private function resolveLavageStationId(object $lavage, mixed $selectedStationId = null): ?int
     {
+        if (!empty($selectedStationId)) {
+            return (int) $selectedStationId;
+        }
+
         foreach (['station_de_lavage_id', 'station_id'] as $column) {
             if (Schema::hasColumn('lavages', $column) && !empty($lavage->{$column})) {
                 return (int) $lavage->{$column};
@@ -7400,6 +7464,16 @@ class DashboardController extends Controller
 
         if (Schema::hasTable('station_de_lavages') && Schema::hasColumn('station_de_lavages', 'lavage_id')) {
             $station = DB::table('station_de_lavages')->where('lavage_id', $lavage->id)->first();
+            return $station ? (int) $station->id : null;
+        }
+
+        if (
+            Schema::hasTable('station_de_lavages')
+            && Schema::hasColumn('station_de_lavages', 'created_by')
+            && Schema::hasColumn('lavages', 'created_by')
+            && !empty($lavage->created_by)
+        ) {
+            $station = DB::table('station_de_lavages')->where('created_by', $lavage->created_by)->first();
             return $station ? (int) $station->id : null;
         }
 

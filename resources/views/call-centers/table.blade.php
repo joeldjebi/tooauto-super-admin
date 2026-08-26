@@ -159,7 +159,7 @@
                                             @else
                                                 -
                                             @endif
-                                        @elseif ($key === 'actions' && in_array(($menu ?? ''), ['call-center-users', 'call-center-professionnels', 'call-center-etablissements', 'call-center-concessionnaires'], true))
+                                        @elseif ($key === 'actions' && in_array(($menu ?? ''), ['call-center-users', 'call-center-professionnels', 'call-center-etablissements', 'call-center-concessionnaires', 'call-center-station-services', 'call-center-station-de-lavages'], true))
                                             @php
                                                 $entityId = $item->row_id ?? null;
                                                 $routeName = [
@@ -167,6 +167,8 @@
                                                     'call-center-professionnels' => 'call-center.professionnels.suivi-appel',
                                                     'call-center-etablissements' => 'call-center.etablissements.suivi-appel',
                                                     'call-center-concessionnaires' => 'call-center.concessionnaires.suivi-appel',
+                                                    'call-center-station-services' => 'call-center.station-services.suivi-appel',
+                                                    'call-center-station-de-lavages' => 'call-center.station-de-lavages.suivi-appel',
                                                 ][$menu] ?? null;
                                                 $hasCallFollowUp = property_exists($item, 'call_center_deja_appele') && property_exists($item, 'call_center_commentaire');
                                                 $dejaAppele = (string) ($item->call_center_deja_appele ?? '0') === '1';

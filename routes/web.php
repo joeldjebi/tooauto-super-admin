@@ -101,6 +101,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/prestataire-lavages/{id}', [DashboardController::class, 'destroyPrestataireLavage'])->name('prestataire-lavages.destroy');
     Route::get('/demande-lavages', [DashboardController::class, 'indexDemandeLavage'])->name('demande-lavages.index');
     Route::post('/lavages/{id}/update', [DashboardController::class, 'updateLavage'])->name('lavages.update');
+    Route::delete('/lavages/{id}', [DashboardController::class, 'destroyLavage'])->name('lavages.destroy');
     Route::post('/demande-lavages/{id}', [DashboardController::class, 'updateDemandeLavage'])->name('demande-lavages.update');
 
     // Routes pour les articles
@@ -422,7 +423,9 @@ Route::prefix('call-center')->group(function () {
         Route::get('/vehicules', [CallCenterSpaceController::class, 'vehicules'])->name('call-center.vehicules');
         Route::get('/vehicules/{vehicule}/details', [CallCenterSpaceController::class, 'vehiculeDetails'])->name('call-center.vehicules.details');
         Route::get('/station-services', [CallCenterSpaceController::class, 'stationServices'])->name('call-center.station-services');
+        Route::post('/station-services/{stationService}/suivi-appel', [CallCenterSpaceController::class, 'updateStationServiceCallFollowUp'])->name('call-center.station-services.suivi-appel');
         Route::get('/station-de-lavages', [CallCenterSpaceController::class, 'stationDeLavages'])->name('call-center.station-de-lavages');
+        Route::post('/station-de-lavages/{stationDeLavage}/suivi-appel', [CallCenterSpaceController::class, 'updateStationDeLavageCallFollowUp'])->name('call-center.station-de-lavages.suivi-appel');
         Route::get('/annonces', [CallCenterSpaceController::class, 'annonces'])->name('call-center.annonces');
         Route::get('/annonce-concessionnaires', [CallCenterSpaceController::class, 'annonceConcessionnaires'])->name('call-center.annonce-concessionnaires');
         Route::get('/annonce-etablissements', [CallCenterSpaceController::class, 'annonceEtablissements'])->name('call-center.annonce-etablissements');

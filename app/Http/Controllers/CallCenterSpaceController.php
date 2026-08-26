@@ -710,6 +710,7 @@ class CallCenterSpaceController extends Controller
     {
         $villeLabel = $this->resolveLabelColumn('villes');
         $communeLabel = $this->resolveLabelColumn('communes');
+        $hasCallFollowUp = $this->hasCallFollowUpColumns('station_services');
 
         $query = DB::table('station_services')
             ->leftJoin('villes', 'villes.id', '=', 'station_services.ville_id')
@@ -732,31 +733,45 @@ class CallCenterSpaceController extends Controller
             $query->where('station_services.commune_id', $request->input('commune_id'));
         }
 
+        $selects = [
+            'station_services.id as row_id',
+            'station_services.name',
+            'station_services.email',
+            'station_services.mobile',
+            'station_services.adresse',
+            DB::raw(($villeLabel ? 'villes.' . $villeLabel : 'NULL') . ' as ville'),
+            DB::raw(($communeLabel ? 'communes.' . $communeLabel : 'NULL') . ' as commune'),
+            'station_services.borne_electrique',
+            'station_services.created_at as date_creation',
+            DB::raw("'' as actions"),
+        ];
+        $columns = [
+            'name' => 'Nom',
+            'email' => 'Email',
+            'mobile' => 'Mobile',
+            'adresse' => 'Adresse',
+            'ville' => 'Ville',
+            'commune' => 'Commune',
+            'borne_electrique' => 'Borne electrique',
+            'date_creation' => 'Date creation',
+        ];
+
+        if ($hasCallFollowUp) {
+            $selects[] = 'station_services.call_center_deja_appele';
+            $selects[] = 'station_services.call_center_commentaire';
+            $columns['suivi_appel'] = 'Suivi appel';
+            $this->applyCallFollowUpFilter($query, 'station_services', $request);
+        }
+
         return $this->renderList(
             $request,
             'Station services',
             'call-center-station-services',
-            $query->select([
-                'station_services.name',
-                'station_services.email',
-                'station_services.mobile',
-                'station_services.adresse',
-                DB::raw(($villeLabel ? 'villes.' . $villeLabel : 'NULL') . ' as ville'),
-                DB::raw(($communeLabel ? 'communes.' . $communeLabel : 'NULL') . ' as commune'),
-                'station_services.borne_electrique',
-                'station_services.created_at as date_creation',
-            ]),
-            [
-                'name' => 'Nom',
-                'email' => 'Email',
-                'mobile' => 'Mobile',
-                'adresse' => 'Adresse',
-                'ville' => 'Ville',
-                'commune' => 'Commune',
-                'borne_electrique' => 'Borne electrique',
-                'date_creation' => 'Date creation',
+            $query->select($selects),
+            $columns + [
+                'actions' => 'Actions',
             ],
-            [
+            array_values(array_filter([
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
@@ -778,8 +793,14 @@ class CallCenterSpaceController extends Controller
                     'value' => $request->input('commune_id', ''),
                     'options' => $this->smartTableOptions('communes'),
                 ],
-            ]
+                $hasCallFollowUp ? $this->callFollowUpFilter($request->input('call_center_deja_appele')) : null,
+            ]))
         );
+    }
+
+    public function updateStationServiceCallFollowUp(Request $request, int $stationService)
+    {
+        return $this->updateCallFollowUp($request, 'station_services', $stationService, 'Station service');
     }
 
     public function vehiculeDetails(Request $request, int $vehicule)
@@ -835,8 +856,10 @@ class CallCenterSpaceController extends Controller
 
     public function stationDeLavages(Request $request)
     {
+        $hasCallFollowUp = $this->hasCallFollowUpColumns('station_de_lavages');
         $query = DB::table('station_de_lavages');
         $selects = [
+            'station_de_lavages.id as row_id',
             'station_de_lavages.name',
             'station_de_lavages.contact',
             'station_de_lavages.adresse',
@@ -844,6 +867,7 @@ class CallCenterSpaceController extends Controller
             'station_de_lavages.latitude',
             'station_de_lavages.statut',
             'station_de_lavages.created_at as date_creation',
+            DB::raw("'' as actions"),
         ];
         $columns = [
             'name' => 'Nom',
@@ -873,12 +897,21 @@ class CallCenterSpaceController extends Controller
         $this->applySearch($query, $request->string('search')->toString(), $searchColumns);
         $this->applyStatusFilter($query, 'station_de_lavages', $request->input('statut'));
 
+        if ($hasCallFollowUp) {
+            $selects[] = 'station_de_lavages.call_center_deja_appele';
+            $selects[] = 'station_de_lavages.call_center_commentaire';
+            $columns['suivi_appel'] = 'Suivi appel';
+            $this->applyCallFollowUpFilter($query, 'station_de_lavages', $request);
+        }
+
         return $this->renderList(
             $request,
             'Station de lavages',
             'call-center-station-de-lavages',
             $query->select($selects),
-            $columns,
+            $columns + [
+                'actions' => 'Actions',
+            ],
             array_values(array_filter([
                 [
                     'name' => 'search',
@@ -889,8 +922,14 @@ class CallCenterSpaceController extends Controller
                 ],
                 $this->stationLavageCommercialFilter($request->input('commercial_id')),
                 $this->statusFilter($request->input('statut')),
+                $hasCallFollowUp ? $this->callFollowUpFilter($request->input('call_center_deja_appele')) : null,
             ]))
         );
+    }
+
+    public function updateStationDeLavageCallFollowUp(Request $request, int $stationDeLavage)
+    {
+        return $this->updateCallFollowUp($request, 'station_de_lavages', $stationDeLavage, 'Station de lavage');
     }
 
     public function annonces(Request $request)

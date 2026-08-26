@@ -25,7 +25,8 @@
     };
 
     $adminName = function ($lavage) {
-        $name = trim(($lavage->nom ?? '') . ' ' . ($lavage->prenoms ?? ''));
+        $name = trim(($lavage->first_name ?? '') . ' ' . ($lavage->last_name ?? ''));
+        $name = $name ?: trim(($lavage->nom ?? '') . ' ' . ($lavage->prenoms ?? ''));
         $name = $name ?: ($lavage->name ?? '');
 
         return $name ?: 'Non défini';
@@ -50,6 +51,18 @@
             ?? 'Non défini';
     };
 
+    $logoUrl = function ($logo) {
+        if (empty($logo)) {
+            return null;
+        }
+
+        if (\Illuminate\Support\Str::startsWith($logo, ['http://', 'https://', '/'])) {
+            return $logo;
+        }
+
+        return asset('station_de_lavage/logo/' . $logo);
+    };
+
     $commercialName = function ($lavage) {
         $name = trim(($lavage->commercial_nom ?? '') . ' ' . ($lavage->commercial_prenoms ?? ''));
 
@@ -63,6 +76,9 @@
     $fieldLabels = [
         'nom' => 'Nom',
         'prenoms' => 'Prénoms',
+        'first_name' => 'Prénom',
+        'last_name' => 'Nom',
+        'role' => 'Rôle',
         'name' => 'Nom',
         'mobile' => 'Mobile',
         'telephone' => 'Téléphone',
@@ -72,6 +88,7 @@
         'adresse_map' => 'Adresse map',
         'longitude' => 'Longitude',
         'latitude' => 'Latitude',
+        'logo' => 'Logo',
         'statut' => 'Statut',
         'password' => 'Mot de passe',
     ];
@@ -153,6 +170,7 @@
                                     <th>Admin lavage</th>
                                     <th>Contact admin</th>
                                     <th>Établissement lavage</th>
+                                    <th>Logo</th>
                                     <th>Contact établissement</th>
                                     <th>Commercial</th>
                                     <th>Adresse</th>
@@ -163,7 +181,9 @@
                             <tbody>
                                 @foreach($demandes as $index => $lavage)
                                     @php
-                                        $modalId = 'editLavage' . ($lavage->lavage_id ?? $lavage->id);
+                                        $modalId = 'editLavage' . ($lavage->lavage_id ?? $lavage->id) . 'Station' . ($lavage->station_id ?? '0');
+                                        $deleteModalId = 'deleteLavage' . ($lavage->lavage_id ?? $lavage->id) . 'Station' . ($lavage->station_id ?? '0');
+                                        $stationLogoUrl = $logoUrl($lavage->station_logo ?? null);
                                     @endphp
                                     <tr>
                                         <td>{{ $demandes->firstItem() + $index }}</td>
@@ -171,13 +191,23 @@
                                         <td>{{ $adminName($lavage) }}</td>
                                         <td>{{ $adminContact($lavage) }}</td>
                                         <td>{{ $stationName($lavage) }}</td>
+                                        <td>
+                                            @if($stationLogoUrl)
+                                                <img src="{{ $stationLogoUrl }}" alt="{{ $stationName($lavage) }}" class="img-thumbnail" style="width: 54px; height: 54px; object-fit: cover;">
+                                            @else
+                                                <span class="text-muted">Aucun</span>
+                                            @endif
+                                        </td>
                                         <td>{{ $stationContact($lavage) }}</td>
                                         <td>{{ $commercialName($lavage) }}</td>
                                         <td>{{ $lavage->station_adresse ?? $lavage->adresse ?? 'Non défini' }}</td>
                                         <td>{{ $statuts[(string) ($lavage->statut ?? '')] ?? ($lavage->statut ?? $lavage->station_statut ?? 'Non défini') }}</td>
                                         <td>
-                                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#{{ $modalId }}">
+                                            <button type="button" class="btn btn-primary btn-sm mb-1" data-toggle="modal" data-target="#{{ $modalId }}">
                                                 Modifier
+                                            </button>
+                                            <button type="button" class="btn btn-danger btn-sm mb-1" data-toggle="modal" data-target="#{{ $deleteModalId }}">
+                                                Supprimer
                                             </button>
                                         </td>
                                     </tr>
@@ -185,8 +215,9 @@
                                     <div class="modal fade" id="{{ $modalId }}" tabindex="-1" role="dialog" aria-hidden="true">
                                         <div class="modal-dialog modal-lg" role="document">
                                             <div class="modal-content">
-                                                <form action="{{ route('lavages.update', ['id' => $lavage->lavage_id ?? $lavage->id]) }}" method="post">
+                                                <form action="{{ route('lavages.update', ['id' => $lavage->lavage_id ?? $lavage->id]) }}" method="post" enctype="multipart/form-data">
                                                     @csrf
+                                                    <input type="hidden" name="station_id" value="{{ $lavage->station_id ?? '' }}">
                                                     <div class="modal-header">
                                                         <h5 class="modal-title">Modifier le lavage</h5>
                                                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -241,6 +272,13 @@
                                                                                     <option value="1" {{ (string) ($lavage->{'station_' . $column} ?? '') === '1' ? 'selected' : '' }}>Actif</option>
                                                                                     <option value="0" {{ (string) ($lavage->{'station_' . $column} ?? '') === '0' ? 'selected' : '' }}>Inactif</option>
                                                                                 </select>
+                                                                            @elseif($column === 'logo')
+                                                                                @if($stationLogoUrl)
+                                                                                    <div class="mb-2">
+                                                                                        <img src="{{ $stationLogoUrl }}" alt="{{ $stationName($lavage) }}" class="img-thumbnail" style="width: 90px; height: 90px; object-fit: cover;">
+                                                                                    </div>
+                                                                                @endif
+                                                                                <input type="file" name="station[{{ $column }}]" class="form-control" accept="image/*">
                                                                             @else
                                                                                 <input type="text" name="station[{{ $column }}]" class="form-control" value="{{ $lavage->{'station_' . $column} ?? '' }}">
                                                                             @endif
@@ -255,6 +293,30 @@
                                                         <button type="submit" class="btn btn-primary">Enregistrer</button>
                                                     </div>
                                                 </form>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="modal fade" id="{{ $deleteModalId }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                        <div class="modal-dialog" role="document">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Supprimer le lavage</h5>
+                                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                        <span aria-hidden="true">×</span>
+                                                    </button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p class="mb-0">Voulez-vous vraiment supprimer ce lavage ?</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                                                    <form action="{{ route('lavages.destroy', ['id' => $lavage->lavage_id ?? $lavage->id]) }}" method="post" class="mb-0">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                                                    </form>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
