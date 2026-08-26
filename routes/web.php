@@ -18,6 +18,7 @@ use App\Http\Controllers\CallCenterUserController;
 use App\Http\Controllers\CallCenterAuthController;
 use App\Http\Controllers\CallCenterSpaceController;
 use App\Http\Controllers\NotificationCampaignController;
+use App\Http\Controllers\ReductionCardController;
 
 // Route::middleware(['auth', 'auth.concessionnaire'])->group(function () {
 Route::middleware(['auth'])->group(function () {
@@ -109,6 +110,16 @@ Route::middleware(['auth'])->group(function () {
     // Routes pour les abonnements
     Route::get('/abonnement-pro', [DashboardController::class, 'getAbonnementPro'])->name('abonnement-pro');
     Route::get('/abonnement-usager', [DashboardController::class, 'getAbonnementUsager'])->name('abonnement-usager');
+
+    // Routes pour les cartes de réduction usagers
+    Route::get('/cartes-reduction', [ReductionCardController::class, 'index'])->name('reduction-cards.index');
+    Route::get('/cartes-reduction/usagers', [ReductionCardController::class, 'userCards'])->name('reduction-cards.user-cards');
+    Route::get('/cartes-reduction/historique', [ReductionCardController::class, 'histories'])->name('reduction-cards.histories');
+    Route::post('/cartes-reduction', [ReductionCardController::class, 'store'])->name('reduction-cards.store');
+    Route::post('/cartes-reduction/{id}/update', [ReductionCardController::class, 'update'])->name('reduction-cards.update');
+    Route::post('/cartes-reduction/{id}/sync', [ReductionCardController::class, 'sync'])->name('reduction-cards.sync');
+    Route::post('/cartes-reduction/usagers/{id}/toggle-status', [ReductionCardController::class, 'toggleUserCardStatus'])->name('reduction-cards.user-cards.toggle-status');
+    Route::delete('/cartes-reduction/{id}', [ReductionCardController::class, 'destroy'])->name('reduction-cards.destroy');
 
     // Routes pour les concessionnaires
     Route::get('/concessionnaires-liste', [DashboardController::class, 'getConcessionnairesListe'])->name('concessionnaires.liste');

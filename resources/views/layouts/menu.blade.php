@@ -139,6 +139,13 @@
                >
             <div class="triangle"></div>
          </li>
+         <li class="nav-item {{ in_array($menu, ['reduction-cards', 'reduction-cards-user-cards', 'reduction-cards-histories']) ? 'active' : '' }}" data-item="reduction-cards-menu">
+            <a class="nav-item-hold" href="#"
+               ><i class="nav-icon i-Cardiovascular"></i
+               ><span class="nav-text">Cartes réduction</span></a
+               >
+            <div class="triangle"></div>
+         </li>
          <li class="nav-item {{ $menu == "station_service" ? 'active' : '' }}">
             <a class="nav-item-hold" href="{{ route('index-station_service') }}"
                ><i class="nav-icon i-Double-Tap"></i><span class="nav-text">Stations service</span></a
@@ -225,6 +232,27 @@
                ><i class="nav-icon i-Speach-Bubble-3"></i
                ><span class="item-name">Chat</span></a
                >
+         </li>
+      </ul>
+
+      <ul class="childNav" data-parent="reduction-cards-menu">
+         <li class="nav-item {{ $menu == "reduction-cards" ? 'active' : '' }}">
+            <a href="{{ route('reduction-cards.index') }}">
+               <i class="nav-icon i-Credit-Card"></i>
+               <span class="item-name">Cartes configurées</span>
+            </a>
+         </li>
+         <li class="nav-item {{ $menu == "reduction-cards-user-cards" ? 'active' : '' }}">
+            <a href="{{ route('reduction-cards.user-cards') }}">
+               <i class="nav-icon i-ID-Card"></i>
+               <span class="item-name">Cartes usagers</span>
+            </a>
+         </li>
+         <li class="nav-item {{ $menu == "reduction-cards-histories" ? 'active' : '' }}">
+            <a href="{{ route('reduction-cards.histories') }}">
+               <i class="nav-icon i-Clock-Back"></i>
+               <span class="item-name">Historique</span>
+            </a>
          </li>
       </ul>
 

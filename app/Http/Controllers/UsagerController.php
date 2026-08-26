@@ -15,7 +15,9 @@ use App\Models\Concessionnaire;
 use App\Models\Type_alert;
 use App\Models\Abonnement_usager;
 use App\Models\Forfait_usager;
+use App\Models\UserReductionCard;
 use App\Services\CommercialWalletService;
+use App\Services\ReductionCardService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -470,6 +472,15 @@ class UsagerController extends Controller
             ->paginate($perPage, ['*'], 'concessionnaires_page')
             ->appends($request->query());
 
+        $data["reduction_cards"] = Schema::hasTable('user_reduction_cards')
+            ? UserReductionCard::with(['reductionCard.forfaitUsager', 'abonnementUsager', 'histories'])
+                ->where('user_id', $id)
+                ->orderByDesc('statut')
+                ->orderByDesc('date_fin')
+                ->orderByDesc('id')
+                ->get()
+            : collect();
+
         // Debug: Vérifier les types d'alertes disponibles
         $data["debug_type_alerts"] = \App\Models\Type_alert::all();
 
@@ -589,6 +600,7 @@ class UsagerController extends Controller
 
             $walletTransaction = app(CommercialWalletService::class)
                 ->creditCommissionForAbonnement($abonnement);
+            app(ReductionCardService::class)->syncForAbonnement($abonnement);
 
             DB::commit();
 
@@ -637,6 +649,7 @@ class UsagerController extends Controller
 
         $walletTransaction = app(CommercialWalletService::class)
             ->creditCommissionForAbonnement($abonnement);
+        app(ReductionCardService::class)->syncForAbonnement($abonnement);
 
         return [
             'abonnement' => $abonnement,

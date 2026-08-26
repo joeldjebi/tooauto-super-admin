@@ -92,6 +92,78 @@
     </div>
 </div>
 
+<!-- Cartes privilège -->
+<div class="row mt-4">
+    <div class="col-lg-12 col-md-12">
+        <div class="card text-left">
+            <div class="card-body">
+                <h4 class="card-title mb-3">
+                    <i class="nav-icon i-Credit-Card"></i> Carte privilège
+                </h4>
+
+                @if($reduction_cards->isNotEmpty())
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Carte</th>
+                                    <th>Code</th>
+                                    <th>QR Code</th>
+                                    <th>Forfait</th>
+                                    <th>Réduction</th>
+                                    <th>Validité</th>
+                                    <th>Utilisations</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($reduction_cards as $card)
+                                    @php
+                                        $reduction = $card->reductionCard;
+                                        $discount = $reduction
+                                            ? ($reduction->discount_type === 'percentage'
+                                                ? number_format($reduction->discount_value, 2, ',', ' ') . '%'
+                                                : number_format($reduction->discount_value, 0, ',', ' ') . ' FCFA')
+                                            : '-';
+                                        $isActive = (int) $card->statut === 1 && (!$card->date_fin || $card->date_fin->toDateString() >= now()->toDateString());
+                                    @endphp
+                                    <tr>
+                                        <td>{{ $loop->iteration }}</td>
+                                        <td>
+                                            <strong>{{ optional($reduction)->name ?? '-' }}</strong>
+                                            @if(!empty(optional($reduction)->description))
+                                                <br><small class="text-muted">{{ \Illuminate\Support\Str::limit($reduction->description, 80) }}</small>
+                                            @endif
+                                        </td>
+                                        <td><strong>{{ $card->card_code }}</strong></td>
+                                        <td>{{ $card->qr_code }}</td>
+                                        <td>{{ optional(optional($reduction)->forfaitUsager)->libelle ?? optional($card->forfaitUsager)->libelle ?? '-' }}</td>
+                                        <td>{{ $discount }}</td>
+                                        <td>
+                                            {{ optional($card->date_debut)->format('d/m/Y') ?? '-' }}
+                                            -
+                                            {{ optional($card->date_fin)->format('d/m/Y') ?? '-' }}
+                                        </td>
+                                        <td>{{ $card->histories->count() }}</td>
+                                        <td>
+                                            <span class="badge badge-{{ $isActive ? 'success' : 'secondary' }}">
+                                                {{ $isActive ? 'Active' : 'Inactive/Expirée' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p><span class="text-muted">Aucune carte privilège attribuée à cet usager.</span></p>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Statistiques -->
 <div class="row mt-4">
     <div class="col-md-3">
