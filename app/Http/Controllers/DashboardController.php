@@ -608,7 +608,7 @@ class DashboardController extends Controller
             'is_pro' => 'nullable',
             'statut' => 'nullable',
             'pro_or_usager' => 'nullable',
-            'ordre_by' => 'nullable|integer',
+            'order_by' => 'nullable|integer',
             'sous_categorie_service_ids' => 'nullable|array',
             'sous_categorie_service_ids.*' => 'exists:sous_categorie_services,id',
             'accessible_abonnement_expire' => 'nullable|boolean',
@@ -641,7 +641,7 @@ class DashboardController extends Controller
         $categorie->image = $imagePath;
         $categorie->statut = $request->statut ?? 1;
         $categorie->is_pro = $request->is_pro;
-        $categorie->ordre_by = $request->ordre_by;
+        $categorie->order_by = $request->order_by;
         $categorie->pro_or_usager = $request->pro_or_usager;
         $sousCategorieIds = collect($request->input('sous_categorie_service_ids', []))->filter()->values();
         $categorie->sous_categorie_service_id = $sousCategorieIds->first();
@@ -688,7 +688,7 @@ class DashboardController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'is_pro' => 'nullable',
             'statut' => 'nullable',
-            'ordre_by' => 'nullable|integer',
+            'order_by' => 'nullable|integer',
             'pro_or_usager' => 'nullable',
             'sous_categorie_service_ids' => 'nullable|array',
             'sous_categorie_service_ids.*' => 'exists:sous_categorie_services,id',
@@ -715,7 +715,7 @@ class DashboardController extends Controller
         $categorie->accessible_abonnement_expire = $request->accessible_abonnement_expire ?? 0;
         $categorie->visible_par_defaut = $request->visible_par_defaut ?? 0;
         $categorie->accessible_en_fonction_de_mon_abonnement_actif = $request->accessible_en_fonction_de_mon_abonnement_actif ?? 0;
-        $categorie->ordre_by = $request->ordre_by ?? 0;
+        $categorie->order_by = $request->order_by ?? 0;
         // Suppression et mise à jour de l'image si une nouvelle est fournie
         if ($request->hasFile('image')) {
             // Suppression de l'ancienne image
