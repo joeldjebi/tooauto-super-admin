@@ -36,6 +36,7 @@
                                     <th scope="col">Accès expiré</th>
                                     <th scope="col">Accès via forfait</th>
                                     <th scope="col">Sous-catégories</th>
+                                    <th scope="col">Order</th>
                                     <th scope="col">Actions</th>
                                 </tr>
                             </thead>
@@ -107,10 +108,10 @@
                                                             <div class="form-group">
                                                                 <label for="">Usager/Pro ou Les deux</label>
                                                                 <select class="form-control" name="pro_or_usager" id="">
-    <option value="1" {{ $item->pro_or_usager == 1 ? 'selected' : '' }}>Pro</option>
-    <option value="0" {{ $item->pro_or_usager == 0 ? 'selected' : '' }}>Usager</option>
-    <option value="2" {{ $item->pro_or_usager == 2 ? 'selected' : '' }}>Les deux (Usager/Pro)</option>
-</select>
+                                                                    <option value="1" {{ $item->pro_or_usager == 1 ? 'selected' : '' }}>Pro</option>
+                                                                    <option value="0" {{ $item->pro_or_usager == 0 ? 'selected' : '' }}>Usager</option>
+                                                                    <option value="2" {{ $item->pro_or_usager == 2 ? 'selected' : '' }}>Les deux (Usager/Pro)</option>
+                                                                </select>
 
                                                             </div>
                                                         </div>
@@ -139,6 +140,12 @@
                                                                     <option value="1" {{ $item->accessible_en_fonction_de_mon_abonnement_actif == 1 ? 'selected' : '' }}>Oui</option>
                                                                     <option value="0" {{ $item->accessible_en_fonction_de_mon_abonnement_actif == 0 ? 'selected' : '' }}>Non</option>
                                                                 </select>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-12">
+                                                            <div class="form-group">
+                                                                <label for="">Order</label>
+                                                                <input class="form-control" name="order_by" type="number" value="{{ old("order_by")?? $item->order_by }}">
                                                             </div>
                                                         </div>
                                                         <div class="modal-footer">
@@ -184,7 +191,7 @@
                                             @endphp
                                             {{ !empty($sousCategorieLabels) ? implode(', ', $sousCategorieLabels) : ($item->sousCategorieService->libelle ?? '-') }}
                                         </td>
-
+                                        <td>{{ $item->order_by }}</td>
                                         <td>
                                             <a class="text-success mr-2" href="#" data-toggle="modal" data-target="#id{{ $item->id }}">
                                                 <i class="nav-icon i-Pen-2 font-weight-bold"></i>
@@ -276,6 +283,10 @@
                             <div class="form-group">
                                 <label for="">Image</label>
                                 <input class="form-control" name="image" type="file">
+                            </div>
+                            <div class="form-group">
+                                <label for="">Libellé</label>
+                                <input class="form-control" name="order_by" type="number" value="{{ old('order_by') }}">
                             </div>
                             <div class="text-center mt-3">
                                 <button type="submit" class="btn btn-primary pd-x-20">Enregistrer</button>
