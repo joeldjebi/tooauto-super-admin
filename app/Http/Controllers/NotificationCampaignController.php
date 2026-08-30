@@ -18,6 +18,7 @@ class NotificationCampaignController extends Controller
     public function index(Request $request, NotificationCampaignService $service)
     {
         $this->authorizeAccess();
+        $this->sendDueCampaigns($service);
 
         $audienceType = $request->input('audience_type', NotificationCampaign::AUDIENCE_ALL_USERS);
         $filters = $this->cleanFilters($request->input('filters', []), $audienceType);
@@ -91,7 +92,7 @@ class NotificationCampaignController extends Controller
             'created_by_type' => $this->actorType(),
         ]);
 
-        if ($sendNow) {
+        if ($sendNow || \Carbon\Carbon::parse($scheduledAt)->lte(now())) {
             $result = $service->send($campaign);
             session()->flash('type', $result['success'] ? 'alert-success' : 'alert-danger');
             session()->flash('message', $result['message']);
@@ -259,5 +260,16 @@ class NotificationCampaignController extends Controller
         }
 
         return 'call-center.' . $adminRoute;
+    }
+
+    private function sendDueCampaigns(NotificationCampaignService $service): void
+    {
+        NotificationCampaign::due()
+            ->orderBy('scheduled_at')
+            ->limit(5)
+            ->get()
+            ->each(function (NotificationCampaign $campaign) use ($service) {
+                $service->send($campaign);
+            });
     }
 }

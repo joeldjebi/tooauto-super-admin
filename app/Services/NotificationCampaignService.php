@@ -150,6 +150,48 @@ class NotificationCampaignService
                     }
                 });
 
+            if ($totalTargets === 0) {
+                $message = 'Aucun usager avec un token FCM valide trouve pour cette campagne.';
+
+                $campaign->update([
+                    'status' => NotificationCampaign::STATUS_FAILED,
+                    'sent_at' => now(),
+                    'total_targets' => 0,
+                    'success_count' => 0,
+                    'failure_count' => 0,
+                    'last_error' => $message,
+                ]);
+
+                return [
+                    'success' => false,
+                    'message' => $message,
+                    'total_targets' => 0,
+                    'success_count' => 0,
+                    'failure_count' => 0,
+                ];
+            }
+
+            if ($successCount === 0) {
+                $message = "Notification non envoyee: {$failureCount} echec(s) sur {$totalTargets} cible(s).";
+
+                $campaign->update([
+                    'status' => NotificationCampaign::STATUS_FAILED,
+                    'sent_at' => now(),
+                    'total_targets' => $totalTargets,
+                    'success_count' => $successCount,
+                    'failure_count' => $failureCount,
+                    'last_error' => $message,
+                ]);
+
+                return [
+                    'success' => false,
+                    'message' => $message,
+                    'total_targets' => $totalTargets,
+                    'success_count' => $successCount,
+                    'failure_count' => $failureCount,
+                ];
+            }
+
             $campaign->update([
                 'status' => NotificationCampaign::STATUS_SENT,
                 'sent_at' => now(),
