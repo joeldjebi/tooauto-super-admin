@@ -20,36 +20,73 @@ class NotificationCampaignController extends Controller
         $this->authorizeAccess();
         $this->sendDueCampaigns($service);
 
-        $audienceType = $request->input('audience_type', NotificationCampaign::AUDIENCE_ALL_USERS);
-        $filters = $this->cleanFilters($request->input('filters', []), $audienceType);
+        $audienceData = $this->audienceViewData($request, $service);
 
-        $data['title'] = 'Notification send';
+        $data['title'] = 'Ciblage notifications';
         $data['menu'] = $this->isCallCenter() ? 'call-center-notification-send' : 'notification-send';
-        $data['isCallCenter'] = $this->isCallCenter();
-        $data['audienceType'] = $audienceType;
-        $data['filters'] = $filters;
-        $data['typeAlerts'] = Type_alert::orderBy('libelle')->get(['id', 'libelle']);
-        $data['userFilterColumns'] = $this->notificationUserFilterColumns();
-        $data['villes'] = Schema::hasTable('villes') ? Ville::orderBy('libelle')->get(['id', 'libelle']) : collect();
-        $communeNameColumn = Schema::hasColumn('communes', 'libelle') ? 'libelle' : 'nom';
-        $data['communes'] = Schema::hasTable('communes') && Schema::hasColumn('communes', $communeNameColumn)
-            ? Commune::select('id', 'ville_id')->selectRaw($communeNameColumn . ' as libelle')->orderBy($communeNameColumn)->get()
-            : collect();
-        $data['selectedUsers'] = $this->selectedUsers($filters);
-        $data['previewUsers'] = $service->audienceQuery($audienceType, $filters)
-            ->paginate(20, ['*'], 'users_page')
-            ->appends($request->except('users_page'));
-        $data['previewCount'] = $service->countAudience($audienceType, $filters);
-        $data['campaigns'] = NotificationCampaign::orderBy('created_at', 'desc')
-            ->paginate(10, ['*'], 'campaigns_page')
-            ->appends($request->except('campaigns_page'));
+        $data = array_merge($data, $audienceData);
         $data['indexRoute'] = $this->routeName('notification-send.index');
+        $data['createRoute'] = $this->routeName('notification-send.create');
         $data['storeRoute'] = $this->routeName('notification-send.store');
+        $data['programmesRoute'] = $this->routeName('notification-send.programmes');
         $data['logsRoute'] = $this->routeName('notification-send.logs');
-        $data['sendNowRouteName'] = $this->routeName('notification-send.send-now');
-        $data['cancelRouteName'] = $this->routeName('notification-send.cancel');
 
         return view('notification_send.index', $data);
+    }
+
+    public function create(Request $request, NotificationCampaignService $service)
+    {
+        $this->authorizeAccess();
+
+        return redirect()->route($this->routeName('notification-send.programmes'), $request->query());
+    }
+
+    public function programmes(Request $request, NotificationCampaignService $service)
+    {
+        $this->authorizeAccess();
+        $this->sendDueCampaigns($service);
+
+        $query = NotificationCampaign::query()->orderBy('created_at', 'desc');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('audience_type')) {
+            $query->where('audience_type', $request->audience_type);
+        }
+
+        if ($request->filled('keyword')) {
+            $keyword = '%' . trim($request->keyword) . '%';
+            $query->where(function ($q) use ($keyword) {
+                $q->where('title', 'like', $keyword)
+                    ->orWhere('body', 'like', $keyword)
+                    ->orWhere('last_error', 'like', $keyword);
+            });
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('scheduled_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('scheduled_at', '<=', $request->date_to);
+        }
+
+        return view('notification_send.programmes', [
+            'title' => 'Notifications programmées',
+            'menu' => $this->isCallCenter() ? 'call-center-notification-programmes' : 'notification-programmes',
+            'isCallCenter' => $this->isCallCenter(),
+            'campaigns' => $query->paginate(20)->appends($request->query()),
+            'fcmUsers' => $this->notificationFcmUsers(),
+            'indexRoute' => $this->routeName('notification-send.index'),
+            'createRoute' => $this->routeName('notification-send.create'),
+            'storeRoute' => $this->routeName('notification-send.store'),
+            'programmesRoute' => $this->routeName('notification-send.programmes'),
+            'logsRoute' => $this->routeName('notification-send.logs'),
+            'sendNowRouteName' => $this->routeName('notification-send.send-now'),
+            'cancelRouteName' => $this->routeName('notification-send.cancel'),
+        ]);
     }
 
     public function store(Request $request, NotificationCampaignService $service)
@@ -97,13 +134,13 @@ class NotificationCampaignController extends Controller
             session()->flash('type', $result['success'] ? 'alert-success' : 'alert-danger');
             session()->flash('message', $result['message']);
 
-            return redirect()->route($this->routeName('notification-send.index'));
+            return redirect()->route($this->routeName('notification-send.programmes'));
         }
 
         session()->flash('type', 'alert-success');
         session()->flash('message', 'Notification programmée avec succès.');
 
-        return redirect()->route($this->routeName('notification-send.index'));
+        return redirect()->route($this->routeName('notification-send.programmes'));
     }
 
     public function sendNow(NotificationCampaign $notificationCampaign, NotificationCampaignService $service)
@@ -180,6 +217,8 @@ class NotificationCampaignController extends Controller
             'logs' => $query->paginate(25)->appends($request->query()),
             'campaigns' => NotificationCampaign::orderBy('created_at', 'desc')->get(['id', 'title', 'status']),
             'indexRoute' => $this->routeName('notification-send.index'),
+            'createRoute' => $this->routeName('notification-send.create'),
+            'programmesRoute' => $this->routeName('notification-send.programmes'),
             'logsRoute' => $this->routeName('notification-send.logs'),
         ]);
     }
@@ -212,12 +251,61 @@ class NotificationCampaignController extends Controller
             ->all();
     }
 
+    private function audienceViewData(Request $request, NotificationCampaignService $service): array
+    {
+        $audienceType = $request->input('audience_type', NotificationCampaign::AUDIENCE_ALL_USERS);
+        $filters = $this->cleanFilters($request->input('filters', []), $audienceType);
+        $communeNameColumn = Schema::hasTable('communes') && Schema::hasColumn('communes', 'libelle') ? 'libelle' : 'nom';
+
+        return [
+            'isCallCenter' => $this->isCallCenter(),
+            'audienceType' => $audienceType,
+            'filters' => $filters,
+            'typeAlerts' => Type_alert::orderBy('libelle')->get(['id', 'libelle']),
+            'userFilterColumns' => $this->notificationUserFilterColumns(),
+            'fcmUsers' => $this->notificationFcmUsers(),
+            'villes' => Schema::hasTable('villes') ? Ville::orderBy('libelle')->get(['id', 'libelle']) : collect(),
+            'communes' => Schema::hasTable('communes') && Schema::hasColumn('communes', $communeNameColumn)
+                ? Commune::select('id', 'ville_id')->selectRaw($communeNameColumn . ' as libelle')->orderBy($communeNameColumn)->get()
+                : collect(),
+            'selectedUsers' => $this->selectedUsers($filters),
+            'previewUsers' => $service->audienceQuery($audienceType, $filters)
+                ->paginate(20, ['*'], 'users_page')
+                ->appends($request->except('users_page')),
+            'previewCount' => $service->countAudience($audienceType, $filters),
+        ];
+    }
+
     private function notificationUserFilterColumns(): array
     {
         return collect(['statut', 'ville_id', 'commune_id'])
             ->mapWithKeys(fn ($column) => [$column => Schema::hasColumn('users', $column)])
             ->all();
     }
+
+    private function notificationFcmUsers()
+    {
+        $columns = collect(['id', 'fcm_token'])
+            ->merge(collect(['nom', 'prenoms', 'name', 'email', 'telephone', 'mobile'])
+                ->filter(fn ($column) => Schema::hasColumn('users', $column)))
+            ->unique()
+            ->values()
+            ->all();
+
+        $orderColumn = collect(['nom', 'name', 'telephone', 'mobile', 'email'])
+            ->first(fn ($column) => Schema::hasColumn('users', $column));
+
+        $query = User::select($columns)
+            ->whereNotNull('fcm_token')
+            ->where('fcm_token', '!=', '');
+
+        if ($orderColumn) {
+            $query->orderBy($orderColumn);
+        }
+
+        return $query->orderBy('id')->get();
+    }
+
     private function selectedUsers(array $filters)
     {
         $ids = $filters['user_ids'] ?? [];

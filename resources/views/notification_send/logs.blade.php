@@ -30,6 +30,8 @@
     $statusLabels = ['sent' => 'Envoyé', 'failed' => 'Échec', 'pending' => 'En attente'];
 @endphp
 
+@include('notification_send.partials.nav')
+
 <div class="row">
     <div class="col-lg-12 col-md-12">
         <div class="card mb-4">

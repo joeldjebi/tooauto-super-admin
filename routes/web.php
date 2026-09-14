@@ -375,7 +375,9 @@ Route::middleware(['auth'])->group(function () {
 
     // Routes pour Notification Send
     Route::get('/notification-send', [NotificationCampaignController::class, 'index'])->name('notification-send.index');
+    Route::get('/notification-send/create', [NotificationCampaignController::class, 'create'])->name('notification-send.create');
     Route::post('/notification-send', [NotificationCampaignController::class, 'store'])->name('notification-send.store');
+    Route::get('/notification-send/programmes', [NotificationCampaignController::class, 'programmes'])->name('notification-send.programmes');
     Route::get('/notification-send/logs', [NotificationCampaignController::class, 'logs'])->name('notification-send.logs');
     Route::post('/notification-send/{notificationCampaign}/send-now', [NotificationCampaignController::class, 'sendNow'])->name('notification-send.send-now');
     Route::post('/notification-send/{notificationCampaign}/cancel', [NotificationCampaignController::class, 'cancel'])->name('notification-send.cancel');
@@ -438,7 +440,9 @@ Route::prefix('call-center')->group(function () {
         Route::get('/etablissements/{etablissement}/abonnements', [CallCenterSpaceController::class, 'etablissementAbonnements'])->name('call-center.etablissements.abonnements');
         Route::get('/autodocs', [CallCenterSpaceController::class, 'autodocs'])->name('call-center.autodocs');
         Route::get('/notification-send', [NotificationCampaignController::class, 'index'])->name('call-center.notification-send.index');
+        Route::get('/notification-send/create', [NotificationCampaignController::class, 'create'])->name('call-center.notification-send.create');
         Route::post('/notification-send', [NotificationCampaignController::class, 'store'])->name('call-center.notification-send.store');
+        Route::get('/notification-send/programmes', [NotificationCampaignController::class, 'programmes'])->name('call-center.notification-send.programmes');
         Route::get('/notification-send/logs', [NotificationCampaignController::class, 'logs'])->name('call-center.notification-send.logs');
         Route::post('/notification-send/{notificationCampaign}/send-now', [NotificationCampaignController::class, 'sendNow'])->name('call-center.notification-send.send-now');
         Route::post('/notification-send/{notificationCampaign}/cancel', [NotificationCampaignController::class, 'cancel'])->name('call-center.notification-send.cancel');

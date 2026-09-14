@@ -28,6 +28,53 @@ span.relative.z-0.inline-flex.rtl\:flex-row-reverse.shadow-sm.rounded-md svg {
     border-color: #efc243;
 }
 
+/* Stabilise le layout sidebar large, notamment sur les dashboards SAP. */
+.layout-sidebar-large .side-content-wrap {
+    width: 120px;
+    max-width: 120px;
+}
+
+.layout-sidebar-large .sidebar-left {
+    position: fixed;
+    left: 0;
+    top: 80px;
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+    height: calc(100vh - 80px);
+    z-index: 90;
+}
+
+.layout-sidebar-large .sidebar-left .navigation-left {
+    width: 120px;
+}
+
+.layout-sidebar-large .sidebar-left .navigation-left .nav-item,
+.layout-sidebar-large .sidebar-left .navigation-left .nav-item-hold {
+    width: 120px;
+    max-width: 120px;
+}
+
+.layout-sidebar-large .main-content-wrap.sidenav-open {
+    margin-left: 120px;
+    width: calc(100% - 120px);
+}
+
+@media (max-width: 767px) {
+    .layout-sidebar-large .side-content-wrap,
+    .layout-sidebar-large .sidebar-left,
+    .layout-sidebar-large .sidebar-left .navigation-left,
+    .layout-sidebar-large .sidebar-left .navigation-left .nav-item,
+    .layout-sidebar-large .sidebar-left .navigation-left .nav-item-hold {
+        max-width: none;
+    }
+
+    .layout-sidebar-large .main-content-wrap.sidenav-open {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
 .page-item.active .page-link {
     background-color: #efc243;
     border-color: #efc243;

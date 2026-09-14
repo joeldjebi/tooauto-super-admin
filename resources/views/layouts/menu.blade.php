@@ -36,7 +36,14 @@
          <li class="nav-item {{ $menu == "notification-send" ? 'active' : '' }}">
             <a class="nav-item-hold" href="{{ route('notification-send.index') }}">
                <i class="nav-icon i-Bell"></i>
-               <span class="nav-text">Notification send</span>
+               <span class="nav-text">Ciblage notif</span>
+            </a>
+            <div class="triangle"></div>
+         </li>
+         <li class="nav-item {{ $menu == "notification-programmes" ? 'active' : '' }}">
+            <a class="nav-item-hold" href="{{ route('notification-send.programmes') }}">
+               <i class="nav-icon i-Clock"></i>
+               <span class="nav-text">Notifs programmées</span>
             </a>
             <div class="triangle"></div>
          </li>

@@ -66,6 +66,8 @@
     </div>
 </div>
 
+@include('notification_send.partials.nav')
+
 <div class="row">
     <div class="col-lg-4 col-md-12">
         <div class="card mb-4">
@@ -168,11 +170,12 @@
 
         <div class="card mb-4">
             <div class="card-body">
-                <h4 class="card-title mb-3">Notification</h4>
-                <form method="POST" action="{{ route($storeRoute) }}" id="notification-send-form">
-                    @csrf
+                <h4 class="card-title mb-3">Programmer la notification</h4>
+                <p class="text-muted">Le formulaire de notification se trouve sur la page des notifs programmées.</p>
+                <form method="GET" action="{{ route($programmesRoute) }}" id="notification-create-form">
                     <input type="hidden" name="audience_type" value="{{ $audienceType }}">
                     @foreach($filters as $key => $value)
+                        @continue($key === 'user_ids')
                         @if(is_array($value))
                             @foreach($value as $item)
                                 <input type="hidden" name="filters[{{ $key }}][]" value="{{ $item }}">
@@ -183,31 +186,7 @@
                     @endforeach
 
                     <div id="selected-users-holder"></div>
-
-                    <div class="form-group">
-                        <label>Titre</label>
-                        <input type="text" name="title" class="form-control" value="{{ old('title') }}" required maxlength="255">
-                    </div>
-                    <div class="form-group">
-                        <label>Message</label>
-                        <textarea name="body" class="form-control" rows="4" required maxlength="1000">{{ old('body') }}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Image URL</label>
-                        <input type="url" name="image_url" class="form-control" value="{{ old('image_url') }}" placeholder="https://...">
-                    </div>
-                    <div class="form-group">
-                        <label>Lien d'action</label>
-                        <input type="url" name="action_url" class="form-control" value="{{ old('action_url') }}" placeholder="https://...">
-                    </div>
-                    <div class="form-group">
-                        <label>Date de programmation</label>
-                        <input type="datetime-local" name="scheduled_at" class="form-control" value="{{ old('scheduled_at') }}">
-                    </div>
-                    <div class="d-flex">
-                        <button type="submit" class="btn btn-primary flex-fill mr-2">Programmer</button>
-                        <button type="submit" name="send_now" value="1" class="btn btn-success flex-fill">Envoyer</button>
-                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Ouvrir les notifs programmées</button>
                 </form>
             </div>
         </div>
@@ -308,81 +287,12 @@
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-body">
-                <h4 class="card-title mb-3">Campagnes</h4>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <small class="text-muted">Page {{ $campaigns->currentPage() }} / {{ $campaigns->lastPage() }}</small>
-                    <small class="text-muted">{{ $campaigns->firstItem() ?? 0 }}-{{ $campaigns->lastItem() ?? 0 }} sur {{ $campaigns->total() }}</small>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-striped table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Notification</th>
-                                <th>Cible</th>
-                                <th>Programmation</th>
-                                <th>Résultat</th>
-                                <th>Statut</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($campaigns as $campaign)
-                                <tr>
-                                    <td style="min-width: 220px;">
-                                        <strong>{{ $campaign->title }}</strong>
-                                        <div class="small text-muted">{{ \Illuminate\Support\Str::limit($campaign->body, 90) }}</div>
-                                        @if($campaign->last_error)
-                                            <div class="small text-danger">{{ \Illuminate\Support\Str::limit($campaign->last_error, 90) }}</div>
-                                        @endif
-                                    </td>
-                                    <td>{{ $audienceLabels[$campaign->audience_type] ?? $campaign->audience_type }}</td>
-                                    <td>
-                                        <div>{{ optional($campaign->scheduled_at)->format('d/m/Y H:i') ?? '-' }}</div>
-                                        <small class="text-muted">Créé {{ optional($campaign->created_at)->format('d/m/Y H:i') }}</small>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-info">{{ $campaign->total_targets }}</span>
-                                        <span class="badge badge-success">{{ $campaign->success_count }} ok</span>
-                                        <span class="badge badge-danger">{{ $campaign->failure_count }} ko</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge {{ $statusClasses[$campaign->status] ?? 'badge-secondary' }}">{{ $statusLabels[$campaign->status] ?? $campaign->status }}</span>
-                                    </td>
-                                    <td style="min-width: 210px;">
-                                        <a href="{{ route($logsRoute, ['notification_campaign_id' => $campaign->id]) }}" class="btn btn-sm btn-outline-info">Logs</a>
-                                        @if(in_array($campaign->status, ['draft', 'scheduled', 'failed', 'cancelled']))
-                                            <form method="POST" action="{{ route($sendNowRouteName, $campaign->id) }}" class="d-inline">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-success">Envoyer</button>
-                                            </form>
-                                        @endif
-                                        @if($campaign->status === 'scheduled')
-                                            <form method="POST" action="{{ route($cancelRouteName, $campaign->id) }}" class="d-inline">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-warning">Annuler</button>
-                                            </form>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">Aucune campagne pour le moment.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-                {{ $campaigns->links() }}
-            </div>
-        </div>
     </div>
 </div>
 
 <script>
     (function () {
-        var form = document.getElementById('notification-send-form');
+        var form = document.getElementById('notification-create-form');
         var holder = document.getElementById('selected-users-holder');
 
         if (!form || !holder) {
