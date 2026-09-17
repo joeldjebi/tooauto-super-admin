@@ -10,7 +10,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('message-conseils:send-due')->everyMinute()->withoutOverlapping();
-        $schedule->command('notification-campaigns:send-due')->everyMinute()->withoutOverlapping();
+        $schedule->command('notification-campaigns:send-due --limit=50')->everyMinute();
     }
 
     protected function commands(): void

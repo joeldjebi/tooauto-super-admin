@@ -352,12 +352,6 @@ class NotificationCampaignController extends Controller
 
     private function sendDueCampaigns(NotificationCampaignService $service): void
     {
-        NotificationCampaign::due()
-            ->orderBy('scheduled_at')
-            ->limit(5)
-            ->get()
-            ->each(function (NotificationCampaign $campaign) use ($service) {
-                $service->send($campaign);
-            });
+        $service->sendDueCampaigns(50);
     }
 }

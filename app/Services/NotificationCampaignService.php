@@ -102,6 +102,55 @@ class NotificationCampaignService
         return $this->audienceQuery($audienceType, $filters)->count();
     }
 
+    public function sendDueCampaigns(int $limit = 50): Collection
+    {
+        $campaignIds = NotificationCampaign::due()
+            ->orderBy('scheduled_at')
+            ->orderBy('id')
+            ->limit(max(1, $limit))
+            ->pluck('id');
+
+        return $campaignIds->map(function (int $campaignId) {
+            $claimed = NotificationCampaign::query()
+                ->whereKey($campaignId)
+                ->where('status', NotificationCampaign::STATUS_SCHEDULED)
+                ->whereNotNull('scheduled_at')
+                ->where('scheduled_at', '<=', now())
+                ->update([
+                    'status' => NotificationCampaign::STATUS_SENDING,
+                    'last_error' => null,
+                ]);
+
+            if ($claimed !== 1) {
+                return null;
+            }
+
+            $campaign = NotificationCampaign::findOrFail($campaignId);
+
+            try {
+                return [
+                    'campaign' => $campaign,
+                    'result' => $this->send($campaign),
+                ];
+            } catch (\Throwable $exception) {
+                $campaign->update([
+                    'status' => NotificationCampaign::STATUS_FAILED,
+                    'last_error' => $exception->getMessage(),
+                ]);
+
+                report($exception);
+
+                return [
+                    'campaign' => $campaign,
+                    'result' => [
+                        'success' => false,
+                        'message' => $exception->getMessage(),
+                    ],
+                ];
+            }
+        })->filter()->values();
+    }
+
     public function send(NotificationCampaign $campaign): array
     {
         $campaign->update([
