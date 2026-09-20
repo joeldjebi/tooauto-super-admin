@@ -53,6 +53,21 @@ class UsagerController extends Controller
             'annonce_filter' => $request->get('annonce_filter'),
             'document_filter' => $request->get('document_filter'),
         ];
+        $abonnementFilters = [
+            'forfait_id' => $request->get('forfait_id'),
+            'expiration_from' => $request->get('expiration_from'),
+            'expiration_to' => $request->get('expiration_to'),
+        ];
+
+        $request->validate([
+            'forfait_id' => ['nullable', 'integer', 'exists:forfait_usagers,id'],
+            'expiration_from' => ['nullable', 'date'],
+            'expiration_to' => [
+                'nullable',
+                'date',
+                Rule::when($request->filled('expiration_from'), ['after_or_equal:expiration_from']),
+            ],
+        ]);
 
         $perPage = (int) $request->get('per_page', 50);
         $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
@@ -60,11 +75,13 @@ class UsagerController extends Controller
         $usagersQuery = User::select(['id', 'nom', 'prenoms', 'indicatif', 'mobile', 'email', 'statut', 'commercial_id'])
             ->with([
                 'commercial:id,nom,prenoms,mobile',
-                'abonnementUsagers' => function ($query) {
+                'abonnementUsagers' => function ($query) use ($abonnementFilters) {
                     $query->select(['id', 'user_id', 'forfait_id', 'date_debut', 'date_fin', 'statut', 'is_free'])
                         ->with('forfait_usager:id,libelle')
                         ->orderByDesc('date_fin')
                         ->orderByDesc('id');
+
+                    $this->applyAbonnementFilters($query, $abonnementFilters);
                 },
             ])
             ->withCount(['vehicules', 'alerts', 'annonces'])
@@ -77,12 +94,23 @@ class UsagerController extends Controller
         $this->applyRelationPresenceFilter($usagersQuery, 'annonces', $presenceFilters['annonce_filter']);
 
         if ($presenceFilters['abonnement_filter'] === 'with') {
-            $usagersQuery->whereHas('abonnementUsagers', function ($query) use ($today) {
+            $usagersQuery->whereHas('abonnementUsagers', function ($query) use ($today, $abonnementFilters) {
                 $query->where('statut', 1)->whereDate('date_fin', '>=', $today);
+                $this->applyAbonnementFilters($query, $abonnementFilters);
             });
         } elseif ($presenceFilters['abonnement_filter'] === 'without') {
             $usagersQuery->whereDoesntHave('abonnementUsagers', function ($query) use ($today) {
                 $query->where('statut', 1)->whereDate('date_fin', '>=', $today);
+            });
+
+            if ($this->hasAbonnementFilters($abonnementFilters)) {
+                $usagersQuery->whereHas('abonnementUsagers', function ($query) use ($abonnementFilters) {
+                    $this->applyAbonnementFilters($query, $abonnementFilters);
+                });
+            }
+        } elseif ($this->hasAbonnementFilters($abonnementFilters)) {
+            $usagersQuery->whereHas('abonnementUsagers', function ($query) use ($abonnementFilters) {
+                $this->applyAbonnementFilters($query, $abonnementFilters);
             });
         }
 
@@ -90,11 +118,15 @@ class UsagerController extends Controller
 
         $data["usagers"] = $usagersQuery->simplePaginate($perPage)->appends($request->query());
         $data["presence_filters"] = $presenceFilters;
+        $data["abonnement_filters"] = $abonnementFilters;
         $data["per_page"] = $perPage;
 
         $data["forfait_usagers"] = Forfait_usager::where('statut', 1)
             ->orderBy('libelle')
             ->get();
+        $data["filter_forfait_usagers"] = Forfait_usager::whereHas('abonnement_usagers')
+            ->orderBy('libelle')
+            ->get(['id', 'libelle']);
 
         $data["usagers"]->each(function ($usager) use ($today) {
             $activeAbonnement = $usager->abonnementUsagers->first(function ($abonnement) use ($today) {
@@ -108,6 +140,28 @@ class UsagerController extends Controller
         // dd($data["usagers"]);
 
         return view('usagers.index',$data);
+    }
+
+    private function applyAbonnementFilters($query, array $filters): void
+    {
+        if (! empty($filters['forfait_id'])) {
+            $query->where('forfait_id', $filters['forfait_id']);
+        }
+
+        if (! empty($filters['expiration_from'])) {
+            $query->whereDate('date_fin', '>=', $filters['expiration_from']);
+        }
+
+        if (! empty($filters['expiration_to'])) {
+            $query->whereDate('date_fin', '<=', $filters['expiration_to']);
+        }
+    }
+
+    private function hasAbonnementFilters(array $filters): bool
+    {
+        return ! empty($filters['forfait_id'])
+            || ! empty($filters['expiration_from'])
+            || ! empty($filters['expiration_to']);
     }
 
     private function applyRelationPresenceFilter($query, string $relation, ?string $filter): void

@@ -1,0 +1,4 @@
+interface:
+  display_name: "TooAuto Maintenance"
+  short_description: "Reprendre et maintenir les modules métier TooAuto"
+  default_prompt: "Analyse le projet TooAuto, lis la documentation de relais, puis réalise la demande en respectant les invariants existants."

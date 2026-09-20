@@ -23,6 +23,7 @@
                 <h4 class="card-title mb-3">Les usagers</h4>
                 @php
                     $presenceFilters = $presence_filters ?? [];
+                    $abonnementFilters = $abonnement_filters ?? [];
                     $perPageOptions = [25, 50, 100];
                     $currentPerPage = $per_page ?? 50;
                     $filterOptions = [
@@ -79,6 +80,27 @@
                             <a href="{{ route('index-usagers') }}" class="btn btn-light">Réinitialiser</a>
                         </div>
                     </div>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <label>Forfait d'abonnement</label>
+                            <select name="forfait_id" class="form-control">
+                                <option value="">Tous les forfaits</option>
+                                @foreach($filter_forfait_usagers as $forfait)
+                                    <option value="{{ $forfait->id }}" {{ (string) ($abonnementFilters['forfait_id'] ?? '') === (string) $forfait->id ? 'selected' : '' }}>
+                                        {{ $forfait->libelle }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Expiration du</label>
+                            <input type="date" name="expiration_from" class="form-control" value="{{ $abonnementFilters['expiration_from'] ?? '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Expiration au</label>
+                            <input type="date" name="expiration_to" class="form-control" value="{{ $abonnementFilters['expiration_to'] ?? '' }}">
+                        </div>
+                    </div>
                 </form>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="text-muted">
@@ -86,6 +108,9 @@
                     </div>
                     <form method="GET" action="{{ route('index-usagers') }}" class="d-flex align-items-center">
                         @foreach($presenceFilters as $name => $value)
+                            <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+                        @endforeach
+                        @foreach($abonnementFilters as $name => $value)
                             <input type="hidden" name="{{ $name }}" value="{{ $value }}">
                         @endforeach
                         <label class="mb-0 mr-2">Par page</label>
