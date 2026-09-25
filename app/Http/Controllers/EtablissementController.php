@@ -45,6 +45,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Services\WasabiService;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 
 class EtablissementController extends Controller
 {
@@ -85,8 +86,10 @@ class EtablissementController extends Controller
 
         $search = trim((string) $request->get('search', ''));
         $typeEtablissementId = $request->get('type_etablissement_id');
+        $isElectrique = $request->get('is_electrique');
         $dateFrom = $request->get('date_from');
         $dateTo = $request->get('date_to');
+        $hasIsElectrique = Schema::hasColumn('etablissements', 'is_electrique');
 
         $query = Etablissement::with('professionnel', 'typeEtablissement', 'parrain.commercial', 'pays', 'ville', 'commune')
             ->orderBy('id', 'desc');
@@ -115,6 +118,10 @@ class EtablissementController extends Controller
             $query->where('type_etablissement_id', $typeEtablissementId);
         }
 
+        if ($hasIsElectrique && in_array((string) $isElectrique, ['0', '1'], true)) {
+            $query->where('is_electrique', (int) $isElectrique);
+        }
+
         if (!empty($dateFrom)) {
             $query->whereDate('created_at', '>=', $dateFrom);
         }
@@ -129,9 +136,11 @@ class EtablissementController extends Controller
             return $etablissement;
         });
         $data["typeEtablissements"] = TypeEtablissement::orderBy('libelle', 'asc')->get(['id', 'libelle']);
+        $data['hasIsElectrique'] = $hasIsElectrique;
         $data["filters"] = [
             'search' => $search,
             'type_etablissement_id' => $typeEtablissementId,
+            'is_electrique' => $isElectrique,
             'date_from' => $dateFrom,
             'date_to' => $dateTo,
         ];
@@ -183,6 +192,7 @@ class EtablissementController extends Controller
         $data['etablissement'] = $etablissement;
         $data['articlesCount'] = Article::where('etablissement_id', $etablissement->id)->count();
         $data['annoncesCount'] = $etablissement->annonces()->count();
+        $data['hasIsElectrique'] = Schema::hasColumn('etablissements', 'is_electrique');
         $data = array_merge($data, $this->getEtablissementFormData($etablissement->professionnel_id));
 
         return view('etablissements.show', $data);
@@ -192,7 +202,7 @@ class EtablissementController extends Controller
     {
         $etablissement = Etablissement::findOrFail($id);
 
-        $validated = $request->validate([
+        $rules = [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'specialite' => 'nullable|string|max:255',
@@ -232,7 +242,14 @@ class EtablissementController extends Controller
             'statut' => 'required|boolean',
             'type_de_prestations' => 'nullable|array',
             'type_de_prestations.*' => 'integer|exists:type_de_prestations,id',
-        ]);
+        ];
+
+        $hasIsElectrique = Schema::hasColumn('etablissements', 'is_electrique');
+        if ($hasIsElectrique) {
+            $rules['is_electrique'] = 'required|boolean';
+        }
+
+        $validated = $request->validate($rules);
 
         $validated['type_de_prestations'] = !empty($validated['type_de_prestations'])
             ? json_encode(array_map('intval', $validated['type_de_prestations']))
@@ -264,6 +281,9 @@ class EtablissementController extends Controller
         $etablissement->cover_create_by = $validated['cover_create_by'] ?? null;
         $etablissement->is_whatsapp = (int) $validated['is_whatsapp'];
         $etablissement->service_mobile = (int) $validated['service_mobile'];
+        if ($hasIsElectrique) {
+            $etablissement->is_electrique = (int) $validated['is_electrique'];
+        }
         $etablissement->statut = (int) $validated['statut'];
         $etablissement->type_de_prestations = $validated['type_de_prestations'];
         // dd($etablissement);

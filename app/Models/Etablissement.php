@@ -15,7 +15,12 @@ class Etablissement extends Model
         'telephone',
         'email',
         'type_de_prestations',
+        'is_electrique',
         'statut',
+    ];
+
+    protected $casts = [
+        'is_electrique' => 'boolean',
     ];
 
     /**

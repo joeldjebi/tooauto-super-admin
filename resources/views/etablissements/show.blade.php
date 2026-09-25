@@ -11,6 +11,7 @@
     $statutClass = $etablissement->statut ? 'success' : 'danger';
     $whatsappLabel = $etablissement->is_whatsapp ? 'Oui' : 'Non';
     $serviceMobileLabel = $etablissement->service_mobile ? 'Oui' : 'Non';
+    $electriqueLabel = $hasIsElectrique && $etablissement->is_electrique ? 'Oui' : 'Non';
     $isCommercialLabel = ($etablissement->code_parrain && $commercial->id) ? 'Oui' : 'Non';
     $logoSourceLabel = (int) $etablissement->logo_where_is_create === 1 ? 'Mobile' : 'Web';
     $coverSourceLabel = (int) $etablissement->cover_where_is_create === 1 ? 'Mobile' : 'Web';
@@ -242,6 +243,12 @@
                         <strong>Service mobile</strong>
                         <div>{{ $serviceMobileLabel }}</div>
                     </div>
+                    @if($hasIsElectrique)
+                        <div class="col-md-6 mb-3">
+                            <strong>Accepte les véhicules électriques</strong>
+                            <div>{{ $electriqueLabel }}</div>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -486,6 +493,15 @@
                                 <option value="0" {{ (string) old('service_mobile', $etablissement->service_mobile) === '0' ? 'selected' : '' }}>Non</option>
                             </select>
                         </div>
+                        @if($hasIsElectrique)
+                            <div class="col-md-4 mb-3">
+                                <label for="is_electrique">Accepte les véhicules électriques</label>
+                                <select id="is_electrique" name="is_electrique" class="form-control" required>
+                                    <option value="1" {{ (string) old('is_electrique', (int) $etablissement->is_electrique) === '1' ? 'selected' : '' }}>Oui</option>
+                                    <option value="0" {{ (string) old('is_electrique', (int) $etablissement->is_electrique) === '0' ? 'selected' : '' }}>Non</option>
+                                </select>
+                            </div>
+                        @endif
                         <div class="col-md-4 mb-3">
                             <label for="statut">Statut</label>
                             <select id="statut" name="statut" class="form-control">

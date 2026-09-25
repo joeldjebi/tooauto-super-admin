@@ -63,10 +63,9 @@
                         </div>
                     </div>
                 </div>
-                @if($etablissements->count() > 0)
                     <form method="GET" action="{{ url()->current() }}" class="mb-3">
                         <div class="row">
-                            <div class="col-md-6 col-lg-4">
+                            <div class="col-md-6 col-lg-3">
                                 <input
                                     type="text"
                                     name="search"
@@ -75,7 +74,7 @@
                                     value="{{ $filters['search'] ?? '' }}"
                                 >
                             </div>
-                            <div class="col-md-6 col-lg-3 mt-3 mt-md-0">
+                            <div class="col-md-6 col-lg-2 mt-3 mt-md-0">
                                 <select name="type_etablissement_id" class="form-control">
                                     <option value="">Tous les types</option>
                                     @foreach($typeEtablissements as $typeEtablissement)
@@ -85,6 +84,15 @@
                                     @endforeach
                                 </select>
                             </div>
+                            @if($hasIsElectrique)
+                                <div class="col-md-6 col-lg-2 mt-3 mt-lg-0">
+                                    <select name="is_electrique" class="form-control" aria-label="Prise en charge des véhicules électriques">
+                                        <option value="">Tous (électrique)</option>
+                                        <option value="1" {{ (string) ($filters['is_electrique'] ?? '') === '1' ? 'selected' : '' }}>Accepte les électriques</option>
+                                        <option value="0" {{ (string) ($filters['is_electrique'] ?? '') === '0' ? 'selected' : '' }}>N'accepte pas les électriques</option>
+                                    </select>
+                                </div>
+                            @endif
                             <div class="col-md-6 col-lg-2 mt-3 mt-lg-0">
                                 <input
                                     type="date"
@@ -113,6 +121,7 @@
                             </div>
                         </div>
                     </form>
+                @if($etablissements->count() > 0)
                     <div class="table-responsive">
                         <table class="table table-striped table-bordered" id="etablissements_table" style="width:100%">
                             <thead>
@@ -124,6 +133,9 @@
                                     <th scope="col">Adresse</th>
                                     <th scope="col">Localisation</th>
                                     <th scope="col">Type établissement</th>
+                                    @if($hasIsElectrique)
+                                        <th scope="col">Véhicules électriques</th>
+                                    @endif
                                     <th scope="col">Gérant</th>
                                     <th scope="col">Date de création</th>
                                     <th scope="col">Actions</th>
@@ -152,11 +164,18 @@
                                         <td>{{ $item->adresse }}</td>
                                         <td> <a target="_blank" href="{{ $url }}" class="btn btn-primary">Map</a> </td>
                                         <td>{{ $item->typeEtablissement->libelle ?? 'Non défini' }}</td>
+                                        @if($hasIsElectrique)
+                                            <td>
+                                                <span class="badge badge-{{ $item->is_electrique ? 'success' : 'secondary' }}">
+                                                    {{ $item->is_electrique ? 'Acceptés' : 'Non acceptés' }}
+                                                </span>
+                                            </td>
+                                        @endif
                                         <td>{{ $item->professionnel->nom ?? '' }} {{ $item->professionnel->prenoms ?? '' }}</td>
                                         <td>{{ $item->created_at->format('d/m/Y') }}</td>
                                         <td>
                                             <a href="{{ route('show-etablissement', $item->id) }}" class="btn btn-info">
-                                                Détails
+                                                Détails / Modifier
                                             </a>
 
                                             <button

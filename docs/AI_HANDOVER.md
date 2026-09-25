@@ -79,6 +79,8 @@ Fichiers principaux :
 
 Le controleur teste la presence des colonnes avant de les selectionner ou de les filtrer. Cela permet a l'interface de rester utilisable avant migration, mais sans les fonctions de suivi.
 
+Sur `/etablissements`, `is_electrique` indique si l'etablissement accepte les vehicules electriques (`1` oui, `0` non). L'administrateur peut modifier cette valeur depuis la fiche detail et filtrer la liste sur ce critere. Le controleur et les vues verifient la presence de la colonne pour rester compatibles avant migration.
+
 ## 4. Cartes privilege et reductions
 
 ### Regle metier
