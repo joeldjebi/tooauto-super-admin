@@ -19,6 +19,12 @@ class NotificationCampaign extends Model
     public const AUDIENCE_ALL_USERS = 'all_users';
     public const AUDIENCE_SELECTED_USERS = 'selected_users';
     public const AUDIENCE_ALERT_EXPIRATION = 'alert_expiration';
+    public const AUDIENCE_ALL_PROFESSIONALS = 'all_professionals';
+    public const AUDIENCE_SELECTED_PROFESSIONALS = 'selected_professionals';
+    public const AUDIENCE_ALL_LAVAGES = 'all_lavages';
+    public const AUDIENCE_SELECTED_LAVAGES = 'selected_lavages';
+    public const AUDIENCE_ALL_STATIONS = 'all_stations';
+    public const AUDIENCE_SELECTED_STATIONS = 'selected_stations';
 
     protected $fillable = [
         'title',

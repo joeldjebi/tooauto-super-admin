@@ -21,7 +21,7 @@ Start by reading `docs/AI_HANDOVER.md` from the repository root. Treat the code 
 - A wash and its station are separate records in `lavages` and `station_de_lavages`. Their commercial attribution is based on `created_by`. Some installations lack a direct foreign key, so the wash listing has compatibility joins.
 - Authentication fields on a wash belong to `lavages`; establishment information and logo belong to `station_de_lavages`.
 - Reduction-card duration follows the linked active user subscription. Card usage must always create a `reduction_card_histories` row with the applying actor and establishment identity.
-- Scheduled campaigns target only users with a non-empty `fcm_token`. Audience filters are stored in `audience_filters`, then reevaluated at send time.
+- Scheduled campaigns support users, professionals, washes, and service stations. Every audience includes only recipients with a non-empty token; lavage and station audiences may contain several devices per entity. Audience filters are stored in `audience_filters`, then reevaluated at send time.
 - Due campaigns must be claimed atomically before sending. Keep batch processing in `NotificationCampaignService::sendDueCampaigns()` and do not reintroduce a scheduler-wide overlap lock that leaves later campaigns waiting behind one long send.
 - The production scheduler requires the system cron shown in the handover document. Laravel scheduling code alone is insufficient.
 

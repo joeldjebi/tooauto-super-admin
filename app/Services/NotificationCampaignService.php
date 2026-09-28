@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\NotificationCampaign;
 use App\Models\NotificationCampaignLog;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -16,9 +15,28 @@ class NotificationCampaignService
     {
     }
 
-    public function audienceQuery(string $audienceType, array $filters = []): Builder
+    public function audienceQuery(string $audienceType, array $filters = [])
     {
+        if (in_array($audienceType, [NotificationCampaign::AUDIENCE_ALL_PROFESSIONALS, NotificationCampaign::AUDIENCE_SELECTED_PROFESSIONALS], true)) {
+            return $this->professionalAudienceQuery($audienceType, $filters);
+        }
+
+        if (in_array($audienceType, [NotificationCampaign::AUDIENCE_ALL_LAVAGES, NotificationCampaign::AUDIENCE_SELECTED_LAVAGES], true)) {
+            return $this->lavageAudienceQuery($audienceType, $filters);
+        }
+
+        if (in_array($audienceType, [NotificationCampaign::AUDIENCE_ALL_STATIONS, NotificationCampaign::AUDIENCE_SELECTED_STATIONS], true)) {
+            return $this->stationAudienceQuery($audienceType, $filters);
+        }
+
         $query = User::query()
+            ->select('users.*')
+            ->addSelect([
+                DB::raw("'user' as recipient_type"),
+                'users.id as recipient_id',
+                DB::raw('NULL as recipient_token_id'),
+                DB::raw('NULL as device_type'),
+            ])
             ->whereNotNull('fcm_token')
             ->where('fcm_token', '!=', '');
 
@@ -57,8 +75,7 @@ class NotificationCampaignService
                 $query->whereDate('alerts.date_fin', now()->addDays($days)->toDateString());
             }
 
-            $query->select('users.*')
-                ->addSelect('alerts.id as alert_id', 'alerts.type_alert_id as alert_type_alert_id')
+            $query->addSelect('alerts.id as alert_id', 'alerts.type_alert_id as alert_type_alert_id')
                 ->orderBy('alerts.date_fin');
         }
 
@@ -100,6 +117,15 @@ class NotificationCampaignService
         }
 
         return $this->audienceQuery($audienceType, $filters)->count();
+    }
+
+    public function selectionOptions(string $audienceType): Collection
+    {
+        return $this->audienceQuery($audienceType)
+            ->orderBy('recipient_id')
+            ->get()
+            ->unique('recipient_id')
+            ->values();
     }
 
     public function sendDueCampaigns(int $limit = 50): Collection
@@ -161,12 +187,29 @@ class NotificationCampaignService
         $totalTargets = 0;
         $successCount = 0;
         $failureCount = 0;
+        $seenTokens = [];
 
         try {
             $this->audienceQuery($campaign->audience_type, $campaign->audience_filters ?? [])
-                ->orderBy('users.id')
-                ->chunk(400, function ($users) use ($campaign, &$totalTargets, &$successCount, &$failureCount) {
-                    $tokens = $users->pluck('fcm_token')->filter()->unique()->values()->all();
+                ->orderBy('recipient_id')
+                ->orderBy('recipient_token_id')
+                ->chunk(400, function ($recipients) use ($campaign, &$totalTargets, &$successCount, &$failureCount, &$seenTokens) {
+                    $recipients = $recipients
+                        ->filter(fn ($recipient) => is_string($recipient->fcm_token ?? null) && trim($recipient->fcm_token) !== '')
+                        ->map(function ($recipient) {
+                            $recipient->fcm_token = trim($recipient->fcm_token);
+                            return $recipient;
+                        })
+                        ->reject(function ($recipient) use (&$seenTokens) {
+                            if (isset($seenTokens[$recipient->fcm_token])) {
+                                return true;
+                            }
+
+                            $seenTokens[$recipient->fcm_token] = true;
+                            return false;
+                        })
+                        ->values();
+                    $tokens = $recipients->pluck('fcm_token')->all();
                     $totalTargets += count($tokens);
 
                     if (empty($tokens)) {
@@ -185,17 +228,26 @@ class NotificationCampaignService
                     $successCount += $batchSuccess;
                     $failureCount += $batchFailure;
 
-                    foreach ($users as $user) {
-                        NotificationCampaignLog::create([
+                    foreach ($recipients as $recipient) {
+                        $logData = [
                             'notification_campaign_id' => $campaign->id,
-                            'user_id' => $user->id,
-                            'alert_id' => $user->alert_id ?? null,
-                            'type_alert_id' => $user->alert_type_alert_id ?? null,
-                            'fcm_token' => $user->fcm_token,
+                            'user_id' => ($recipient->recipient_type ?? 'user') === 'user' ? $recipient->recipient_id : null,
+                            'alert_id' => $recipient->alert_id ?? null,
+                            'type_alert_id' => $recipient->alert_type_alert_id ?? null,
+                            'fcm_token' => $recipient->fcm_token,
                             'status' => ($result['success'] ?? false) ? 'sent' : 'failed',
                             'error_message' => ($result['success'] ?? false) ? null : ($result['message'] ?? 'Erreur inconnue'),
                             'sent_at' => now(),
-                        ]);
+                        ];
+
+                        if (Schema::hasColumn('notification_campaign_logs', 'recipient_type')) {
+                            $logData['recipient_type'] = $recipient->recipient_type ?? 'user';
+                            $logData['recipient_id'] = $recipient->recipient_id ?? null;
+                            $logData['recipient_token_id'] = $recipient->recipient_token_id ?? null;
+                            $logData['device_type'] = $recipient->device_type ?? null;
+                        }
+
+                        NotificationCampaignLog::create($logData);
                     }
                 });
 
@@ -277,10 +329,114 @@ class NotificationCampaignService
         }
     }
 
-    private function whereIfUserColumn(Builder $query, string $column, $value): void
+    private function whereIfUserColumn($query, string $column, $value): void
     {
         if ($value !== null && $value !== '' && Schema::hasColumn('users', $column)) {
             $query->where('users.' . $column, $value);
+        }
+    }
+
+    private function professionalAudienceQuery(string $audienceType, array $filters)
+    {
+        $query = DB::table('professionnels')
+            ->select([
+                'professionnels.id',
+                'professionnels.id as recipient_id',
+                'professionnels.nom',
+                'professionnels.prenoms',
+                'professionnels.mobile',
+                'professionnels.email',
+                'professionnels.fcm_token',
+            ])
+            ->selectRaw("'professional' as recipient_type, NULL as recipient_token_id, NULL as device_type")
+            ->whereNotNull('professionnels.fcm_token')
+            ->where('professionnels.fcm_token', '!=', '');
+
+        if ($audienceType === NotificationCampaign::AUDIENCE_SELECTED_PROFESSIONALS) {
+            $this->whereSelectedIds($query, 'professionnels.id', $filters['professional_ids'] ?? []);
+        }
+
+        return $this->applyCommonRecipientFilters($query, 'professionnels', $filters);
+    }
+
+    private function lavageAudienceQuery(string $audienceType, array $filters)
+    {
+        $query = DB::table('lavages')
+            ->join('lavage_fcm_tokens', 'lavage_fcm_tokens.lavage_id', '=', 'lavages.id')
+            ->select([
+                'lavages.id',
+                'lavages.id as recipient_id',
+                'lavages.first_name as nom',
+                'lavages.last_name as prenoms',
+                'lavages.mobile',
+                'lavages.email',
+                'lavage_fcm_tokens.token as fcm_token',
+                'lavage_fcm_tokens.id as recipient_token_id',
+                'lavage_fcm_tokens.platform as device_type',
+            ])
+            ->selectRaw("'lavage' as recipient_type")
+            ->where('lavage_fcm_tokens.token', '!=', '');
+
+        if ($audienceType === NotificationCampaign::AUDIENCE_SELECTED_LAVAGES) {
+            $this->whereSelectedIds($query, 'lavages.id', $filters['lavage_ids'] ?? []);
+        }
+
+        return $this->applyCommonRecipientFilters($query, 'lavages', $filters);
+    }
+
+    private function stationAudienceQuery(string $audienceType, array $filters)
+    {
+        $query = DB::table('station_services')
+            ->join('station_fcm_tokens', 'station_fcm_tokens.station_id', '=', 'station_services.id')
+            ->select([
+                'station_services.id',
+                'station_services.id as recipient_id',
+                'station_services.name as nom',
+                'station_services.mobile',
+                'station_services.email',
+                'station_fcm_tokens.fcm_token',
+                'station_fcm_tokens.id as recipient_token_id',
+                'station_fcm_tokens.device_type',
+            ])
+            ->selectRaw("NULL as prenoms, 'station' as recipient_type")
+            ->where('station_fcm_tokens.fcm_token', '!=', '');
+
+        if ($audienceType === NotificationCampaign::AUDIENCE_SELECTED_STATIONS) {
+            $this->whereSelectedIds($query, 'station_services.id', $filters['station_ids'] ?? []);
+        }
+
+        return $this->applyCommonRecipientFilters($query, 'station_services', $filters);
+    }
+
+    private function applyCommonRecipientFilters($query, string $table, array $filters)
+    {
+        if (! empty($filters['recipient_id'])) {
+            $query->where($table . '.id', (int) $filters['recipient_id']);
+        }
+
+        if (! empty($filters['keyword'])) {
+            $keyword = '%' . trim($filters['keyword']) . '%';
+            $query->where(function ($subQuery) use ($table, $keyword) {
+                foreach (['nom', 'prenoms', 'first_name', 'last_name', 'name', 'mobile', 'email'] as $column) {
+                    if (Schema::hasColumn($table, $column)) {
+                        $subQuery->orWhere($table . '.' . $column, 'like', $keyword);
+                    }
+                }
+            });
+        }
+
+        if (isset($filters['statut']) && $filters['statut'] !== '' && Schema::hasColumn($table, 'statut')) {
+            $query->where($table . '.statut', $filters['statut']);
+        }
+
+        return $query;
+    }
+
+    private function whereSelectedIds($query, string $column, array $ids): void
+    {
+        $ids = collect($ids)->filter(fn ($id) => is_numeric($id))->map(fn ($id) => (int) $id)->unique()->all();
+        if (! empty($ids)) {
+            $query->whereIn($column, $ids);
         }
     }
     private function buildPushData(NotificationCampaign $campaign): array

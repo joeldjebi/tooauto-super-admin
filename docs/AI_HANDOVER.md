@@ -133,7 +133,16 @@ Le module est partage entre le super admin et le call center :
 
 Les memes chemins existent sous `/call-center`. La route `/notification-send/create` est conservee pour compatibilite, mais redirige vers `/notification-send/programmes`; il n'existe plus de page de creation separee.
 
-Le formulaire permet : tous les usagers, plusieurs usagers choisis dans un menu Bootstrap a cases a cocher, ou le ciblage par expiration d'alerte. La liste de selection ne charge que les usagers ayant un `fcm_token` non vide.
+Le formulaire permet de cibler tous les destinataires ou une selection pour les usagers, professionnels, lavages et stations-service. Le ciblage par expiration d'alerte reste reserve aux usagers. Les nouvelles audiences professionnelles sont visibles uniquement par le super admin, pas par le call center.
+
+Sources des tokens :
+
+- usagers : `users.fcm_token` ;
+- professionnels : `professionnels.fcm_token` ;
+- lavages : `lavage_fcm_tokens.token`, relie par `lavage_id` ;
+- stations-service : `station_fcm_tokens.fcm_token`, relie par `station_id` a `station_services`.
+
+Un lavage ou une station peut avoir plusieurs appareils. Le service envoie a chaque token unique et journalise `recipient_type`, `recipient_id`, `recipient_token_id` et `device_type`. Les anciens champs `user_id`, `alert_id` et `type_alert_id` sont conserves pour compatibilite.
 
 ### Architecture
 
@@ -149,7 +158,11 @@ Les fichiers de vues sont dans `resources/views/notification_send`. Le formulair
 
 Etats de campagne : `draft`, `scheduled`, `sending`, `sent`, `failed`, `cancelled`.
 
-Audiences : `all_users`, `selected_users`, `alert_expiration`. Les filtres sont enregistres en JSON dans `audience_filters`. L'audience est recalculee au moment de l'envoi et exige toujours un token FCM non vide.
+Audiences usagers : `all_users`, `selected_users`, `alert_expiration`.
+
+Audiences super admin supplementaires : `all_professionals`, `selected_professionals`, `all_lavages`, `selected_lavages`, `all_stations`, `selected_stations`.
+
+Les filtres sont enregistres en JSON dans `audience_filters`. L'audience est recalculee au moment de l'envoi et exige toujours un token FCM non vide. Les selections utilisent respectivement `user_ids`, `professional_ids`, `lavage_ids` ou `station_ids`.
 
 ### Traitement de plusieurs campagnes
 

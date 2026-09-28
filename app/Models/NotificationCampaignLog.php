@@ -12,6 +12,10 @@ class NotificationCampaignLog extends Model
     protected $fillable = [
         'notification_campaign_id',
         'user_id',
+        'recipient_type',
+        'recipient_id',
+        'recipient_token_id',
+        'device_type',
         'alert_id',
         'type_alert_id',
         'fcm_token',

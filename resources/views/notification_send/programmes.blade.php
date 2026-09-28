@@ -43,24 +43,19 @@
         'failed' => 'Échec',
         'cancelled' => 'Annulé',
     ];
-    $audienceLabels = [
-        'all_users' => 'Tous les users',
-        'selected_users' => 'Users sélectionnés',
-        'alert_expiration' => 'Alertes à échéance',
-    ];
-    $formAudienceType = old('audience_type', 'all_users');
-    $selectedFormUserIds = collect(old('filters.user_ids', []))
-        ->map(fn ($id) => (string) $id)
+    $formAudienceType = old('audience_type', request('audience_type', 'all_users'));
+    $selectedFormIds = collect(old('filters', request('filters', [])))
+        ->map(fn ($ids) => collect(is_array($ids) ? $ids : [$ids])->map(fn ($id) => (string) $id)->all())
         ->all();
 @endphp
 
 <style>
-    .notification-user-dropdown .dropdown-menu {
+    .notification-recipient-dropdown .dropdown-menu {
         width: 100%;
         max-height: 320px;
         overflow-y: auto;
     }
-    .notification-user-dropdown .dropdown-item {
+    .notification-recipient-dropdown .dropdown-item {
         white-space: normal;
     }
 </style>
@@ -99,8 +94,10 @@
                         <div class="form-group col-md-3">
                             <label>Destinataires</label>
                             <select name="audience_type" id="notification-audience-type" class="form-control">
-                                <option value="all_users" {{ $formAudienceType === 'all_users' ? 'selected' : '' }}>Tous les usagers avec FCM</option>
-                                <option value="selected_users" {{ $formAudienceType === 'selected_users' ? 'selected' : '' }}>Un ou plusieurs usagers</option>
+                                @foreach($audienceLabels as $value => $label)
+                                    @continue($value === 'alert_expiration')
+                                    <option value="{{ $value }}" {{ $formAudienceType === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="form-group col-md-3">
@@ -125,35 +122,35 @@
                         </div>
                     </div>
 
-                    <div class="form-group" id="notification-users-group">
-                        <label>Usagers avec FCM</label>
-                        <div class="dropdown notification-user-dropdown">
-                            <button class="btn btn-outline-secondary dropdown-toggle btn-block text-left" type="button" id="notification-users-button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                Sélectionner les usagers
+                    <div class="form-group" id="notification-recipients-group">
+                        <label>Destinataires avec FCM</label>
+                        <div class="dropdown notification-recipient-dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle btn-block text-left" type="button" id="notification-recipients-button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Sélectionner les destinataires
                             </button>
-                            <div class="dropdown-menu p-3" aria-labelledby="notification-users-button">
-                                <input type="text" class="form-control form-control-sm mb-2" id="notification-users-search" placeholder="Rechercher un usager">
+                            <div class="dropdown-menu p-3" aria-labelledby="notification-recipients-button">
+                                <input type="text" class="form-control form-control-sm mb-2" id="notification-recipients-search" placeholder="Rechercher un destinataire">
                                 <div class="d-flex mb-2">
-                                    <button type="button" class="btn btn-sm btn-outline-primary mr-2" id="notification-users-check-visible">Tout cocher</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="notification-users-clear">Vider</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary mr-2" id="notification-recipients-check-visible">Tout cocher</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="notification-recipients-clear">Vider</button>
                                 </div>
-                                @forelse($fcmUsers as $userOption)
+                                @forelse($selectionOptions as $recipientOption)
                                     @php
-                                        $userName = trim(($userOption->nom ?? '') . ' ' . ($userOption->prenoms ?? ''));
-                                        $userName = $userName ?: ($userOption->name ?? 'Usager');
-                                        $userContact = $userOption->telephone ?? $userOption->mobile ?? $userOption->email ?? '';
-                                        $userLabel = '#' . $userOption->id . ' - ' . $userName . ($userContact ? ' - ' . $userContact : '');
+                                        $recipientName = trim(($recipientOption->nom ?? '') . ' ' . ($recipientOption->prenoms ?? '')) ?: 'Destinataire';
+                                        $recipientContact = $recipientOption->telephone ?? $recipientOption->mobile ?? $recipientOption->email ?? '';
+                                        $recipientLabel = '#' . $recipientOption->recipient_id . ' - ' . $recipientName . ($recipientContact ? ' - ' . $recipientContact : '');
+                                        $selectedIds = $selectedFormIds[$recipientOption->filter_key] ?? [];
                                     @endphp
-                                    <label class="dropdown-item mb-1 notification-user-option" data-label="{{ \Illuminate\Support\Str::lower($userLabel) }}">
-                                        <input type="checkbox" name="filters[user_ids][]" value="{{ $userOption->id }}" class="mr-2 notification-user-checkbox" {{ in_array((string) $userOption->id, $selectedFormUserIds, true) ? 'checked' : '' }}>
-                                        {{ $userLabel }}
+                                    <label class="dropdown-item mb-1 notification-recipient-option" data-audience="{{ $recipientOption->audience_type }}" data-label="{{ \Illuminate\Support\Str::lower($recipientLabel) }}">
+                                        <input type="checkbox" name="filters[{{ $recipientOption->filter_key }}][]" value="{{ $recipientOption->recipient_id }}" class="mr-2 notification-recipient-checkbox" {{ in_array((string) $recipientOption->recipient_id, $selectedIds, true) ? 'checked' : '' }}>
+                                        {{ $recipientLabel }}
                                     </label>
                                 @empty
-                                    <div class="text-muted small">Aucun usager avec FCM trouvé.</div>
+                                    <div class="text-muted small">Aucun destinataire avec FCM trouvé.</div>
                                 @endforelse
                             </div>
                         </div>
-                        <small class="form-text text-muted">Cliquez les usagers à notifier. La liste contient uniquement les usagers qui ont un token FCM.</small>
+                        <small class="form-text text-muted">La liste contient uniquement les destinataires disposant d'au moins un token FCM.</small>
                     </div>
 
                     <div class="d-flex">
@@ -283,35 +280,40 @@
 <script>
     (function () {
         var audienceSelect = document.getElementById('notification-audience-type');
-        var usersGroup = document.getElementById('notification-users-group');
-        var usersButton = document.getElementById('notification-users-button');
-        var searchInput = document.getElementById('notification-users-search');
-        var checkVisibleButton = document.getElementById('notification-users-check-visible');
-        var clearButton = document.getElementById('notification-users-clear');
+        var recipientsGroup = document.getElementById('notification-recipients-group');
+        var recipientsButton = document.getElementById('notification-recipients-button');
+        var searchInput = document.getElementById('notification-recipients-search');
+        var checkVisibleButton = document.getElementById('notification-recipients-check-visible');
+        var clearButton = document.getElementById('notification-recipients-clear');
 
         function options() {
-            return Array.prototype.slice.call(document.querySelectorAll('.notification-user-option'));
+            return Array.prototype.slice.call(document.querySelectorAll('.notification-recipient-option'));
         }
 
         function checkboxes() {
-            return Array.prototype.slice.call(document.querySelectorAll('.notification-user-checkbox'));
+            return Array.prototype.slice.call(document.querySelectorAll('.notification-recipient-checkbox'));
         }
 
         function updateAudienceMode() {
-            if (!audienceSelect || !usersGroup) {
+            if (!audienceSelect || !recipientsGroup) {
                 return;
             }
 
-            var isSelectedUsers = audienceSelect.value === 'selected_users';
-            usersGroup.style.display = isSelectedUsers ? '' : 'none';
-            checkboxes().forEach(function (checkbox) {
-                checkbox.disabled = !isSelectedUsers;
+            var selectedAudience = audienceSelect.value.indexOf('selected_') === 0 ? audienceSelect.value : '';
+            recipientsGroup.style.display = selectedAudience ? '' : 'none';
+            options().forEach(function (option) {
+                var isCurrent = option.getAttribute('data-audience') === selectedAudience;
+                option.style.display = isCurrent ? '' : 'none';
+                var checkbox = option.querySelector('.notification-recipient-checkbox');
+                if (checkbox) {
+                    checkbox.disabled = !isCurrent;
+                }
             });
             updateButtonText();
         }
 
         function updateButtonText() {
-            if (!usersButton) {
+            if (!recipientsButton) {
                 return;
             }
 
@@ -319,19 +321,21 @@
                 return checkbox.checked && !checkbox.disabled;
             }).length;
 
-            usersButton.textContent = selectedCount > 0
-                ? selectedCount + ' usager(s) sélectionné(s)'
-                : 'Sélectionner les usagers';
+            recipientsButton.textContent = selectedCount > 0
+                ? selectedCount + ' destinataire(s) sélectionné(s)'
+                : 'Sélectionner les destinataires';
         }
 
-        function filterUsers() {
+        function filterRecipients() {
             var keyword = (searchInput ? searchInput.value : '').toLowerCase().trim();
             options().forEach(function (option) {
-                option.style.display = !keyword || option.getAttribute('data-label').indexOf(keyword) !== -1 ? '' : 'none';
+                var currentAudience = audienceSelect && option.getAttribute('data-audience') === audienceSelect.value;
+                var matches = !keyword || option.getAttribute('data-label').indexOf(keyword) !== -1;
+                option.style.display = currentAudience && matches ? '' : 'none';
             });
         }
 
-        var dropdownMenu = document.querySelector('.notification-user-dropdown .dropdown-menu');
+        var dropdownMenu = document.querySelector('.notification-recipient-dropdown .dropdown-menu');
         if (dropdownMenu) {
             dropdownMenu.addEventListener('click', function (event) {
                 event.stopPropagation();
@@ -339,16 +343,19 @@
         }
 
         if (audienceSelect) {
-            audienceSelect.addEventListener('change', updateAudienceMode);
+            audienceSelect.addEventListener('change', function () {
+                updateAudienceMode();
+                filterRecipients();
+            });
         }
         if (searchInput) {
-            searchInput.addEventListener('keyup', filterUsers);
+            searchInput.addEventListener('keyup', filterRecipients);
         }
         if (checkVisibleButton) {
             checkVisibleButton.addEventListener('click', function () {
                 options().forEach(function (option) {
                     if (option.style.display !== 'none') {
-                        var checkbox = option.querySelector('.notification-user-checkbox');
+                        var checkbox = option.querySelector('.notification-recipient-checkbox');
                         if (checkbox && !checkbox.disabled) {
                             checkbox.checked = true;
                         }
@@ -371,7 +378,7 @@
         });
 
         updateAudienceMode();
-        filterUsers();
+        filterRecipients();
     })();
 </script>
 

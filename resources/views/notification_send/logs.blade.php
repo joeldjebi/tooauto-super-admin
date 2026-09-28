@@ -28,6 +28,7 @@
 @php
     $statusClasses = ['sent' => 'badge-success', 'failed' => 'badge-danger', 'pending' => 'badge-warning'];
     $statusLabels = ['sent' => 'Envoyé', 'failed' => 'Échec', 'pending' => 'En attente'];
+    $recipientLabels = ['user' => 'Usager', 'professional' => 'Professionnel', 'lavage' => 'Lavage', 'station' => 'Station-service'];
 @endphp
 
 @include('notification_send.partials.nav')
@@ -43,7 +44,7 @@
 
                 <form method="GET" action="{{ route($logsRoute) }}" class="mb-3">
                     <div class="form-row">
-                        <div class="form-group col-md-5">
+                        <div class="form-group col-md-4">
                             <label>Campagne</label>
                             <select name="notification_campaign_id" class="form-control">
                                 <option value="">Toutes</option>
@@ -61,9 +62,20 @@
                                 <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>En attente</option>
                             </select>
                         </div>
-                        <div class="form-group col-md-5">
+                        @if($hasRecipientColumns)
+                            <div class="form-group col-md-2">
+                                <label>Destinataire</label>
+                                <select name="recipient_type" class="form-control">
+                                    <option value="">Tous</option>
+                                    @foreach($recipientLabels as $value => $label)
+                                        <option value="{{ $value }}" {{ request('recipient_type') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+                        <div class="form-group {{ $hasRecipientColumns ? 'col-md-4' : 'col-md-6' }}">
                             <label>Recherche</label>
-                            <input type="text" name="keyword" class="form-control" value="{{ request('keyword') }}" placeholder="Usager, token, erreur">
+                            <input type="text" name="keyword" class="form-control" value="{{ request('keyword') }}" placeholder="ID, usager, token, erreur">
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary">Filtrer</button>
@@ -76,9 +88,10 @@
                             <tr>
                                 <th>Date</th>
                                 <th>Campagne</th>
-                                <th>User</th>
+                                <th>Destinataire</th>
                                 <th>Alerte</th>
                                 <th>Statut</th>
+                                <th>Appareil</th>
                                 <th>Token</th>
                                 <th>Erreur</th>
                             </tr>
@@ -97,9 +110,20 @@
                                     </td>
                                     <td style="min-width: 180px;">
                                         @if($log->user)
+                                            <span class="badge badge-light">Usager</span>
                                             <strong>#{{ $log->user->id }}</strong>
                                             <div>{{ trim(($log->user->nom ?? '') . ' ' . ($log->user->prenoms ?? '')) ?: ($log->user->name ?? 'Usager') }}</div>
                                             <small class="text-muted">{{ $log->user->telephone ?? $log->user->mobile ?? $log->user->email }}</small>
+                                        @elseif($log->recipient_id)
+                                            @php
+                                                $recipient = $log->recipient_display ?? null;
+                                                $recipientName = trim(($recipient->nom ?? $recipient->first_name ?? $recipient->name ?? '') . ' ' . ($recipient->prenoms ?? $recipient->last_name ?? ''));
+                                                $recipientContact = $recipient->mobile ?? $recipient->email ?? '';
+                                            @endphp
+                                            <span class="badge badge-light">{{ $recipientLabels[$log->recipient_type] ?? $log->recipient_type }}</span>
+                                            <strong>#{{ $log->recipient_id }}</strong>
+                                            <div>{{ $recipientName ?: 'Destinataire supprimé' }}</div>
+                                            <small class="text-muted">{{ $recipientContact }}</small>
                                         @else
                                             <span class="text-muted">-</span>
                                         @endif
@@ -113,6 +137,7 @@
                                         @endif
                                     </td>
                                     <td><span class="badge {{ $statusClasses[$log->status] ?? 'badge-secondary' }}">{{ $statusLabels[$log->status] ?? $log->status }}</span></td>
+                                    <td>{{ $log->device_type ?: '-' }}</td>
                                     <td><code>{{ \Illuminate\Support\Str::limit($log->fcm_token, 34) }}</code></td>
                                     <td style="min-width: 240px;">
                                         @if($log->error_message)
@@ -124,7 +149,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">Aucun log trouvé.</td>
+                                    <td colspan="8" class="text-center text-muted py-4">Aucun log trouvé.</td>
                                 </tr>
                             @endforelse
                         </tbody>

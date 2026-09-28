@@ -16,6 +16,7 @@ class Professionnel extends Model
         'email',
         'mobile',
         'created_by',
+        'fcm_token',
         'statut',
     ];
 
