@@ -25,6 +25,7 @@ use App\Models\Incident;
 use App\Models\Tv;
 use App\Models\Type_docauto;
 use App\Models\Forfait;
+use App\Models\ForfaitUpdateHistory;
 use App\Models\Type_de_declaration;
 use App\Models\Info;
 use App\Models\Categorie_tv;
@@ -1207,7 +1208,9 @@ class DashboardController extends Controller
         $request->validate([
             'nom' => 'required|string|max:300|unique:forfait_pros,nom',
             'duree' => 'required|integer|min:0',
-            'prix' => 'required|integer|min:0',
+            'prix' => 'required|numeric|min:0',
+            'reduction_type' => 'required|in:fixed,percentage',
+            'reduction' => $this->forfaitReductionRules($request),
             'avantages' => 'required|string',
             'statut' => 'nullable|in:0,1',
         ]);
@@ -1226,6 +1229,13 @@ class DashboardController extends Controller
         $forfait->nom = html_entity_decode($request->nom);
         $forfait->duree = html_entity_decode($request->duree);
         $forfait->prix = html_entity_decode($request->prix);
+        $forfait->reduction_type = $request->reduction_type;
+        $forfait->reduction = $request->reduction;
+        $forfait->montant_apres_reduction = $this->calculateForfaitAmount(
+            $request->prix,
+            $request->reduction_type,
+            $request->reduction
+        );
         $forfait->avantages = html_entity_decode($request->avantages);
         $forfait->statut = $request->statut ?? 1;
 
@@ -1259,7 +1269,9 @@ class DashboardController extends Controller
                 Rule::unique('forfait_pros', 'nom')->ignore($id),
             ],
             'duree' => 'required|integer|min:0',
-            'prix' => 'required|integer|min:0',
+            'prix' => 'required|numeric|min:0',
+            'reduction_type' => 'required|in:fixed,percentage',
+            'reduction' => $this->forfaitReductionRules($request),
             'avantages' => 'required|string',
             'statut' => 'nullable|in:0,1',
         ]);
@@ -1272,17 +1284,31 @@ class DashboardController extends Controller
             return back();
         }
 
+        $oldValues = $this->forfaitSnapshot($forfait, 'pro');
+
         $forfait->nom = html_entity_decode($request->nom);
         $forfait->duree = html_entity_decode($request->duree);
         $forfait->prix = html_entity_decode($request->prix);
+        $forfait->reduction_type = $request->reduction_type;
+        $forfait->reduction = $request->reduction;
+        $forfait->montant_apres_reduction = $this->calculateForfaitAmount(
+            $request->prix,
+            $request->reduction_type,
+            $request->reduction
+        );
         $forfait->avantages = html_entity_decode($request->avantages);
         $forfait->statut = $request->statut ?? $forfait->statut;
 
-        // Sauvegarde des modifications
-        if ($forfait->save()) {
+        try {
+            DB::transaction(function () use ($forfait, $oldValues) {
+                $forfait->saveOrFail();
+                $this->recordForfaitUpdate($forfait, 'pro', $oldValues);
+            });
+
             session()->flash('type', 'alert-success');
             session()->flash('message', 'Forfait pro mis à jour avec succès');
-        } else {
+        } catch (\Throwable $exception) {
+            report($exception);
             session()->flash('type', 'alert-danger');
             session()->flash('message', 'Une erreur est survenue lors de la mise à jour');
         }
@@ -6891,7 +6917,9 @@ class DashboardController extends Controller
         $request->validate([
             'libelle' => 'required|string|unique:forfait_usagers',
             'duree' => 'required|integer|min:0',
-            'prix' => 'required|integer|min:0',
+            'prix' => 'required|numeric|min:0',
+            'reduction_type' => 'required|in:fixed,percentage',
+            'reduction' => $this->forfaitReductionRules($request),
             'nombre_vehicule' => 'required|integer|min:0',
             'statut' => 'nullable',
             'forfait_avantage_usager_id' => 'nullable|exists:forfait_avantage_usagers,id',
@@ -6912,6 +6940,13 @@ class DashboardController extends Controller
         $forfait->libelle = html_entity_decode($request->libelle);
         $forfait->duree = $request->duree;
         $forfait->prix = $request->prix;
+        $forfait->reduction_type = $request->reduction_type;
+        $forfait->reduction = $request->reduction;
+        $forfait->montant_apres_reduction = $this->calculateForfaitAmount(
+            $request->prix,
+            $request->reduction_type,
+            $request->reduction
+        );
         $forfait->nombre_vehicule = $request->nombre_vehicule;
         $forfait->statut = $request->statut ?? 1;
         $forfait->forfait_avantage_usager_id = $request->forfait_avantage_usager_id;
@@ -6945,7 +6980,9 @@ class DashboardController extends Controller
                 Rule::unique('forfait_usagers')->ignore($id),
             ],
             'duree' => 'required|integer|min:0',
-            'prix' => 'required|integer|min:0',
+            'prix' => 'required|numeric|min:0',
+            'reduction_type' => 'required|in:fixed,percentage',
+            'reduction' => $this->forfaitReductionRules($request),
             'nombre_vehicule' => 'required|integer|min:0',
             'statut' => 'nullable',
             'forfait_avantage_usager_id' => 'nullable|exists:forfait_avantage_usagers,id',
@@ -6961,21 +6998,34 @@ class DashboardController extends Controller
             return back();
         }
 
+        $oldValues = $this->forfaitSnapshot($forfait, 'usager');
+
         $forfait->libelle = html_entity_decode($request->libelle);
         $forfait->duree = $request->duree;
         $forfait->prix = $request->prix;
+        $forfait->reduction_type = $request->reduction_type;
+        $forfait->reduction = $request->reduction;
+        $forfait->montant_apres_reduction = $this->calculateForfaitAmount(
+            $request->prix,
+            $request->reduction_type,
+            $request->reduction
+        );
         $forfait->nombre_vehicule = $request->nombre_vehicule;
         $forfait->statut = $request->statut ?? $forfait->statut;
         $forfait->forfait_avantage_usager_id = $request->forfait_avantage_usager_id;
 
-        // Sauvegarde des modifications
-        if ($forfait->save()) {
-            // Mettre à jour les catégories de service liées
-            $forfait->categorieServices()->sync($request->categorie_services ?? []);
+        try {
+            DB::transaction(function () use ($forfait, $request, $oldValues) {
+                $forfait->saveOrFail();
+                $forfait->categorieServices()->sync($request->categorie_services ?? []);
+                $this->recordForfaitUpdate($forfait, 'usager', $oldValues);
+            });
+
             session()->flash('type', 'alert-success');
             session()->flash('message', 'Forfait usager modifié avec succès');
             return back();
-        } else {
+        } catch (\Throwable $exception) {
+            report($exception);
             session()->flash('type', 'alert-danger');
             session()->flash('message', 'Une erreur est survenue lors de la modification');
             return back();
@@ -7014,6 +7064,66 @@ class DashboardController extends Controller
         session()->flash('type', 'alert-success');
         session()->flash('message', "Forfait usager supprimé avec succès.");
         return back();
+    }
+
+    private function calculateForfaitAmount($price, string $reductionType, $reduction): float
+    {
+        $price = (float) $price;
+        $reduction = (float) $reduction;
+        $discountAmount = $reductionType === 'percentage'
+            ? $price * ($reduction / 100)
+            : $reduction;
+
+        return round(max(0, $price - $discountAmount), 2);
+    }
+
+    private function forfaitReductionRules(Request $request): array
+    {
+        return [
+            'required',
+            'numeric',
+            'min:0',
+            function ($attribute, $value, $fail) use ($request) {
+                if ($request->reduction_type === 'percentage' && $value > 100) {
+                    $fail('La réduction en pourcentage ne peut pas dépasser 100 %.');
+                }
+                if ($request->reduction_type === 'fixed' && $value > (float) $request->prix) {
+                    $fail('La réduction fixe ne peut pas dépasser le prix du forfait.');
+                }
+            },
+        ];
+    }
+
+    private function forfaitSnapshot($forfait, string $type): array
+    {
+        if ($type === 'pro') {
+            return $forfait->only([
+                'nom', 'duree', 'prix', 'reduction_type', 'reduction',
+                'montant_apres_reduction', 'avantages', 'statut',
+            ]);
+        }
+
+        return array_merge($forfait->only([
+            'libelle', 'duree', 'prix', 'reduction_type', 'reduction',
+            'montant_apres_reduction', 'nombre_vehicule', 'statut',
+            'forfait_avantage_usager_id',
+        ]), [
+            'categorie_services' => $forfait->categorieServices()
+                ->pluck('categorie_services.id')->sort()->values()->all(),
+        ]);
+    }
+
+    private function recordForfaitUpdate($forfait, string $type, array $oldValues): void
+    {
+        $forfait->refresh();
+
+        ForfaitUpdateHistory::create([
+            'forfait_id' => $forfait->id,
+            'type_forfait' => $type,
+            'old_values' => $oldValues,
+            'new_values' => $this->forfaitSnapshot($forfait, $type),
+            'updated_by' => Auth::id(),
+        ]);
     }
 
     public function indexPrestataireLavage()

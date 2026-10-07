@@ -13,9 +13,18 @@ class Forfait_usager extends Model
         'libelle',
         'duree',
         'prix',
+        'reduction_type',
+        'reduction',
+        'montant_apres_reduction',
         'nombre_vehicule',
         'statut',
         'forfait_avantage_usager_id',
+    ];
+
+    protected $casts = [
+        'prix' => 'decimal:2',
+        'reduction' => 'decimal:2',
+        'montant_apres_reduction' => 'decimal:2',
     ];
 
     public function abonnement_usagers()

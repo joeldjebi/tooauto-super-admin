@@ -30,6 +30,8 @@
                                     <th scope="col">Libellé</th>
                                     <th scope="col">Durée (mois)</th>
                                     <th scope="col">Prix (FCFA)</th>
+                                    <th scope="col">Réduction</th>
+                                    <th scope="col">Montant après réduction</th>
                                     <th scope="col">Nombre de véhicule</th>
                                     <th scope="col">Avantage</th>
                                     <th scope="col">Catégories de service</th>
@@ -65,7 +67,28 @@
                                                         <div class="col-md-12">
                                                             <div class="form-group">
                                                                 <label for="">Prix (FCFA)</label>
-                                                                <input class="form-control" name="prix" type="number" min="0" value="{{ old("prix")?? $item->prix }}">
+                                                                <input class="form-control" name="prix" data-reduction-price type="number" min="0" step="0.01" value="{{ old("prix") ?? $item->prix }}">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-12">
+                                                            <div class="form-group">
+                                                                <label>Type de réduction</label>
+                                                                <select class="form-control" name="reduction_type" data-reduction-type>
+                                                                    <option value="fixed" {{ old('reduction_type', $item->reduction_type ?? 'fixed') === 'fixed' ? 'selected' : '' }}>Montant fixe (FCFA)</option>
+                                                                    <option value="percentage" {{ old('reduction_type', $item->reduction_type ?? 'fixed') === 'percentage' ? 'selected' : '' }}>Pourcentage (%)</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-12">
+                                                            <div class="form-group">
+                                                                <label>Réduction</label>
+                                                                <input class="form-control" name="reduction" data-reduction-value type="number" min="0" step="0.01" value="{{ old('reduction', $item->reduction ?? 0) }}">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-12">
+                                                            <div class="form-group">
+                                                                <label>Montant après réduction (FCFA)</label>
+                                                                <input class="form-control" data-reduction-final type="text" readonly>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-12">
@@ -133,6 +156,14 @@
                                             @endif
                                         </td>
                                         <td>{{ number_format($item->prix, 0, ',', ' ') }} FCFA</td>
+                                        <td>
+                                            @if(($item->reduction ?? 0) > 0)
+                                                {{ number_format($item->reduction, $item->reduction_type === 'percentage' ? 2 : 0, ',', ' ') }}{{ $item->reduction_type === 'percentage' ? ' %' : ' FCFA' }}
+                                            @else
+                                                <small class="text-muted">Aucune</small>
+                                            @endif
+                                        </td>
+                                        <td>{{ number_format($item->montant_apres_reduction ?? $item->prix, 0, ',', ' ') }} FCFA</td>
                                         <td>{{ $item->nombre_vehicule ?? 0 }}</td>
                                         <td>
                                             @if($item->avantageUsager)
@@ -201,7 +232,22 @@
                             </div>
                             <div class="form-group">
                                 <label for="">Prix (FCFA)</label>
-                                <input class="form-control" name="prix" type="number" min="0" required>
+                                <input class="form-control" name="prix" data-reduction-price type="number" min="0" step="0.01" value="{{ old('prix') }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Type de réduction</label>
+                                <select class="form-control" name="reduction_type" data-reduction-type required>
+                                    <option value="fixed" {{ old('reduction_type', 'fixed') === 'fixed' ? 'selected' : '' }}>Montant fixe (FCFA)</option>
+                                    <option value="percentage" {{ old('reduction_type') === 'percentage' ? 'selected' : '' }}>Pourcentage (%)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Réduction</label>
+                                <input class="form-control" name="reduction" data-reduction-value type="number" min="0" step="0.01" value="{{ old('reduction', 0) }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Montant après réduction (FCFA)</label>
+                                <input class="form-control" data-reduction-final type="text" readonly>
                             </div>
                             <div class="form-group">
                                 <label for="">Nombre de véhicule</label>
@@ -252,3 +298,37 @@
 
 
 @include('layouts.footer')
+
+<script>
+    document.querySelectorAll('form').forEach(function (form) {
+        var priceInput = form.querySelector('[data-reduction-price]');
+        var typeInput = form.querySelector('[data-reduction-type]');
+        var reductionInput = form.querySelector('[data-reduction-value]');
+        var finalInput = form.querySelector('[data-reduction-final]');
+
+        if (!priceInput || !typeInput || !reductionInput || !finalInput) {
+            return;
+        }
+
+        function updateFinalAmount() {
+            var price = Math.max(0, parseFloat(priceInput.value) || 0);
+            var reduction = Math.max(0, parseFloat(reductionInput.value) || 0);
+            var discount = typeInput.value === 'percentage'
+                ? price * Math.min(reduction, 100) / 100
+                : Math.min(reduction, price);
+
+            reductionInput.max = typeInput.value === 'percentage' ? 100 : price;
+            finalInput.value = Math.max(0, price - discount).toLocaleString('fr-FR', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }) + ' FCFA';
+        }
+
+        [priceInput, typeInput, reductionInput].forEach(function (input) {
+            input.addEventListener('input', updateFinalAmount);
+            input.addEventListener('change', updateFinalAmount);
+        });
+
+        updateFinalAmount();
+    });
+</script>

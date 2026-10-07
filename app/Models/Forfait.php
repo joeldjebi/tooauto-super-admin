@@ -15,7 +15,16 @@ class Forfait extends Model
         'nom',
         'duree',
         'prix',
+        'reduction_type',
+        'reduction',
+        'montant_apres_reduction',
         'avantages',
         'statut',
+    ];
+
+    protected $casts = [
+        'prix' => 'decimal:2',
+        'reduction' => 'decimal:2',
+        'montant_apres_reduction' => 'decimal:2',
     ];
 }

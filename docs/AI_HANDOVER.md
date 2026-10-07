@@ -275,6 +275,14 @@ Verifier ensuite le cron, les droits en ecriture de `storage` et `bootstrap/cach
 8. Pour Firebase, ne jamais utiliser un vrai destinataire sans autorisation explicite.
 9. Mettre a jour ce document si le flux ou un invariant change.
 
+### Tarification des forfaits usagers
+
+La table `forfait_usagers` porte maintenant `reduction_type` (`fixed` ou `percentage`), `reduction` et `montant_apres_reduction`. Le CRUD `/forfaits-usagers` recalcule toujours `montant_apres_reduction` cote serveur; cette valeur ne doit jamais etre acceptee directement depuis le navigateur.
+
+Une reduction en pourcentage est comprise entre 0 et 100. Une reduction fixe est comprise entre 0 et le prix du forfait. Lors d'une evolution de ce module, conserver le calcul dans `DashboardController::calculateForfaitAmount()` et synchroniser l'aperçu JavaScript de la vue avec cette règle.
+
+Les forfaits professionnels de `forfait_pros` suivent les memes regles. Toute modification d'un forfait pro ou usager cree une ligne dans `forfait_update_histories` avec `forfait_id`, `type_forfait` (`pro` ou `usager`), `old_values`, `new_values` et `updated_by`. La modification et son historique sont enregistres dans une meme transaction; ne pas dissocier ces deux operations.
+
 ## 10. Limites connues et prochaines ameliorations possibles
 
 - Les tables de campagnes de notification n'ont pas de migration versionnee dans le depot. Ajouter une migration de reference, compatible avec le schema de production, reduirait le risque de divergence.
