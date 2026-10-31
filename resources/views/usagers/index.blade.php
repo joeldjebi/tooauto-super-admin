@@ -81,7 +81,11 @@
                         </div>
                     </div>
                     <div class="row mt-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label>Recherche</label>
+                            <input type="search" name="search" class="form-control" placeholder="Nom, prénoms, mobile, email, ID…" value="{{ $search ?? '' }}">
+                        </div>
+                        <div class="col-md-3">
                             <label>Forfait d'abonnement</label>
                             <select name="forfait_id" class="form-control">
                                 <option value="">Tous les forfaits</option>
@@ -113,6 +117,7 @@
                         @foreach($abonnementFilters as $name => $value)
                             <input type="hidden" name="{{ $name }}" value="{{ $value }}">
                         @endforeach
+                        <input type="hidden" name="search" value="{{ $search ?? '' }}">
                         <label class="mb-0 mr-2">Par page</label>
                         <select name="per_page" class="form-control form-control-sm" onchange="this.form.submit()" style="width: auto;">
                             @foreach($perPageOptions as $option)

@@ -72,7 +72,7 @@
                                     <tr>
                                         <td>{{ $key + 1 }}</td>
                                         <td>{{ $item->libelle }}</td>
-                                        <td>{{ $item->pays->libelle }}</td>
+                                        <td>{{ $item->pays->libelle ?? 'Non défini' }}</td>
                                         <td>
                                             <a class="text-success mr-2" href="#" data-toggle="modal" data-target="#id{{ $item->id }}">
                                                 <i class="nav-icon i-Pen-2 font-weight-bold"></i>

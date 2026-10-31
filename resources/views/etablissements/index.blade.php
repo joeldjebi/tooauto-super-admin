@@ -65,7 +65,7 @@
                 </div>
                     <form method="GET" action="{{ url()->current() }}" class="mb-3">
                         <div class="row">
-                            <div class="col-md-6 col-lg-3">
+                            <div class="col-md-6 col-lg-2">
                                 <input
                                     type="text"
                                     name="search"
@@ -111,12 +111,12 @@
                                     value="{{ $filters['date_to'] ?? '' }}"
                                 >
                             </div>
-                            <div class="col-md-6 col-lg-1 mt-3 mt-lg-0 d-flex">
-                                <button type="submit" class="btn btn-primary btn-block mr-2">
+                            <div class="col-md-6 col-lg-2 mt-3 mt-lg-0 d-flex">
+                                <button type="submit" class="btn btn-primary flex-fill mr-2">
                                     Filtrer
                                 </button>
-                                <a href="{{ url()->current() }}" class="btn btn-outline-secondary btn-block">
-                                    Reset
+                                <a href="{{ url()->current() }}" class="btn btn-outline-secondary flex-fill">
+                                    Réinitialiser
                                 </a>
                             </div>
                         </div>
@@ -162,7 +162,7 @@
                                         <td>{{ $item->name }}</td>
                                         <td>{{ $item->mobile }}</td>
                                         <td>{{ $item->adresse }}</td>
-                                        <td> <a target="_blank" href="{{ $url }}" class="btn btn-primary">Map</a> </td>
+                                        <td><a target="_blank" href="{{ $url }}" class="btn btn-sm btn-outline-primary">Carte</a></td>
                                         <td>{{ $item->typeEtablissement->libelle ?? 'Non défini' }}</td>
                                         @if($hasIsElectrique)
                                             <td>
@@ -173,7 +173,7 @@
                                         @endif
                                         <td>{{ $item->professionnel->nom ?? '' }} {{ $item->professionnel->prenoms ?? '' }}</td>
                                         <td>{{ $item->created_at->format('d/m/Y') }}</td>
-                                        <td>
+                                        <td class="text-nowrap">
                                             <a href="{{ route('show-etablissement', $item->id) }}" class="btn btn-info">
                                                 Détails / Modifier
                                             </a>

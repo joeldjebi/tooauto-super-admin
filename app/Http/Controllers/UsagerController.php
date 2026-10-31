@@ -116,7 +116,11 @@ class UsagerController extends Controller
 
         $this->applyAutodocPresenceFilter($usagersQuery, $presenceFilters['document_filter']);
 
+        $search = trim((string) $request->get('search', ''));
+        $this->applyUsagerSearch($usagersQuery, $search);
+
         $data["usagers"] = $usagersQuery->simplePaginate($perPage)->appends($request->query());
+        $data["search"] = $search;
         $data["presence_filters"] = $presenceFilters;
         $data["abonnement_filters"] = $abonnementFilters;
         $data["per_page"] = $perPage;
@@ -140,6 +144,37 @@ class UsagerController extends Controller
         // dd($data["usagers"]);
 
         return view('usagers.index',$data);
+    }
+
+    /**
+     * Recherche texte : nom, prénoms, email, mobile (avec ou sans indicatif), uuid ou id exact
+     */
+    private function applyUsagerSearch($query, string $search): void
+    {
+        if ($search === '') {
+            return;
+        }
+
+        $like = '%' . $search . '%';
+        $digits = preg_replace('/\D+/', '', $search);
+
+        $query->where(function ($q) use ($search, $like, $digits) {
+            $q->where('users.nom', 'like', $like)
+                ->orWhere('users.prenoms', 'like', $like)
+                ->orWhere('users.email', 'like', $like)
+                ->orWhere('users.uuid', 'like', $like)
+                ->orWhereRaw("CONCAT_WS(' ', users.nom, users.prenoms) LIKE ?", [$like])
+                ->orWhereRaw("CONCAT_WS(' ', users.prenoms, users.nom) LIKE ?", [$like]);
+
+            if (strlen($digits) >= 3) {
+                $q->orWhere('users.mobile', 'like', '%' . $digits . '%')
+                    ->orWhereRaw("CONCAT(COALESCE(users.indicatif, ''), users.mobile) LIKE ?", ['%' . $digits . '%']);
+            }
+
+            if (ctype_digit($search)) {
+                $q->orWhere('users.id', (int) $search);
+            }
+        });
     }
 
     private function applyAbonnementFilters($query, array $filters): void
