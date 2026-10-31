@@ -426,6 +426,12 @@ class UsagerController extends Controller
 
         $data["usager"] = User::with([
             'commercial',
+            'stationService',
+            'stationDeLavage',
+            'professionnel',
+            'etablissement',
+            'parrain.commercial',
+            'qrcodeGenerate',
             'abonnementUsagers' => function ($query) {
                 $query->with('forfait_usager')
                     ->orderByDesc('date_fin')
@@ -436,6 +442,30 @@ class UsagerController extends Controller
             session()->flash('type', 'alert-danger');
             session()->flash('message', 'Usager introuvable');
             return back();
+        }
+
+        // Agents (pas de modèle Eloquent pour ces tables)
+        $data["station_agent"] = $data["usager"]->station_id
+            ? DB::table('stations')->select(['id', 'first_name', 'last_name', 'mobile', 'station_service_id'])->find($data["usager"]->station_id)
+            : null;
+        $data["lavage_agent"] = $data["usager"]->lavage_id
+            ? DB::table('lavages')->select(['id', 'first_name', 'last_name', 'mobile'])->find($data["usager"]->lavage_id)
+            : null;
+
+        // Entité à l'origine de la création de l'usager
+        $u = $data["usager"];
+        if ($u->etablissement_id) {
+            $data["origine_creation"] = 'Établissement';
+        } elseif ($u->professionnel_id) {
+            $data["origine_creation"] = 'Professionnel';
+        } elseif ($u->station_id || $u->station_service_id) {
+            $data["origine_creation"] = 'Station-service';
+        } elseif ($u->lavage_id || $u->station_de_lavage_id) {
+            $data["origine_creation"] = 'Station de lavage';
+        } elseif ($u->commercial_id) {
+            $data["origine_creation"] = 'Commercial';
+        } else {
+            $data["origine_creation"] = null;
         }
 
         $today = Carbon::today()->toDateString();

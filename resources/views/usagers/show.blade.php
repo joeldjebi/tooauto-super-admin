@@ -36,11 +36,85 @@
                         <p><strong>Prénoms:</strong> {{ $usager->prenoms ?? 'N/A' }}</p>
                         <p><strong>Email:</strong> {{ $usager->email ?? 'N/A' }}</p>
                         <p><strong>Téléphone:</strong> {{ $usager->indicatif ?? 'N/A' }} {{ $usager->mobile ?? 'N/A' }}</p>
+                        <p><strong>WhatsApp:</strong> {{ (int) $usager->is_whatsapp === 1 ? 'Oui' : 'Non' }}</p>
+                        <p><strong>UUID:</strong> {{ $usager->uuid }}</p>
+                        <p>
+                            <strong>Statut:</strong>
+                            <span class="badge badge-{{ (int) $usager->statut === 1 ? 'success' : 'danger' }}">
+                                {{ (int) $usager->statut === 1 ? 'Actif' : 'Inactif' }}
+                            </span>
+                        </p>
                     </div>
                     <div class="col-md-6">
                         <h6><i class="nav-icon i-Calendar"></i> Informations temporelles</h6>
                         <p><strong>Date de création:</strong> {{ \Carbon\Carbon::parse($usager->created_at)->format('d/m/Y à H:i:s') }}</p>
                         <p><strong>Dernière modification:</strong> {{ \Carbon\Carbon::parse($usager->updated_at)->format('d/m/Y à H:i:s') }}</p>
+                        <p><strong>Email vérifié le:</strong> {{ $usager->email_verified_at ? \Carbon\Carbon::parse($usager->email_verified_at)->format('d/m/Y à H:i:s') : 'Non vérifié' }}</p>
+                        <p><strong>Première connexion effectuée:</strong> {{ (int) $usager->first_login === 1 ? 'Oui' : 'Non' }}</p>
+                        <p><strong>Notifications push (FCM):</strong> {{ $usager->fcm_token ? 'Token enregistré' : 'Aucun token' }}</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="nav-icon i-Building"></i> Origine de création</h6>
+                        @if($origine_creation)
+                            <p><span class="badge badge-info">Créé par : {{ $origine_creation }}</span></p>
+                        @else
+                            <p><span class="badge badge-secondary">Inscription directe (aucune entité)</span></p>
+                        @endif
+
+                        @if($usager->etablissement_id)
+                            <p><strong>Établissement:</strong> {{ $usager->etablissement->name ?? 'Introuvable' }} <small class="text-muted">(#{{ $usager->etablissement_id }})</small></p>
+                        @endif
+                        @if($usager->professionnel_id)
+                            <p><strong>Professionnel:</strong>
+                                @if($usager->professionnel)
+                                    {{ $usager->professionnel->nom }} {{ $usager->professionnel->prenoms }} - {{ $usager->professionnel->mobile }}
+                                @else
+                                    Introuvable
+                                @endif
+                                <small class="text-muted">(#{{ $usager->professionnel_id }})</small>
+                            </p>
+                        @endif
+                        @if($usager->station_service_id)
+                            <p><strong>Station-service:</strong> {{ $usager->stationService->name ?? 'Introuvable' }} <small class="text-muted">(#{{ $usager->station_service_id }})</small></p>
+                        @endif
+                        @if($usager->station_id)
+                            <p><strong>Agent station:</strong>
+                                {{ $station_agent ? trim($station_agent->first_name . ' ' . $station_agent->last_name) . ' - ' . $station_agent->mobile : 'Introuvable' }}
+                                <small class="text-muted">(#{{ $usager->station_id }})</small>
+                            </p>
+                        @endif
+                        @if($usager->station_de_lavage_id)
+                            <p><strong>Station de lavage:</strong> {{ $usager->stationDeLavage->name ?? 'Introuvable' }} <small class="text-muted">(#{{ $usager->station_de_lavage_id }})</small></p>
+                        @endif
+                        @if($usager->lavage_id)
+                            <p><strong>Agent lavage:</strong>
+                                {{ $lavage_agent ? trim($lavage_agent->first_name . ' ' . $lavage_agent->last_name) . ' - ' . $lavage_agent->mobile : 'Introuvable' }}
+                                <small class="text-muted">(#{{ $usager->lavage_id }})</small>
+                            </p>
+                        @endif
+                        @if($usager->parrain_id)
+                            <p><strong>Code parrain utilisé:</strong> {{ $usager->parrain->code ?? 'Introuvable' }}
+                                @if(optional($usager->parrain)->commercial)
+                                    <small class="text-muted">(commercial : {{ $usager->parrain->commercial->nom }} {{ $usager->parrain->commercial->prenoms }})</small>
+                                @endif
+                            </p>
+                        @endif
+                        @if($usager->qrcode_generate_id)
+                            <p><strong>QR code assigné:</strong> {{ $usager->qrcodeGenerate->qrcode ?? 'Introuvable' }}</p>
+                        @endif
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="nav-icon i-Telephone"></i> Call center</h6>
+                        <p><strong>Déjà appelé:</strong>
+                            <span class="badge badge-{{ (int) $usager->call_center_deja_appele === 1 ? 'success' : 'secondary' }}">
+                                {{ (int) $usager->call_center_deja_appele === 1 ? 'Oui' : 'Non' }}
+                            </span>
+                        </p>
+                        <p><strong>Appelé le:</strong> {{ $usager->call_center_called_at ? \Carbon\Carbon::parse($usager->call_center_called_at)->format('d/m/Y à H:i:s') : 'N/A' }}</p>
+                        <p><strong>Commentaire:</strong> {{ $usager->call_center_commentaire ?: 'N/A' }}</p>
                     </div>
                 </div>
                 <hr>

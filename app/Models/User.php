@@ -68,4 +68,37 @@ class User extends Authenticatable
     {
         return $this->hasMany(Annonce::class, 'usager_id');
     }
+
+    /**
+     * Entités ayant pu créer l'usager
+     */
+    public function stationService()
+    {
+        return $this->belongsTo(Station_service::class, 'station_service_id');
+    }
+
+    public function stationDeLavage()
+    {
+        return $this->belongsTo(Station_de_lavage::class, 'station_de_lavage_id');
+    }
+
+    public function professionnel()
+    {
+        return $this->belongsTo(Professionnel::class, 'professionnel_id');
+    }
+
+    public function etablissement()
+    {
+        return $this->belongsTo(Etablissement::class, 'etablissement_id');
+    }
+
+    public function parrain()
+    {
+        return $this->belongsTo(Parrain::class, 'parrain_id');
+    }
+
+    public function qrcodeGenerate()
+    {
+        return $this->belongsTo(QrcodeGenerate::class, 'qrcode_generate_id');
+    }
 }
