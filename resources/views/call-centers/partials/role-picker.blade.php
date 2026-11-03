@@ -25,31 +25,36 @@
 @endphp
 
 <style>
-    .cc-role-picker { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-    .cc-role-option { cursor: pointer; display: block; margin: 0; position: relative; }
-    .cc-role-option input { opacity: 0; pointer-events: none; position: absolute; }
-    .cc-role-card { border: 2px solid #e5e7eb; border-radius: 12px; height: 100%; padding: 14px 16px; transition: border-color .15s, background .15s, box-shadow .15s; }
-    .cc-role-option:hover .cc-role-card { border-color: #c7cbe0; }
-    .cc-role-option input:checked + .cc-role-card { background: #f4f1fb; border-color: #663399; box-shadow: 0 0 0 3px rgba(102, 51, 153, .12); }
-    .cc-role-option input:focus-visible + .cc-role-card { outline: 2px solid #663399; outline-offset: 2px; }
-    .cc-role-title { align-items: center; display: flex; font-size: 15px; font-weight: 600; gap: 8px; justify-content: space-between; }
-    .cc-role-check { border: 2px solid #c7cbe0; border-radius: 50%; display: inline-block; flex: none; height: 18px; width: 18px; }
-    .cc-role-option input:checked + .cc-role-card .cc-role-check { background: #663399; border-color: #663399; box-shadow: inset 0 0 0 3px #fff; }
-    .cc-role-card ul { color: #6b7280; font-size: 13px; margin: 8px 0 0; padding-left: 18px; }
+    .cc-role-picker { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+    .cc-role-option { cursor: pointer; display: block; font-weight: 400; margin: 0; position: relative; }
+    .cc-role-option input { height: 1px; opacity: 0; pointer-events: none; position: absolute; width: 1px; }
+    /* La carte est un <span> (contenu autorise dans un <label>) : on la passe en bloc pour que la bordure entoure tout. */
+    .cc-role-card { background: #fff; border: 1.5px solid var(--apx-border, #d2d2d7); border-radius: 14px; display: block; height: 100%; padding: 16px 18px; transition: border-color .15s, background .15s, box-shadow .15s; }
+    .cc-role-option:hover .cc-role-card { border-color: var(--apx-subtle, #86868b); }
+    .cc-role-option input:checked + .cc-role-card { background: rgba(0, 113, 227, .05); border-color: var(--apx-blue, #0071e3); box-shadow: 0 0 0 3px rgba(0, 113, 227, .15); }
+    .cc-role-option input:focus-visible + .cc-role-card { outline: 2px solid var(--apx-blue, #0071e3); outline-offset: 2px; }
+    .cc-role-title { align-items: center; display: flex; gap: 10px; }
+    .cc-role-name { align-items: center; color: var(--apx-text, #1d1d1f); display: flex; flex: 1; font-size: 16px; font-weight: 600; gap: 8px; }
+    .cc-role-name i { color: var(--apx-muted, #6e6e73); font-size: 18px; }
+    .cc-role-option input:checked + .cc-role-card .cc-role-name i { color: var(--apx-blue, #0071e3); }
+    .cc-role-check { border: 2px solid var(--apx-border, #d2d2d7); border-radius: 50%; display: block; flex: none; height: 20px; width: 20px; }
+    .cc-role-option input:checked + .cc-role-card .cc-role-check { background: var(--apx-blue, #0071e3); border-color: var(--apx-blue, #0071e3); box-shadow: inset 0 0 0 4px #fff; }
+    .cc-role-rights { color: var(--apx-muted, #6e6e73); display: block; font-size: 13.5px; line-height: 1.5; margin: 10px 0 0; padding-left: 18px; }
+    .cc-role-rights li + li { margin-top: 2px; }
 </style>
 
 <div class="form-group mb-4">
-    <label class="d-block mb-2"><strong>Rôle</strong> <span class="text-muted">— définit ce que le compte peut voir dans l'espace call center</span></label>
+    <div class="mb-2"><strong>Rôle</strong> <span class="text-muted">— définit ce que le compte peut voir dans l'espace call center</span></div>
     <div class="cc-role-picker" role="radiogroup" aria-label="Rôle">
         @foreach(\App\Models\CallCenterUser::ROLES as $roleKey => $roleLabel)
             <label class="cc-role-option">
                 <input type="radio" name="role" value="{{ $roleKey }}" {{ $selectedRole === $roleKey ? 'checked' : '' }} required>
                 <span class="cc-role-card">
                     <span class="cc-role-title">
-                        <span><i class="{{ $roleDetails[$roleKey]['icon'] }} mr-1"></i> {{ $roleLabel }}</span>
+                        <span class="cc-role-name"><i class="{{ $roleDetails[$roleKey]['icon'] }}" aria-hidden="true"></i>{{ $roleLabel }}</span>
                         <span class="cc-role-check" aria-hidden="true"></span>
                     </span>
-                    <ul>
+                    <ul class="cc-role-rights">
                         @foreach($roleDetails[$roleKey]['droits'] as $droit)
                             <li>{{ $droit }}</li>
                         @endforeach
