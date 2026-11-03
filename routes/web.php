@@ -385,6 +385,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notification-send/import/ligne/{line}', [NotificationCampaignController::class, 'updateImportRow'])->whereNumber('line')->name('notification-send.import-row-update');
     Route::post('/notification-send/import/ligne/{line}/retirer', [NotificationCampaignController::class, 'removeImportRow'])->whereNumber('line')->name('notification-send.import-row-remove');
     Route::get('/notification-send/logs', [NotificationCampaignController::class, 'logs'])->name('notification-send.logs');
+    Route::get('/notification-send/destinataires', [NotificationCampaignController::class, 'recipients'])->name('notification-send.recipients');
     Route::post('/notification-send/{notificationCampaign}/send-now', [NotificationCampaignController::class, 'sendNow'])->name('notification-send.send-now');
     Route::post('/notification-send/{notificationCampaign}/cancel', [NotificationCampaignController::class, 'cancel'])->name('notification-send.cancel');
 
@@ -410,7 +411,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notifications-by-alert/send', [NotificationController::class, 'sendByAlertExpiration'])->name('notifications.by-alert.send');
 });
 
-Route::prefix('call-center')->group(function () {
+Route::prefix('call-center')->middleware('compact.html')->group(function () {
     Route::middleware(['guest:call_center'])->group(function () {
         Route::get('/login', [CallCenterAuthController::class, 'showLogin'])->name('call-center.login');
         Route::post('/login', [CallCenterAuthController::class, 'login'])->name('call-center.authenticate');
@@ -419,6 +420,7 @@ Route::prefix('call-center')->group(function () {
     Route::middleware(['auth:call_center'])->group(function () {
         Route::get('/dashboard', [CallCenterSpaceController::class, 'dashboard'])->name('call-center.dashboard');
         Route::get('/alertes', [CallCenterSpaceController::class, 'alerts'])->name('call-center.alertes');
+        Route::get('/filtres/{token}', [CallCenterSpaceController::class, 'filterOptions'])->where('token', '[a-f0-9]{32}')->name('call-center.filter-options');
         Route::get('/users', [CallCenterSpaceController::class, 'users'])->name('call-center.users');
         Route::post('/users/{user}/suivi-appel', [CallCenterSpaceController::class, 'updateUserCallFollowUp'])->name('call-center.users.suivi-appel');
         Route::get('/users/{user}/alertes', [CallCenterSpaceController::class, 'userAlerts'])->name('call-center.users.alerts');
@@ -457,6 +459,7 @@ Route::prefix('call-center')->group(function () {
         Route::post('/notification-send/import/ligne/{line}', [NotificationCampaignController::class, 'updateImportRow'])->whereNumber('line')->name('call-center.notification-send.import-row-update');
         Route::post('/notification-send/import/ligne/{line}/retirer', [NotificationCampaignController::class, 'removeImportRow'])->whereNumber('line')->name('call-center.notification-send.import-row-remove');
         Route::get('/notification-send/logs', [NotificationCampaignController::class, 'logs'])->name('call-center.notification-send.logs');
+        Route::get('/notification-send/destinataires', [NotificationCampaignController::class, 'recipients'])->name('call-center.notification-send.recipients');
         Route::post('/notification-send/{notificationCampaign}/send-now', [NotificationCampaignController::class, 'sendNow'])->name('call-center.notification-send.send-now');
         Route::post('/notification-send/{notificationCampaign}/cancel', [NotificationCampaignController::class, 'cancel'])->name('call-center.notification-send.cancel');
         Route::post('/logout', [CallCenterAuthController::class, 'logout'])->name('call-center.logout');

@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Commune;
 use App\Models\NotificationCampaign;
 use App\Models\NotificationCampaignLog;
 use App\Models\Type_alert;
-use App\Models\User;
 use App\Models\Ville;
-use App\Models\Commune;
 use App\Services\NotificationCampaignService;
 use App\Services\SpreadsheetReader;
+use App\Support\SchemaCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -77,24 +76,29 @@ class NotificationCampaignController extends Controller
             $query->whereDate('scheduled_at', '<=', $request->date_to);
         }
 
+        $importPreview = $this->importPreview();
+
+        // Seuls les destinataires deja selectionnes (formulaire ou import en cours) sont charges :
+        // les autres arrivent par la recherche (route recipients), la liste complete pouvant compter
+        // des milliers d'entrees.
+        $requestedFilters = $request->old('filters', $request->input('filters', []));
         $selectionOptions = collect();
-        if (! $this->isCallCenter()) {
-            foreach ($this->selectedAudienceTypes() as $audienceType => $filterKey) {
-                $selectionOptions = $selectionOptions->merge(
-                    $service->selectionOptions($audienceType)->map(function ($recipient) use ($audienceType, $filterKey) {
-                        $recipient->audience_type = $audienceType;
-                        $recipient->filter_key = $filterKey;
-                        return $recipient;
-                    })
-                );
+        foreach ($this->selectedAudienceTypes() as $audienceType => $filterKey) {
+            $ids = collect(is_array($requestedFilters) ? ($requestedFilters[$filterKey] ?? []) : []);
+
+            foreach ($importPreview['rows'] ?? [] as $row) {
+                if (($row['campaign']['audience_type'] ?? null) === $audienceType) {
+                    $ids = $ids->merge($row['campaign']['audience_filters'][$filterKey] ?? []);
+                }
             }
-        } else {
-            $selectionOptions = $this->notificationFcmUsers()->map(function ($recipient) {
-                $recipient->recipient_id = $recipient->id;
-                $recipient->audience_type = NotificationCampaign::AUDIENCE_SELECTED_USERS;
-                $recipient->filter_key = 'user_ids';
-                return $recipient;
-            });
+
+            $selectionOptions = $selectionOptions->merge(
+                $this->recipientsByIds($service, $audienceType, $ids->all())->map(function ($recipient) use ($audienceType, $filterKey) {
+                    $recipient->audience_type = $audienceType;
+                    $recipient->filter_key = $filterKey;
+                    return $recipient;
+                })
+            );
         }
 
         return view('notification_send.programmes', [
@@ -103,6 +107,8 @@ class NotificationCampaignController extends Controller
             'isCallCenter' => $this->isCallCenter(),
             'campaigns' => $query->paginate(20)->appends($request->query()),
             'selectionOptions' => $selectionOptions,
+            'selectionFilterKeys' => $this->selectedAudienceTypes(),
+            'recipientsRoute' => $this->routeName('notification-send.recipients'),
             'audienceLabels' => $this->audienceLabels(),
             'indexRoute' => $this->routeName('notification-send.index'),
             'createRoute' => $this->routeName('notification-send.create'),
@@ -113,12 +119,55 @@ class NotificationCampaignController extends Controller
             'importCancelRoute' => $this->routeName('notification-send.import-cancel'),
             'importRowUpdateRouteName' => $this->routeName('notification-send.import-row-update'),
             'importRowRemoveRouteName' => $this->routeName('notification-send.import-row-remove'),
-            'importPreview' => $this->importPreview(),
+            'importPreview' => $importPreview,
             'programmesRoute' => $this->routeName('notification-send.programmes'),
             'logsRoute' => $this->routeName('notification-send.logs'),
             'sendNowRouteName' => $this->routeName('notification-send.send-now'),
             'cancelRouteName' => $this->routeName('notification-send.cancel'),
         ]);
+    }
+
+    /** Recherche de destinataires (avec token FCM) pour les selecteurs, limitee a 30 resultats. */
+    public function recipients(Request $request, NotificationCampaignService $service)
+    {
+        $this->authorizeAccess();
+
+        $audienceType = (string) $request->input('audience');
+        if (! array_key_exists($audienceType, $this->selectedAudienceTypes())) {
+            return response()->json([]);
+        }
+
+        $query = DB::query()->fromSub($service->audienceQuery($audienceType), 'recipients');
+        $probe = (clone $query)->first();
+        if (! $probe) {
+            return response()->json([]);
+        }
+
+        $keyword = trim((string) $request->input('q', ''));
+        if ($keyword !== '') {
+            $searchColumns = array_values(array_intersect(
+                ['nom', 'prenoms', 'name', 'first_name', 'last_name', 'telephone', 'mobile', 'email'],
+                array_keys((array) $probe)
+            ));
+            $query->where(function ($where) use ($keyword, $searchColumns) {
+                foreach ($searchColumns as $column) {
+                    $where->orWhere($column, 'like', '%' . $keyword . '%');
+                }
+                if (ctype_digit(ltrim($keyword, '#'))) {
+                    $where->orWhere('recipient_id', (int) ltrim($keyword, '#'));
+                }
+            });
+        }
+
+        return response()->json(
+            $query->orderBy('recipient_id')
+                ->limit(60)
+                ->get()
+                ->unique('recipient_id')
+                ->take(30)
+                ->map(fn ($recipient) => ['id' => (int) $recipient->recipient_id, 'label' => $this->recipientLabel($recipient)])
+                ->values()
+        );
     }
 
     public function store(Request $request, NotificationCampaignService $service)
@@ -202,7 +251,6 @@ class NotificationCampaignController extends Controller
         }
 
         $previewRows = [];
-        $validIdsByAudience = [];
 
         foreach ($rows as $index => $row) {
             $line = $index + 2;
@@ -212,7 +260,7 @@ class NotificationCampaignController extends Controller
                 continue;
             }
 
-            $previewRows[] = $this->buildImportRow($line, $values->all(), $service, $validIdsByAudience);
+            $previewRows[] = $this->buildImportRow($line, $values->all(), $service);
         }
 
         if (empty($previewRows)) {
@@ -286,10 +334,9 @@ class NotificationCampaignController extends Controller
             return back()->withErrors(['import_file' => 'Ligne introuvable dans l\'import en attente. Chargez à nouveau le fichier.']);
         }
 
-        $validIdsByAudience = [];
         $preview['rows'][$index] = $this->buildImportRow($line, $request->only([
             'title', 'body', 'scheduled_at', 'audience_type', 'ids', 'image_url', 'action_url',
-        ]), $service, $validIdsByAudience);
+        ]), $service);
         $this->saveImportPreview($preview);
 
         $errors = $preview['rows'][$index]['errors'];
@@ -392,7 +439,7 @@ class NotificationCampaignController extends Controller
     {
         $this->authorizeAccess();
 
-        $hasRecipientColumns = Schema::hasColumn('notification_campaign_logs', 'recipient_type');
+        $hasRecipientColumns = SchemaCache::hasColumn('notification_campaign_logs', 'recipient_type');
         $query = NotificationCampaignLog::query()
             ->with(['campaign:id,title,status,audience_type', 'user', 'typeAlert:id,libelle', 'alert:id,date_fin,type_alert_id'])
             ->latest('sent_at')
@@ -417,13 +464,13 @@ class NotificationCampaignController extends Controller
                     ->orWhere('error_message', 'like', $keyword)
                     ->orWhereHas('user', function ($userQuery) use ($keyword) {
                         foreach (['nom', 'prenoms', 'name', 'email', 'telephone', 'mobile'] as $column) {
-                            if (Schema::hasColumn('users', $column)) {
+                            if (SchemaCache::hasColumn('users', $column)) {
                                 $userQuery->orWhere($column, 'like', $keyword);
                             }
                         }
                     });
 
-                if (Schema::hasColumn('notification_campaign_logs', 'recipient_id') && is_numeric(trim($keyword, '%'))) {
+                if (SchemaCache::hasColumn('notification_campaign_logs', 'recipient_id') && is_numeric(trim($keyword, '%'))) {
                     $q->orWhere('recipient_id', (int) trim($keyword, '%'));
                 }
             });
@@ -487,7 +534,7 @@ class NotificationCampaignController extends Controller
             ->all();
     }
 
-    private function buildImportRow(int $line, array $values, NotificationCampaignService $service, array &$validIdsByAudience): array
+    private function buildImportRow(int $line, array $values, NotificationCampaignService $service): array
     {
         $audienceType = $this->importAudienceType((string) $this->importValue($values, 'audience_type'));
         $scheduledAt = $this->importDate($this->importValue($values, 'scheduled_at'));
@@ -529,11 +576,12 @@ class NotificationCampaignController extends Controller
             if (empty($ids)) {
                 $rowErrors[] = 'ids obligatoires pour ce type de destinataires.';
             } else {
-                $validIdsByAudience[$audienceType] ??= $service->selectionOptions($audienceType)
+                // On ne verifie que les ids de la ligne, sans charger tous les destinataires.
+                $validIds = $this->recipientsByIds($service, $audienceType, $ids)
                     ->pluck('recipient_id')
                     ->map(fn ($id) => (int) $id)
                     ->flip();
-                $unknownIds = collect($ids)->reject(fn ($id) => $validIdsByAudience[$audienceType]->has($id));
+                $unknownIds = collect($ids)->reject(fn ($id) => $validIds->has((int) $id));
                 if ($unknownIds->isNotEmpty()) {
                     $rowErrors[] = 'ids introuvables ou sans token FCM : ' . $unknownIds->implode(', ') . '.';
                 }
@@ -678,7 +726,7 @@ class NotificationCampaignController extends Controller
             $audienceType = NotificationCampaign::AUDIENCE_ALL_USERS;
         }
         $filters = $this->cleanFilters($request->input('filters', []), $audienceType);
-        $communeNameColumn = Schema::hasTable('communes') && Schema::hasColumn('communes', 'libelle') ? 'libelle' : 'nom';
+        $communeNameColumn = SchemaCache::hasTable('communes') && SchemaCache::hasColumn('communes', 'libelle') ? 'libelle' : 'nom';
 
         return [
             'isCallCenter' => $this->isCallCenter(),
@@ -686,12 +734,10 @@ class NotificationCampaignController extends Controller
             'filters' => $filters,
             'typeAlerts' => Type_alert::orderBy('libelle')->get(['id', 'libelle']),
             'userFilterColumns' => $this->notificationUserFilterColumns(),
-            'fcmUsers' => $this->notificationFcmUsers(),
-            'villes' => Schema::hasTable('villes') ? Ville::orderBy('libelle')->get(['id', 'libelle']) : collect(),
-            'communes' => Schema::hasTable('communes') && Schema::hasColumn('communes', $communeNameColumn)
+            'villes' => SchemaCache::hasTable('villes') ? Ville::orderBy('libelle')->get(['id', 'libelle']) : collect(),
+            'communes' => SchemaCache::hasTable('communes') && SchemaCache::hasColumn('communes', $communeNameColumn)
                 ? Commune::select('id', 'ville_id')->selectRaw($communeNameColumn . ' as libelle')->orderBy($communeNameColumn)->get()
                 : collect(),
-            'selectedUsers' => $this->selectedUsers($filters),
             'previewUsers' => $service->audienceQuery($audienceType, $filters)
                 ->paginate(20, ['*'], 'users_page')
                 ->appends($request->except('users_page')),
@@ -702,43 +748,36 @@ class NotificationCampaignController extends Controller
     private function notificationUserFilterColumns(): array
     {
         return collect(['statut', 'ville_id', 'commune_id'])
-            ->mapWithKeys(fn ($column) => [$column => Schema::hasColumn('users', $column)])
+            ->mapWithKeys(fn ($column) => [$column => SchemaCache::hasColumn('users', $column)])
             ->all();
     }
 
-    private function notificationFcmUsers()
+
+    private function recipientsByIds(NotificationCampaignService $service, string $audienceType, array $ids)
     {
-        $columns = collect(['id', 'fcm_token'])
-            ->merge(collect(['nom', 'prenoms', 'name', 'email', 'telephone', 'mobile'])
-                ->filter(fn ($column) => Schema::hasColumn('users', $column)))
-            ->unique()
-            ->values()
-            ->all();
+        $ids = collect($ids)->filter(fn ($id) => is_numeric($id))->map(fn ($id) => (int) $id)->unique()->values();
 
-        $orderColumn = collect(['nom', 'name', 'telephone', 'mobile', 'email'])
-            ->first(fn ($column) => Schema::hasColumn('users', $column));
-
-        $query = User::select($columns)
-            ->whereNotNull('fcm_token')
-            ->where('fcm_token', '!=', '');
-
-        if ($orderColumn) {
-            $query->orderBy($orderColumn);
-        }
-
-        return $query->orderBy('id')->get();
-    }
-
-    private function selectedUsers(array $filters)
-    {
-        $ids = $filters['user_ids'] ?? [];
-
-        if (empty($ids)) {
+        if ($ids->isEmpty()) {
             return collect();
         }
 
-        return User::whereIn('id', $ids)->orderBy('nom')->get();
+        return DB::query()
+            ->fromSub($service->audienceQuery($audienceType), 'recipients')
+            ->whereIn('recipient_id', $ids->all())
+            ->orderBy('recipient_id')
+            ->get()
+            ->unique('recipient_id')
+            ->values();
     }
+
+    private function recipientLabel(object $recipient): string
+    {
+        $name = trim(($recipient->nom ?? $recipient->first_name ?? $recipient->name ?? '') . ' ' . ($recipient->prenoms ?? $recipient->last_name ?? '')) ?: 'Destinataire';
+        $contact = $recipient->telephone ?? $recipient->mobile ?? $recipient->email ?? '';
+
+        return '#' . $recipient->recipient_id . ' - ' . $name . ($contact ? ' - ' . $contact : '');
+    }
+
 
     private function authorizeAccess(): void
     {
@@ -847,7 +886,7 @@ class NotificationCampaignController extends Controller
 
     private function hydrateLogRecipients($logs): void
     {
-        if (! Schema::hasColumn('notification_campaign_logs', 'recipient_type')) {
+        if (! SchemaCache::hasColumn('notification_campaign_logs', 'recipient_type')) {
             return;
         }
 
@@ -859,11 +898,11 @@ class NotificationCampaignController extends Controller
 
         foreach ($tables as $type => [$table, $columns]) {
             $ids = $logs->where('recipient_type', $type)->pluck('recipient_id')->filter()->unique();
-            if ($ids->isEmpty() || ! Schema::hasTable($table)) {
+            if ($ids->isEmpty() || ! SchemaCache::hasTable($table)) {
                 continue;
             }
 
-            $availableColumns = collect($columns)->filter(fn ($column) => Schema::hasColumn($table, $column))->all();
+            $availableColumns = collect($columns)->filter(fn ($column) => SchemaCache::hasColumn($table, $column))->all();
             $recipients = DB::table($table)->whereIn('id', $ids)->get(array_merge(['id'], $availableColumns))->keyBy('id');
             $logs->where('recipient_type', $type)->each(function ($log) use ($recipients) {
                 $log->recipient_display = $recipients->get($log->recipient_id);

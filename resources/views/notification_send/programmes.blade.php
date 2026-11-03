@@ -290,7 +290,8 @@
                                     <button type="button" class="btn btn-sm btn-outline-primary mr-2" id="notification-recipients-check-visible">Tout cocher</button>
                                     <button type="button" class="btn btn-sm btn-outline-secondary" id="notification-recipients-clear">Vider</button>
                                 </div>
-                                @forelse($selectionOptions as $recipientOption)
+                                <div id="notification-recipients-options">
+                                @foreach($selectionOptions as $recipientOption)
                                     @php
                                         $recipientName = trim(($recipientOption->nom ?? '') . ' ' . ($recipientOption->prenoms ?? '')) ?: 'Destinataire';
                                         $recipientContact = $recipientOption->telephone ?? $recipientOption->mobile ?? $recipientOption->email ?? '';
@@ -301,12 +302,12 @@
                                         <input type="checkbox" name="filters[{{ $recipientOption->filter_key }}][]" value="{{ $recipientOption->recipient_id }}" class="mr-2 notification-recipient-checkbox" {{ in_array((string) $recipientOption->recipient_id, $selectedIds, true) ? 'checked' : '' }}>
                                         {{ $recipientLabel }}
                                     </label>
-                                @empty
-                                    <div class="text-muted small">Aucun destinataire avec FCM trouvé.</div>
-                                @endforelse
+                                @endforeach
+                                </div>
+                                <div class="text-muted small mt-1" id="notification-recipients-status">Tapez un nom, un téléphone ou un #id pour rechercher.</div>
                             </div>
                         </div>
-                        <small class="form-text text-muted">La liste contient uniquement les destinataires disposant d'au moins un token FCM.</small>
+                        <small class="form-text text-muted">La recherche porte uniquement sur les destinataires disposant d'au moins un token FCM (30 résultats max par recherche).</small>
                     </div>
 
                     <div class="d-flex">
@@ -465,6 +466,27 @@
 </div>
 
 <script>
+    var notificationRecipientsUrl = @json(route($recipientsRoute));
+    var notificationRecipientKeys = @json($selectionFilterKeys);
+
+    // Recherche distante des destinataires : la liste complete n'est jamais chargee dans la page.
+    function fetchNotificationRecipients(audience, keyword, callback) {
+        var url = notificationRecipientsUrl + '?audience=' + encodeURIComponent(audience) + '&q=' + encodeURIComponent(keyword || '');
+        fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(function (response) { return response.ok ? response.json() : []; })
+            .then(callback)
+            .catch(function () { callback([]); });
+    }
+
+    function debounce(fn, delay) {
+        var timer;
+        return function () {
+            var args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(function () { fn.apply(null, args); }, delay);
+        };
+    }
+
     document.querySelectorAll('.notification-import-edit-toggle').forEach(function (button) {
         button.addEventListener('click', function () {
             var row = document.getElementById(button.getAttribute('data-target'));
@@ -546,6 +568,23 @@
             render();
         });
         search.addEventListener('keyup', render);
+        search.addEventListener('keyup', debounce(function () {
+            var audience = audienceSelect.value;
+            if (audience.indexOf('selected_') !== 0) {
+                return;
+            }
+            fetchNotificationRecipients(audience, search.value, function (results) {
+                var store = window.notificationImportRecipients = window.notificationImportRecipients || {};
+                var known = {};
+                (store[audience] = store[audience] || []).forEach(function (option) { known[option.id] = true; });
+                results.forEach(function (option) {
+                    if (!known[option.id]) {
+                        store[audience].push(option);
+                    }
+                });
+                render();
+            });
+        }, 250));
         group.querySelector('.notification-import-ids-check').addEventListener('click', function () {
             list.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
                 var id = Number(checkbox.value);
@@ -631,10 +670,58 @@
             audienceSelect.addEventListener('change', function () {
                 updateAudienceMode();
                 filterRecipients();
+                loadRemoteRecipients();
             });
         }
+        var optionsContainer = document.getElementById('notification-recipients-options');
+        var statusLine = document.getElementById('notification-recipients-status');
+
+        function loadRemoteRecipients() {
+            if (!audienceSelect || !optionsContainer || audienceSelect.value.indexOf('selected_') !== 0) {
+                return;
+            }
+
+            var audience = audienceSelect.value;
+            var filterKey = notificationRecipientKeys[audience];
+            var keyword = searchInput ? searchInput.value.trim() : '';
+            if (statusLine) {
+                statusLine.textContent = 'Recherche…';
+            }
+
+            fetchNotificationRecipients(audience, keyword, function (results) {
+                results.forEach(function (option) {
+                    var exists = optionsContainer.querySelector('.notification-recipient-option[data-audience="' + audience + '"] input[value="' + option.id + '"]');
+                    if (exists || !filterKey) {
+                        return;
+                    }
+
+                    var label = document.createElement('label');
+                    label.className = 'dropdown-item mb-1 notification-recipient-option';
+                    label.setAttribute('data-audience', audience);
+                    label.setAttribute('data-label', option.label.toLowerCase());
+                    var checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.name = 'filters[' + filterKey + '][]';
+                    checkbox.value = option.id;
+                    checkbox.className = 'mr-2 notification-recipient-checkbox';
+                    checkbox.addEventListener('change', updateButtonText);
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(option.label));
+                    optionsContainer.appendChild(label);
+                });
+
+                if (statusLine) {
+                    statusLine.textContent = results.length
+                        ? results.length + ' résultat(s)' + (results.length >= 30 ? ' — affinez la recherche pour en voir d\'autres.' : '.')
+                        : 'Aucun destinataire avec FCM trouvé.';
+                }
+                filterRecipients();
+            });
+        }
+
         if (searchInput) {
             searchInput.addEventListener('keyup', filterRecipients);
+            searchInput.addEventListener('keyup', debounce(loadRemoteRecipients, 250));
         }
         if (checkVisibleButton) {
             checkVisibleButton.addEventListener('click', function () {
@@ -664,6 +751,7 @@
 
         updateAudienceMode();
         filterRecipients();
+        loadRemoteRecipients();
     })();
 </script>
 @endsection

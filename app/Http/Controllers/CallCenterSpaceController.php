@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Services\WasabiService;
+use App\Support\SchemaCache;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class CallCenterSpaceController extends Controller
 {
@@ -18,12 +18,15 @@ class CallCenterSpaceController extends Controller
     }
 
     private const ALERT_SOON_DAYS = 30;
-    private const SCHEMA_CACHE_PREFIX = 'call_center.schema.';
-    private const SCHEMA_CACHE_SECONDS = 600;
     private const OPTIONS_CACHE_SECONDS = 600;
     private const PER_PAGE_OPTIONS = [15, 25, 50, 100];
+    private const REMOTE_OPTIONS_THRESHOLD = 150;
+    private const REMOTE_OPTIONS_PREFIX = 'call_center.remote_options.';
+    private const REMOTE_OPTIONS_SECONDS = 86400;
+    private const REMOTE_OPTIONS_LIMIT = 30;
+    private const COUNT_CACHE_SECONDS = 60;
+    private const COUNT_VERSION_KEY = 'call_center.count_version';
 
-    private array $schemaCache = [];
     private const ALERT_URGENT_DAYS = 7;
 
     public function dashboard()
@@ -32,10 +35,10 @@ class CallCenterSpaceController extends Controller
             'title' => 'Dashboard Call Center',
             'menu' => 'call-center-dashboard',
             'user' => Auth::guard('call_center')->user(),
-            'alertStats' => $this->alertStats(),
-            'upcomingAlerts' => $this->dashboardAlerts('upcoming'),
-            'expiredAlerts' => $this->dashboardAlerts('expired'),
-            'usersToCall' => $this->usersWithExpiredAlerts(),
+            'alertStats' => $this->cachedDashboard('stats', fn () => $this->alertStats()),
+            'upcomingAlerts' => $this->cachedDashboard('upcoming', fn () => $this->dashboardAlerts('upcoming')),
+            'expiredAlerts' => $this->cachedDashboard('expired', fn () => $this->dashboardAlerts('expired')),
+            'usersToCall' => $this->cachedDashboard('to_call', fn () => $this->usersWithExpiredAlerts()),
             'alertFilter' => $this->alertExpirationFilter(null),
             'cards' => [
                 ['label' => 'Alertes', 'route' => route('call-center.alertes')],
@@ -1717,6 +1720,23 @@ class CallCenterSpaceController extends Controller
         );
     }
 
+    public function filterOptions(Request $request, string $token)
+    {
+        $options = Cache::get(self::REMOTE_OPTIONS_PREFIX . $token, []);
+        // Insensible a la casse et aux accents : "kone" trouve "Koné".
+        $normalize = fn ($value) => mb_strtolower(\Illuminate\Support\Str::ascii((string) $value));
+        $keyword = $normalize(trim((string) $request->input('q', '')));
+
+        $matches = collect($options)
+            ->when($keyword !== '', fn ($items) => $items->filter(
+                fn ($option) => str_contains($normalize($option['label']), $keyword) || (string) $option['value'] === $keyword
+            ))
+            ->take(self::REMOTE_OPTIONS_LIMIT)
+            ->values();
+
+        return response()->json($matches);
+    }
+
     private function renderList(
         Request $request,
         string $title,
@@ -1732,8 +1752,14 @@ class CallCenterSpaceController extends Controller
             $filters = array_merge($filters, $this->dateCreationFilters($request));
         }
 
+        $filters = array_map(fn ($filter) => $this->withRemoteOptions($filter), $filters);
+
         if ($applyOrder !== null) {
             $applyOrder($query);
+        } elseif (($baseTable = $this->baseTable($query)) !== null && $this->hasColumn($baseTable, 'id')) {
+            // Meme ordre chronologique que created_at, mais via la cle primaire : MySQL lit seulement
+            // les lignes de la page au lieu de trier toute la table (created_at n'est pas indexe).
+            $query->orderByDesc("{$baseTable}.id");
         } else {
             $query->orderByDesc($this->resolveOrderColumn(array_keys($columns)));
         }
@@ -1741,9 +1767,14 @@ class CallCenterSpaceController extends Controller
         $perPage = (int) $request->input('per_page', self::PER_PAGE_OPTIONS[0]);
         $perPage = in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : self::PER_PAGE_OPTIONS[0];
 
-        $items = $query
-            ->paginate($perPage)
-            ->withQueryString();
+        $total = $this->cachedCount($query);
+        $page = min(max(1, (int) $request->input('page', 1)), max(1, (int) ceil($total / $perPage)));
+        $rows = $total > 0 ? (clone $query)->forPage($page, $perPage)->get() : collect();
+
+        $items = (new LengthAwarePaginator($rows, $total, $perPage, $page, [
+            'path' => $request->url(),
+            'pageName' => 'page',
+        ]))->withQueryString();
 
         if ($decorateRows !== null) {
             $items->setCollection($items->getCollection()->map($decorateRows));
@@ -1839,13 +1870,103 @@ class CallCenterSpaceController extends Controller
 
     private function applyDateCreationFilter(Builder $query, Request $request): void
     {
-        if ($request->filled('date_from')) {
-            $query->havingRaw('DATE(date_creation) >= ?', [$request->input('date_from')]);
+        $from = $this->parseFilterDate($request->input('date_from'));
+        $to = $this->parseFilterDate($request->input('date_to'));
+        $column = $this->selectedColumnFor($query, 'date_creation');
+
+        if ($column === null) {
+            // Expression calculee : on garde le filtre sur l'alias.
+            if ($from) {
+                $query->havingRaw('DATE(date_creation) >= ?', [$from->toDateString()]);
+            }
+            if ($to) {
+                $query->havingRaw('DATE(date_creation) <= ?', [$to->toDateString()]);
+            }
+
+            return;
         }
 
-        if ($request->filled('date_to')) {
-            $query->havingRaw('DATE(date_creation) <= ?', [$request->input('date_to')]);
+        // Filtre sur la vraie colonne (WHERE) et non sur l'alias (HAVING) : le comptage n'a plus
+        // besoin de materialiser toute la requete, et un index sur la colonne reste utilisable.
+        if ($from) {
+            $query->where($column, '>=', $from->startOfDay()->toDateTimeString());
         }
+        if ($to) {
+            $query->where($column, '<', $to->addDay()->startOfDay()->toDateTimeString());
+        }
+    }
+
+    private function parseFilterDate(mixed $value): ?\Carbon\Carbon
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::createFromFormat('Y-m-d', $value)->startOfDay();
+        } catch (\Throwable $exception) {
+            return null;
+        }
+    }
+
+    /** Colonne reelle d'un alias du select ("users.created_at as date_creation" -> "users.created_at"). */
+    private function selectedColumnFor(Builder $query, string $alias): ?string
+    {
+        foreach ($query->columns ?? [] as $column) {
+            if (is_string($column) && preg_match('/^([\w.]+)\s+as\s+' . preg_quote($alias, '/') . '$/i', trim($column), $matches)) {
+                return $matches[1];
+            }
+        }
+
+        return null;
+    }
+
+    private function baseTable(Builder $query): ?string
+    {
+        if (! is_string($query->from)) {
+            return null;
+        }
+
+        $parts = preg_split('/\s+as\s+/i', trim($query->from));
+
+        return trim(end($parts), '` ');
+    }
+
+    /**
+     * Total de la liste, mis en cache brievement : sur des milliers de lignes le COUNT est la requete
+     * la plus couteuse et il est rejoue a chaque changement de page.
+     */
+    private function cachedCount(Builder $query): int
+    {
+        $key = 'call_center.count.' . Cache::get(self::COUNT_VERSION_KEY, 0) . '.'
+            . md5($query->toSql() . '|' . serialize($query->getBindings()));
+
+        return (int) Cache::remember($key, self::COUNT_CACHE_SECONDS, function () use ($query) {
+            $baseTable = $this->baseTable($query);
+
+            // Sans filtre, les LEFT JOIN sur une cle primaire ne changent pas le nombre de lignes :
+            // on compte directement la table principale.
+            if ($baseTable !== null && empty($query->wheres) && empty($query->havings) && empty($query->groups)
+                && collect($query->joins ?? [])->every(fn ($join) => $this->isLeftJoinOnPrimaryKey($join))) {
+                return DB::table($baseTable)->count();
+            }
+
+            return (clone $query)->getCountForPagination();
+        });
+    }
+
+    private function isLeftJoinOnPrimaryKey($join): bool
+    {
+        if ($join->type !== 'left' || count($join->wheres) !== 1) {
+            return false;
+        }
+
+        $where = $join->wheres[0];
+        $joinedKey = trim(preg_split('/\s+as\s+/i', $join->table)[0]) . '.id';
+
+        return ($where['type'] ?? null) === 'Column'
+            && ($where['operator'] ?? null) === '='
+            && in_array($joinedKey, [$where['first'] ?? null, $where['second'] ?? null], true);
     }
 
     private function dateCreationFilters(Request $request): array
@@ -1869,6 +1990,32 @@ class CallCenterSpaceController extends Controller
     private function resolveOrderColumn(array $aliases): string
     {
         return in_array('date_creation', $aliases, true) ? 'date_creation' : $aliases[0];
+    }
+
+    /**
+     * Au-dela de quelques centaines d'options (professionnels, etablissements...), un <select> alourdit
+     * chaque page de centaines de Ko. On garde la liste cote serveur et le filtre devient une recherche.
+     */
+    private function withRemoteOptions(array $filter): array
+    {
+        $options = $filter['options'] ?? [];
+
+        if (($filter['type'] ?? null) !== 'select' || count($options) <= self::REMOTE_OPTIONS_THRESHOLD) {
+            return $filter;
+        }
+
+        $token = md5(serialize($options));
+        if (! Cache::has(self::REMOTE_OPTIONS_PREFIX . $token)) {
+            Cache::put(self::REMOTE_OPTIONS_PREFIX . $token, $options, self::REMOTE_OPTIONS_SECONDS);
+        }
+
+        $selected = collect($options)->firstWhere('value', (string) ($filter['value'] ?? ''));
+
+        return array_merge($filter, [
+            'remote' => route('call-center.filter-options', $token),
+            'options' => [],
+            'selected_label' => $selected['label'] ?? '',
+        ]);
     }
 
     private function alertsBaseQuery(): Builder
@@ -1925,6 +2072,14 @@ class CallCenterSpaceController extends Controller
         }
 
         $query->orderByDesc('alerts.id');
+    }
+
+    /** Les agregats du dashboard parcourent toute la table alerts : on les garde une minute. */
+    private function cachedDashboard(string $block, callable $compute): mixed
+    {
+        $key = 'call_center.dashboard.' . Cache::get(self::COUNT_VERSION_KEY, 0) . '.' . now()->toDateString() . '.' . $block;
+
+        return Cache::remember($key, self::COUNT_CACHE_SECONDS, $compute);
     }
 
     private function alertStats(): ?object
@@ -2139,6 +2294,8 @@ class CallCenterSpaceController extends Controller
             ->where('id', $id)
             ->update($data);
 
+        Cache::forever(self::COUNT_VERSION_KEY, (int) Cache::get(self::COUNT_VERSION_KEY, 0) + 1);
+
         return back()->with([
             'type' => 'alert-success',
             'message' => 'Suivi appel enregistre avec succes.',
@@ -2226,21 +2383,9 @@ class CallCenterSpaceController extends Controller
         return $this->tableColumns($table) !== null;
     }
 
-    /**
-     * Colonnes d'une table (null si elle n'existe pas). Chaque verification de schema coutait une requete
-     * information_schema (jusqu'a 55 par page) : on les met en cache par requete et pour quelques minutes.
-     */
     private function tableColumns(string $table): ?array
     {
-        if (! array_key_exists($table, $this->schemaCache)) {
-            $this->schemaCache[$table] = Cache::remember(
-                self::SCHEMA_CACHE_PREFIX . $table,
-                self::SCHEMA_CACHE_SECONDS,
-                fn () => Schema::hasTable($table) ? Schema::getColumnListing($table) : null
-            );
-        }
-
-        return $this->schemaCache[$table];
+        return SchemaCache::columns($table);
     }
 
     private function resolveLabelColumn(string $table): ?string

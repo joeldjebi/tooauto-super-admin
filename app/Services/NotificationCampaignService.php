@@ -5,9 +5,9 @@ namespace App\Services;
 use App\Models\NotificationCampaign;
 use App\Models\NotificationCampaignLog;
 use App\Models\User;
+use App\Support\SchemaCache;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class NotificationCampaignService
 {
@@ -93,7 +93,7 @@ class NotificationCampaignService
             $keyword = '%' . trim($filters['keyword']) . '%';
             $query->where(function ($q) use ($keyword) {
                 foreach (['nom', 'prenoms', 'name', 'email', 'telephone', 'mobile'] as $column) {
-                    if (Schema::hasColumn('users', $column)) {
+                    if (SchemaCache::hasColumn('users', $column)) {
                         $q->orWhere('users.' . $column, 'like', $keyword);
                     }
                 }
@@ -240,7 +240,7 @@ class NotificationCampaignService
                             'sent_at' => now(),
                         ];
 
-                        if (Schema::hasColumn('notification_campaign_logs', 'recipient_type')) {
+                        if (SchemaCache::hasColumn('notification_campaign_logs', 'recipient_type')) {
                             $logData['recipient_type'] = $recipient->recipient_type ?? 'user';
                             $logData['recipient_id'] = $recipient->recipient_id ?? null;
                             $logData['recipient_token_id'] = $recipient->recipient_token_id ?? null;
@@ -331,7 +331,7 @@ class NotificationCampaignService
 
     private function whereIfUserColumn($query, string $column, $value): void
     {
-        if ($value !== null && $value !== '' && Schema::hasColumn('users', $column)) {
+        if ($value !== null && $value !== '' && SchemaCache::hasColumn('users', $column)) {
             $query->where('users.' . $column, $value);
         }
     }
@@ -418,14 +418,14 @@ class NotificationCampaignService
             $keyword = '%' . trim($filters['keyword']) . '%';
             $query->where(function ($subQuery) use ($table, $keyword) {
                 foreach (['nom', 'prenoms', 'first_name', 'last_name', 'name', 'mobile', 'email'] as $column) {
-                    if (Schema::hasColumn($table, $column)) {
+                    if (SchemaCache::hasColumn($table, $column)) {
                         $subQuery->orWhere($table . '.' . $column, 'like', $keyword);
                     }
                 }
             });
         }
 
-        if (isset($filters['statut']) && $filters['statut'] !== '' && Schema::hasColumn($table, 'statut')) {
+        if (isset($filters['statut']) && $filters['statut'] !== '' && SchemaCache::hasColumn($table, 'statut')) {
             $query->where($table . '.statut', $filters['statut']);
         }
 

@@ -507,6 +507,47 @@
             background-size: 16px;
             padding-left: 34px;
         }
+        .cc-combo {
+            position: relative;
+        }
+        .cc-combo-list {
+            background: rgba(255, 255, 255, .97);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            backdrop-filter: saturate(180%) blur(20px);
+            border: 1px solid rgba(0, 0, 0, .06);
+            border-radius: 12px;
+            box-shadow: var(--cc-shadow-pop);
+            left: 0;
+            max-height: 280px;
+            overflow-y: auto;
+            padding: 6px;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            z-index: 25;
+        }
+        .cc-combo-list button {
+            background: transparent;
+            border: 0;
+            border-radius: 8px;
+            color: var(--cc-label);
+            display: block;
+            font: inherit;
+            font-size: 14px;
+            padding: 8px 10px;
+            text-align: left;
+            width: 100%;
+        }
+        .cc-combo-list button:hover,
+        .cc-combo-list button.is-active {
+            background: var(--cc-blue-tint);
+            color: var(--cc-blue);
+        }
+        .cc-combo-empty {
+            color: var(--cc-label-3);
+            font-size: 13px;
+            padding: 8px 10px;
+        }
         .cc-filter-grid {
             display: grid;
             gap: 14px 16px;
@@ -1448,6 +1489,7 @@
     </style>
 </head>
 <body class="cc-app">
+    @include('call-centers.partials.icon-sprite')
     @php
         $callCenterMenu = [
             ['key' => 'call-center-dashboard', 'label' => 'Dashboard', 'route' => route('call-center.dashboard'), 'icon' => 'dashboard', 'tone' => 'gray'],
@@ -1605,6 +1647,83 @@
                         button.classList.remove('is-copied');
                         button.setAttribute('title', 'Copier le numero');
                     }, 1500);
+                });
+            });
+
+            // Filtres a recherche distante (listes de plusieurs centaines d'options).
+            document.querySelectorAll('[data-cc-combo]').forEach(function (combo) {
+                var url = combo.getAttribute('data-cc-combo');
+                var hidden = combo.querySelector('input[type="hidden"]');
+                var input = combo.querySelector('input[type="text"]');
+                var list = combo.querySelector('.cc-combo-list');
+                var timer = null;
+                var request = 0;
+
+                function close() {
+                    list.hidden = true;
+                }
+
+                function choose(option) {
+                    hidden.value = option.value;
+                    input.value = option.label;
+                    close();
+                }
+
+                function render(options) {
+                    list.innerHTML = '';
+                    if (!options.length) {
+                        list.innerHTML = '<div class="cc-combo-empty">Aucun resultat</div>';
+                    }
+                    options.forEach(function (option) {
+                        var button = document.createElement('button');
+                        button.type = 'button';
+                        button.textContent = option.label;
+                        button.addEventListener('mousedown', function (event) {
+                            event.preventDefault();
+                            choose(option);
+                        });
+                        list.appendChild(button);
+                    });
+                    list.hidden = false;
+                }
+
+                function search(keyword) {
+                    var current = ++request;
+                    fetch(url + '?q=' + encodeURIComponent(keyword), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+                        .then(function (response) { return response.ok ? response.json() : []; })
+                        .then(function (options) {
+                            if (current === request) render(options);
+                        })
+                        .catch(close);
+                }
+
+                input.addEventListener('input', function () {
+                    if (input.value.trim() === '') hidden.value = '';
+                    clearTimeout(timer);
+                    timer = setTimeout(function () { search(input.value.trim()); }, 200);
+                });
+                input.addEventListener('focus', function () {
+                    search(hidden.value ? '' : input.value.trim());
+                });
+                input.addEventListener('blur', function () {
+                    setTimeout(close, 120);
+                });
+                input.addEventListener('keydown', function (event) {
+                    var buttons = Array.prototype.slice.call(list.querySelectorAll('button'));
+                    var index = buttons.findIndex(function (button) { return button.classList.contains('is-active'); });
+                    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        if (!buttons.length) return;
+                        if (index >= 0) buttons[index].classList.remove('is-active');
+                        index = event.key === 'ArrowDown' ? Math.min(buttons.length - 1, index + 1) : Math.max(0, index - 1);
+                        buttons[index].classList.add('is-active');
+                        buttons[index].scrollIntoView({ block: 'nearest' });
+                    } else if (event.key === 'Enter' && !list.hidden && index >= 0) {
+                        event.preventDefault();
+                        buttons[index].dispatchEvent(new MouseEvent('mousedown'));
+                    } else if (event.key === 'Escape') {
+                        close();
+                    }
                 });
             });
 

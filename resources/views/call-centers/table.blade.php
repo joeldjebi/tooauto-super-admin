@@ -111,7 +111,13 @@
                             <div>
                                 <label class="cc-field-label">{{ $filter['label'] }}</label>
 
-                                @if (($filter['type'] ?? 'text') === 'select')
+                                @if (!empty($filter['remote']))
+                                    <div class="cc-combo" data-cc-combo="{{ $filter['remote'] }}">
+                                        <input type="hidden" name="{{ $filter['name'] }}" value="{{ $filter['value'] ?? '' }}">
+                                        <input type="text" class="form-control cc-input-search" value="{{ $filter['selected_label'] ?? '' }}" placeholder="Rechercher..." autocomplete="off" aria-label="{{ $filter['label'] }}">
+                                        <div class="cc-combo-list" role="listbox" hidden></div>
+                                    </div>
+                                @elseif (($filter['type'] ?? 'text') === 'select')
                                     <select name="{{ $filter['name'] }}" class="form-control">
                                         <option value="">Tous</option>
                                         @foreach (($filter['options'] ?? []) as $option)
