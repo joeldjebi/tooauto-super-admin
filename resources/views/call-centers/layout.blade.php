@@ -147,6 +147,20 @@
         .cc-nav a:hover {
             background: var(--cc-fill-2);
         }
+        .cc-nav-badge {
+            background: var(--cc-red);
+            border-radius: 999px;
+            color: #fff;
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            line-height: 18px;
+            margin-left: auto;
+            min-width: 18px;
+            padding: 0 6px;
+            text-align: center;
+        }
+        .cc-nav a.active .cc-nav-badge { background: #fff; color: var(--cc-blue); }
         .cc-nav a.active {
             background: var(--cc-blue);
             color: #fff !important;
@@ -192,6 +206,19 @@
         .cc-mobile-only {
             display: none;
         }
+        .cc-role-badge {
+            background: var(--cc-fill);
+            border-radius: 999px;
+            color: var(--cc-label-2);
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .02em;
+            margin-top: 4px;
+            padding: 2px 8px;
+            text-transform: uppercase;
+        }
+        .cc-role-badge.is-superviseur { background: var(--cc-blue-tint); color: var(--cc-blue); }
         .cc-sidebar-footer {
             border-top: 1px solid var(--cc-separator);
             margin-top: 12px;
@@ -1480,6 +1507,21 @@
             }
         }
 
+        .cc-last-call {
+            color: var(--cc-label-2) !important;
+            display: flex;
+            flex-wrap: wrap;
+            font-size: 12px;
+            gap: 4px 6px;
+            align-items: center;
+            line-height: 1.35;
+            margin-top: 6px;
+            max-width: 260px;
+            text-decoration: none !important;
+        }
+        .cc-last-call:hover .cc-last-call-meta { color: var(--cc-blue); }
+        .cc-last-call strong { color: var(--cc-label); font-weight: 600; }
+
         @media (prefers-reduced-motion: reduce) {
             .cc-app *, .cc-app *::before, .cc-app *::after {
                 animation: none !important;
@@ -1493,6 +1535,9 @@
     @php
         $callCenterMenu = [
             ['key' => 'call-center-dashboard', 'label' => 'Dashboard', 'route' => route('call-center.dashboard'), 'icon' => 'dashboard', 'tone' => 'gray'],
+            ['key' => 'call-center-mes-rappels', 'label' => 'Mes rappels', 'route' => route('call-center.mes-rappels'), 'icon' => 'calendar', 'tone' => 'orange'],
+            ['key' => 'call-center-mon-activite', 'label' => 'Mon activite', 'route' => route('call-center.mon-activite'), 'icon' => 'rapports', 'tone' => 'blue'],
+            ['key' => 'call-center-appels', 'label' => 'Journal des appels', 'route' => route('call-center.interactions.index'), 'icon' => 'phone', 'tone' => 'green'],
             ['key' => 'call-center-alertes', 'label' => 'Alertes', 'route' => route('call-center.alertes'), 'icon' => 'alertes', 'tone' => 'red'],
             ['key' => 'call-center-users', 'label' => 'Users', 'route' => route('call-center.users'), 'icon' => 'users', 'tone' => 'blue'],
             ['key' => 'call-center-professionnels', 'label' => 'Professionnels', 'route' => route('call-center.professionnels'), 'icon' => 'professionnels', 'tone' => 'indigo'],
@@ -1508,6 +1553,16 @@
             ['key' => 'call-center-notification-send', 'label' => 'Ciblage notif', 'route' => route('call-center.notification-send.index'), 'icon' => 'notification-send', 'tone' => 'red'],
             ['key' => 'call-center-notification-programmes', 'label' => 'Notifs programmees', 'route' => route('call-center.notification-send.programmes'), 'icon' => 'notification-programmes', 'tone' => 'orange'],
         ];
+        // Badge "Mes rappels" : rappels en retard ou prevus aujourd'hui de l'agent connecte.
+        $dueCallbacks = auth('call_center')->check() ? \App\Support\CallCenterCallLog::dueCallbacksCount((int) auth('call_center')->id()) : 0;
+        $callCenterMenu[1]['badge'] = $dueCallbacks;
+
+        // Rapports : visibles uniquement par les superviseurs (role attribue par le super admin).
+        if (auth('call_center')->user()?->isSuperviseur()) {
+            array_splice($callCenterMenu, 3, 0, [[
+                'key' => 'call-center-rapports', 'label' => 'Rapports', 'route' => route('call-center.rapports'), 'icon' => 'rapports', 'tone' => 'purple',
+            ]]);
+        }
         $currentMenu = collect($callCenterMenu)->firstWhere('key', $menu ?? '');
         // Lu depuis le guard : certaines vues bouclent sur une variable $user qui ecrase celle du controleur.
         $callCenterUser = auth('call_center')->user() ?? ($user ?? null);
@@ -1520,9 +1575,12 @@
                 <span class="cc-brand-mark">
                     @include('call-centers.partials.icon', ['name' => 'users'])
                 </span>
-                <div>
+                <div style="min-width: 0;">
                     <h2>Call Center</h2>
                     <p title="{{ $userName }}">{{ $userName }}</p>
+                    @if($callCenterUser instanceof \App\Models\CallCenterUser)
+                        <span class="cc-role-badge {{ $callCenterUser->isSuperviseur() ? 'is-superviseur' : '' }}">{{ $callCenterUser->role_label }}</span>
+                    @endif
                 </div>
             </div>
 
@@ -1534,11 +1592,18 @@
                             @include('call-centers.partials.icon', ['name' => $item['icon']])
                         </span>
                         {{ $item['label'] }}
+                        @if(! empty($item['badge']))
+                            <span class="cc-nav-badge" title="{{ $item['badge'] }} rappel(s) en retard ou prevu(s) aujourd'hui">{{ $item['badge'] > 99 ? '99+' : $item['badge'] }}</span>
+                        @endif
                     </a>
                 @endforeach
             </nav>
 
             <div class="cc-sidebar-footer">
+                <a href="{{ route('call-center.profil') }}" class="btn {{ ($menu ?? '') === 'call-center-profil' ? 'btn-primary' : 'btn-plain' }} w-100 mb-2">
+                    @include('call-centers.partials.icon', ['name' => 'users'])
+                    Mon profil
+                </a>
                 <form action="{{ route('call-center.logout') }}" method="POST">
                     @csrf
                     <button type="submit" class="btn btn-outline-secondary w-100">
@@ -1552,7 +1617,7 @@
         <main class="cc-main">
             <header class="cc-topbar">
                 <div>
-                    <p class="cc-eyebrow">Espace Call Center{{ $currentMenu && $currentMenu['key'] !== 'call-center-dashboard' ? ' · ' . $currentMenu['label'] : '' }}</p>
+                    <p class="cc-eyebrow">Espace Call Center{{ $currentMenu && $currentMenu['key'] !== 'call-center-dashboard' ? ' · ' . $currentMenu['label'] : '' }}@if($callCenterUser instanceof \App\Models\CallCenterUser) · <a href="{{ route('call-center.profil') }}" class="cc-role-badge {{ $callCenterUser->isSuperviseur() ? 'is-superviseur' : '' }}" style="margin: 0; text-decoration: none;">{{ $callCenterUser->role_label }}</a>@endif</p>
                     <h1>{{ $title ?? 'Call Center' }}</h1>
                     @hasSection('lead')
                         <p class="cc-lead">@yield('lead')</p>
@@ -1734,5 +1799,8 @@
             });
         })();
     </script>
+    @if(auth('call_center')->check() && \Illuminate\Support\Facades\Route::has('call-center.interactions.store'))
+        @include('call-centers.partials.interaction-modal')
+    @endif
 </body>
 </html>

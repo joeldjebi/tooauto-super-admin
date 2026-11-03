@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Services\WasabiService;
+use App\Support\CallCenterCallLog;
+use App\Support\CallCenterOutcomes;
 use App\Support\SchemaCache;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
@@ -229,6 +231,7 @@ class CallCenterSpaceController extends Controller
 
         $selects = [
             'users.id as row_id',
+            'alerts.id as alert_id',
             DB::raw("TRIM(CONCAT(COALESCE(users.nom, ''), ' ', COALESCE(users.prenoms, ''))) as utilisateur"),
         ];
         $this->pushSelect($selects, 'users.mobile', 'mobile');
@@ -1781,13 +1784,28 @@ class CallCenterSpaceController extends Controller
         }
 
         // Les colonnes absentes du schema ne sont pas selectionnees : inutile d'afficher une colonne de tirets.
+        // Exceptions : colonnes construites par la vue (suivi d'appel, menu actions des contacts appelables).
         $firstItem = $items->getCollection()->first();
+        $hasCallActions = array_key_exists($menu, CallCenterOutcomes::MENU_CIBLES);
         if ($firstItem !== null) {
             $columns = array_filter(
                 $columns,
-                fn ($label, $key) => $key === 'suivi_appel' || property_exists($firstItem, $key),
+                fn ($label, $key) => $key === 'suivi_appel'
+                    || ($key === 'actions' && $hasCallActions)
+                    || property_exists($firstItem, $key),
                 ARRAY_FILTER_USE_BOTH
             );
+        }
+
+        // Dernier appel de chaque contact (tous agents) : evite qu'un autre agent rappelle sans le savoir.
+        if ($hasCallActions && array_key_exists('suivi_appel', $columns) && $items->count() > 0) {
+            $lastCalls = CallCenterCallLog::lastCalls(
+                CallCenterOutcomes::MENU_CIBLES[$menu],
+                $items->getCollection()->pluck('row_id')->all()
+            );
+            $items->getCollection()->each(function ($row) use ($lastCalls) {
+                $row->last_call = $lastCalls[(int) ($row->row_id ?? 0)] ?? null;
+            });
         }
 
         return view('call-centers.table', [
@@ -2143,6 +2161,10 @@ class CallCenterSpaceController extends Controller
                 ->where('user_id', $userId)
                 ->where('date_fin', '<', now()->toDateString())
                 ->count();
+        }
+
+        if ($contact) {
+            $contact->last_call = CallCenterCallLog::lastCalls('users', [$userId])[$userId] ?? null;
         }
 
         return $contact;

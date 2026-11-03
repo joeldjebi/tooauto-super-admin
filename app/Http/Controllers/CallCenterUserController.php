@@ -52,6 +52,7 @@ class CallCenterUserController extends Controller
             'indicatif' => ['required', 'string', 'max:8', 'regex:/^\+?\d+$/'],
             'mobile' => ['required', 'string', 'max:20', 'regex:/^[0-9\s\.\-]+$/'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:call_center_users,email'],
+            'role' => ['required', Rule::in(array_keys(CallCenterUser::ROLES))],
         ]);
 
         $mobile = $this->formatMobile($validated['indicatif'], $validated['mobile']);
@@ -69,6 +70,7 @@ class CallCenterUserController extends Controller
             'prenoms' => html_entity_decode($validated['prenoms']),
             'mobile' => $mobile,
             'email' => html_entity_decode($validated['email']),
+            'role' => $validated['role'],
             'password' => Hash::make($password),
             'statut' => true,
             'created_by_super_id' => auth()->id(),
@@ -135,6 +137,7 @@ class CallCenterUserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('call_center_users', 'email')->ignore($callCenter->id)],
             'password' => ['nullable', 'digits_between:6,12', 'confirmed'],
             'statut' => ['nullable', 'boolean'],
+            'role' => ['required', Rule::in(array_keys(CallCenterUser::ROLES))],
         ]);
 
         $callCenter->nom = html_entity_decode($validated['nom']);
@@ -142,6 +145,7 @@ class CallCenterUserController extends Controller
         $callCenter->mobile = html_entity_decode($validated['mobile']);
         $callCenter->email = html_entity_decode($validated['email']);
         $callCenter->statut = $request->boolean('statut', $callCenter->statut);
+        $callCenter->role = $validated['role'];
 
         if (!empty($validated['password'])) {
             $callCenter->password = Hash::make($validated['password']);

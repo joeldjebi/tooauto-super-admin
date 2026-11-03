@@ -16,6 +16,10 @@ use App\Http\Controllers\ProfessionnelController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\CallCenterUserController;
 use App\Http\Controllers\CallCenterAuthController;
+use App\Http\Controllers\CallCenterInteractionController;
+use App\Http\Controllers\CallCenterMySpaceController;
+use App\Http\Controllers\CallCenterProfileController;
+use App\Http\Controllers\CallCenterReportController;
 use App\Http\Controllers\CallCenterSpaceController;
 use App\Http\Controllers\NotificationCampaignController;
 use App\Http\Controllers\ReductionCardController;
@@ -420,6 +424,17 @@ Route::prefix('call-center')->middleware('compact.html')->group(function () {
     Route::middleware(['auth:call_center'])->group(function () {
         Route::get('/dashboard', [CallCenterSpaceController::class, 'dashboard'])->name('call-center.dashboard');
         Route::get('/alertes', [CallCenterSpaceController::class, 'alerts'])->name('call-center.alertes');
+        Route::get('/appels', [CallCenterInteractionController::class, 'index'])->name('call-center.interactions.index');
+        Route::get('/profil', [CallCenterProfileController::class, 'edit'])->name('call-center.profil');
+        Route::put('/profil', [CallCenterProfileController::class, 'update'])->name('call-center.profil.update');
+        Route::put('/profil/mot-de-passe', [CallCenterProfileController::class, 'updatePassword'])->name('call-center.profil.password');
+        Route::get('/mon-activite', [CallCenterMySpaceController::class, 'activity'])->name('call-center.mon-activite');
+        Route::get('/mes-rappels', [CallCenterMySpaceController::class, 'callbacks'])->name('call-center.mes-rappels');
+        Route::post('/mes-rappels/{interaction}/traite', [CallCenterMySpaceController::class, 'markCallbackDone'])->whereNumber('interaction')->name('call-center.mes-rappels.traite');
+        Route::get('/rapports', [CallCenterReportController::class, 'index'])->name('call-center.rapports');
+        Route::get('/rapports/export', [CallCenterReportController::class, 'export'])->name('call-center.rapports.export');
+        Route::post('/appels', [CallCenterInteractionController::class, 'store'])->name('call-center.interactions.store');
+        Route::get('/appels/historique/{cibleType}/{cibleId}', [CallCenterInteractionController::class, 'history'])->where(['cibleType' => '[a-z_]+', 'cibleId' => '[0-9]+'])->name('call-center.interactions.history');
         Route::get('/filtres/{token}', [CallCenterSpaceController::class, 'filterOptions'])->where('token', '[a-f0-9]{32}')->name('call-center.filter-options');
         Route::get('/users', [CallCenterSpaceController::class, 'users'])->name('call-center.users');
         Route::post('/users/{user}/suivi-appel', [CallCenterSpaceController::class, 'updateUserCallFollowUp'])->name('call-center.users.suivi-appel');

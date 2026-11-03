@@ -36,6 +36,14 @@
                             <a href="mailto:{{ $contactUser->email }}">{{ $contactUser->email }}</a>
                         @endif
                     </div>
+                    @if(!empty($contactUser->last_call))
+                        <div class="mt-2">
+                            @include('call-centers.partials.last-call', [
+                                'lastCall' => $contactUser->last_call,
+                                'historyUrl' => route('call-center.interactions.history', ['users', $contactUser->id]),
+                            ])
+                        </div>
+                    @endif
                     @if(filled($contactUser->call_center_commentaire ?? null))
                         <div class="cc-note-preview">{{ \Illuminate\Support\Str::limit($contactUser->call_center_commentaire, 160) }}</div>
                     @endif
@@ -43,6 +51,13 @@
             </div>
             <div class="cc-contact-actions">
                 @include('call-centers.partials.phone', ['mobile' => $contactUser->mobile ?? null, 'indicatif' => $contactUser->indicatif ?? null, 'whatsapp' => (string) ($contactUser->is_whatsapp ?? '0') === '1', 'size' => 'lg'])
+                @if(Route::has('call-center.interactions.store'))
+                    <button type="button" class="btn btn-sm btn-primary" data-cc-log="{{ json_encode(['cible_type' => 'users', 'cible_id' => (int) $contactUser->id, 'nom' => $contactName]) }}">
+                        @include('call-centers.partials.icon', ['name' => 'phone'])
+                        Enregistrer un appel
+                    </button>
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ route('call-center.interactions.history', ['users', $contactUser->id]) }}">Historique</a>
+                @endif
                 @if($contactHasFollowUp)
                     <form action="{{ route('call-center.users.suivi-appel', $contactUser->id) }}" method="POST" class="mb-0">
                         @csrf
@@ -248,10 +263,19 @@
                                                         <span class="badge badge-info">Commente</span>
                                                     @endif
                                                 </div>
+                                                @php
+                                                    $rowCibleType = \App\Support\CallCenterOutcomes::MENU_CIBLES[$menu ?? ''] ?? null;
+                                                @endphp
+                                                @if($rowCibleType && !empty($item->last_call))
+                                                    @include('call-centers.partials.last-call', [
+                                                        'lastCall' => $item->last_call,
+                                                        'historyUrl' => route('call-center.interactions.history', [$rowCibleType, $item->row_id]),
+                                                    ])
+                                                @endif
                                             @else
                                                 <span class="cc-muted">&mdash;</span>
                                             @endif
-                                        @elseif ($key === 'actions' && in_array(($menu ?? ''), ['call-center-users', 'call-center-alertes', 'call-center-professionnels', 'call-center-etablissements', 'call-center-concessionnaires', 'call-center-station-services', 'call-center-station-de-lavages'], true))
+                                        @elseif ($key === 'actions' && empty($relatedUserId) && in_array(($menu ?? ''), ['call-center-users', 'call-center-alertes', 'call-center-professionnels', 'call-center-etablissements', 'call-center-concessionnaires', 'call-center-station-services', 'call-center-station-de-lavages'], true))
                                             @php
                                                 $entityId = $item->row_id ?? null;
                                                 $routeName = [
@@ -273,6 +297,18 @@
                                                 $badgeLabel = $dejaAppele ? 'Deja appele' : 'Non appele';
                                                 $badgeClass = $dejaAppele ? 'badge-success' : 'badge-light';
                                                 $commentBlockId = 'cc-comment-' . ($menu ?? 'item') . '-' . $entityId;
+                                                $logCibleType = \App\Support\CallCenterOutcomes::MENU_CIBLES[$menu] ?? null;
+                                                $logNom = trim((string) ($item->utilisateur ?? $item->name ?? trim(($item->nom ?? '') . ' ' . ($item->prenoms ?? ''))));
+                                                $logAlerte = ($item->alert_id ?? null)
+                                                    ? trim(($item->type_alerte ?? 'Alerte') . (filled($item->vehicule ?? null) ? ' · ' . $item->vehicule : '') . (filled($item->date_fin ?? null) ? ' · fin ' . \Carbon\Carbon::parse($item->date_fin)->format('d/m/Y') : ''))
+                                                    : null;
+                                                $logPayload = $logCibleType ? [
+                                                    'cible_type' => $logCibleType,
+                                                    'cible_id' => (int) $entityId,
+                                                    'alert_id' => $item->alert_id ?? null,
+                                                    'nom' => $logNom !== '' ? $logNom : '#' . $entityId,
+                                                    'alerte' => $logAlerte,
+                                                ] : null;
                                             @endphp
 
                                             @if($entityId)
@@ -299,6 +335,16 @@
                                                                     <span class="cc-menu-label mb-0">Suivi d'appel</span>
                                                                     <span class="badge {{ $badgeClass }}"><span class="cc-dot"></span>{{ $badgeLabel }}</span>
                                                                 </div>
+
+                                                                @if($logPayload && Route::has('call-center.interactions.store'))
+                                                                    <div class="cc-action-buttons mb-2">
+                                                                        <button type="button" class="btn btn-sm btn-primary" data-cc-log="{{ json_encode($logPayload) }}">
+                                                                            @include('call-centers.partials.icon', ['name' => 'phone'])
+                                                                            Enregistrer un appel
+                                                                        </button>
+                                                                        <a class="btn btn-sm btn-outline-secondary" href="{{ route('call-center.interactions.history', [$logCibleType, $entityId]) }}">Historique</a>
+                                                                    </div>
+                                                                @endif
 
                                                                 <div class="cc-action-buttons">
                                                                     <form action="{{ route($routeName, $entityId) }}" method="POST" class="d-inline">

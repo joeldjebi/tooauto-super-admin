@@ -44,6 +44,7 @@
                                     <th>Prenoms</th>
                                     <th>Mobile</th>
                                     <th>Email</th>
+                                    <th>Role</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -55,6 +56,9 @@
                                         <td>{{ $user->prenoms }}</td>
                                         <td>{{ $user->mobile }}</td>
                                         <td>{{ $user->email }}</td>
+                                        <td>
+                                            <span class="badge {{ $user->isSuperviseur() ? 'badge-primary' : 'badge-light' }}">{{ $user->role_label }}</span>
+                                        </td>
                                         <td>
                                             <div class="dropdown">
                                                 <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="callCenterActions{{ $user->id }}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

@@ -57,6 +57,17 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
+                                <label>Role</label>
+                                <select class="form-control" name="role" required>
+                                    @foreach(\App\Models\CallCenterUser::ROLES as $roleKey => $roleLabel)
+                                        <option value="{{ $roleKey }}" {{ old('role', $callCenter->role ?? 'agent') === $roleKey ? 'selected' : '' }}>{{ $roleLabel }}</option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">Le superviseur voit les rapports de toute l'equipe.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
                                 <label>Nouveau mot de passe numerique</label>
                                 <input class="form-control" name="password" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="Laisser vide pour ne pas changer">
                             </div>

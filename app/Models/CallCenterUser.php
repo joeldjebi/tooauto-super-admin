@@ -10,6 +10,14 @@ class CallCenterUser extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    public const ROLE_AGENT = 'agent';
+    public const ROLE_SUPERVISEUR = 'superviseur';
+
+    public const ROLES = [
+        self::ROLE_AGENT => 'Agent',
+        self::ROLE_SUPERVISEUR => 'Superviseur',
+    ];
+
     protected $table = 'call_center_users';
 
     protected $fillable = [
@@ -17,6 +25,7 @@ class CallCenterUser extends Authenticatable
         'prenoms',
         'mobile',
         'email',
+        'role',
         'password',
         'statut',
         'created_by_super_id',
@@ -32,6 +41,16 @@ class CallCenterUser extends Authenticatable
         'statut' => 'boolean',
         'email_verified_at' => 'datetime',
     ];
+
+    public function isSuperviseur(): bool
+    {
+        return $this->role === self::ROLE_SUPERVISEUR;
+    }
+
+    public function getRoleLabelAttribute(): string
+    {
+        return self::ROLES[$this->role ?? self::ROLE_AGENT] ?? self::ROLES[self::ROLE_AGENT];
+    }
 
     public function getFullNameAttribute(): string
     {

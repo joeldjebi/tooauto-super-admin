@@ -58,10 +58,21 @@
                                 <input class="form-control" name="mobile" type="text" value="{{ old('mobile') }}" placeholder="0700000000" required>
                             </div>
                         </div>
-                        <div class="col-md-12">
+                        <div class="col-md-6">
                             <div class="form-group">
                                 <label>Email</label>
                                 <input class="form-control" name="email" type="email" value="{{ old('email') }}" placeholder="callcenter@tooauto.com" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Role</label>
+                                <select class="form-control" name="role" required>
+                                    @foreach(\App\Models\CallCenterUser::ROLES as $roleKey => $roleLabel)
+                                        <option value="{{ $roleKey }}" {{ old('role', 'agent') === $roleKey ? 'selected' : '' }}>{{ $roleLabel }}</option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">Le superviseur voit les rapports de toute l'equipe.</small>
                             </div>
                         </div>
                     </div>
