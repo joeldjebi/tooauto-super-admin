@@ -378,6 +378,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/notification-send/create', [NotificationCampaignController::class, 'create'])->name('notification-send.create');
     Route::post('/notification-send', [NotificationCampaignController::class, 'store'])->name('notification-send.store');
     Route::get('/notification-send/programmes', [NotificationCampaignController::class, 'programmes'])->name('notification-send.programmes');
+    Route::post('/notification-send/import', [NotificationCampaignController::class, 'import'])->name('notification-send.import');
+    Route::get('/notification-send/import/modele', [NotificationCampaignController::class, 'importTemplate'])->name('notification-send.import-template');
+    Route::post('/notification-send/import/valider', [NotificationCampaignController::class, 'confirmImport'])->name('notification-send.import-confirm');
+    Route::post('/notification-send/import/annuler', [NotificationCampaignController::class, 'cancelImport'])->name('notification-send.import-cancel');
+    Route::post('/notification-send/import/ligne/{line}', [NotificationCampaignController::class, 'updateImportRow'])->whereNumber('line')->name('notification-send.import-row-update');
+    Route::post('/notification-send/import/ligne/{line}/retirer', [NotificationCampaignController::class, 'removeImportRow'])->whereNumber('line')->name('notification-send.import-row-remove');
     Route::get('/notification-send/logs', [NotificationCampaignController::class, 'logs'])->name('notification-send.logs');
     Route::post('/notification-send/{notificationCampaign}/send-now', [NotificationCampaignController::class, 'sendNow'])->name('notification-send.send-now');
     Route::post('/notification-send/{notificationCampaign}/cancel', [NotificationCampaignController::class, 'cancel'])->name('notification-send.cancel');
@@ -443,6 +449,12 @@ Route::prefix('call-center')->group(function () {
         Route::get('/notification-send/create', [NotificationCampaignController::class, 'create'])->name('call-center.notification-send.create');
         Route::post('/notification-send', [NotificationCampaignController::class, 'store'])->name('call-center.notification-send.store');
         Route::get('/notification-send/programmes', [NotificationCampaignController::class, 'programmes'])->name('call-center.notification-send.programmes');
+        Route::post('/notification-send/import', [NotificationCampaignController::class, 'import'])->name('call-center.notification-send.import');
+        Route::get('/notification-send/import/modele', [NotificationCampaignController::class, 'importTemplate'])->name('call-center.notification-send.import-template');
+        Route::post('/notification-send/import/valider', [NotificationCampaignController::class, 'confirmImport'])->name('call-center.notification-send.import-confirm');
+        Route::post('/notification-send/import/annuler', [NotificationCampaignController::class, 'cancelImport'])->name('call-center.notification-send.import-cancel');
+        Route::post('/notification-send/import/ligne/{line}', [NotificationCampaignController::class, 'updateImportRow'])->whereNumber('line')->name('call-center.notification-send.import-row-update');
+        Route::post('/notification-send/import/ligne/{line}/retirer', [NotificationCampaignController::class, 'removeImportRow'])->whereNumber('line')->name('call-center.notification-send.import-row-remove');
         Route::get('/notification-send/logs', [NotificationCampaignController::class, 'logs'])->name('call-center.notification-send.logs');
         Route::post('/notification-send/{notificationCampaign}/send-now', [NotificationCampaignController::class, 'sendNow'])->name('call-center.notification-send.send-now');
         Route::post('/notification-send/{notificationCampaign}/cancel', [NotificationCampaignController::class, 'cancel'])->name('call-center.notification-send.cancel');

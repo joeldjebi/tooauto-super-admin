@@ -9,10 +9,12 @@ use App\Models\User;
 use App\Models\Ville;
 use App\Models\Commune;
 use App\Services\NotificationCampaignService;
+use App\Services\SpreadsheetReader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class NotificationCampaignController extends Controller
@@ -105,6 +107,13 @@ class NotificationCampaignController extends Controller
             'indexRoute' => $this->routeName('notification-send.index'),
             'createRoute' => $this->routeName('notification-send.create'),
             'storeRoute' => $this->routeName('notification-send.store'),
+            'importRoute' => $this->routeName('notification-send.import'),
+            'importTemplateRoute' => $this->routeName('notification-send.import-template'),
+            'importConfirmRoute' => $this->routeName('notification-send.import-confirm'),
+            'importCancelRoute' => $this->routeName('notification-send.import-cancel'),
+            'importRowUpdateRouteName' => $this->routeName('notification-send.import-row-update'),
+            'importRowRemoveRouteName' => $this->routeName('notification-send.import-row-remove'),
+            'importPreview' => $this->importPreview(),
             'programmesRoute' => $this->routeName('notification-send.programmes'),
             'logsRoute' => $this->routeName('notification-send.logs'),
             'sendNowRouteName' => $this->routeName('notification-send.send-now'),
@@ -165,6 +174,183 @@ class NotificationCampaignController extends Controller
         session()->flash('message', 'Notification programmée avec succès.');
 
         return redirect()->route($this->routeName('notification-send.programmes'));
+    }
+
+    public function import(Request $request, NotificationCampaignService $service, SpreadsheetReader $reader)
+    {
+        $this->authorizeAccess();
+
+        $request->validate([
+            'import_file' => 'required|file|max:5120',
+        ], [
+            'import_file.required' => 'Choisissez un fichier .xlsx ou .csv à importer.',
+            'import_file.max' => 'Le fichier ne doit pas dépasser 5 Mo.',
+        ]);
+
+        try {
+            $rows = $reader->read($request->file('import_file'));
+        } catch (\RuntimeException $exception) {
+            return back()->withErrors(['import_file' => $exception->getMessage()]);
+        }
+
+        $header = array_shift($rows) ?? [];
+        $columns = $this->importColumns($header);
+        foreach (['title' => 'titre', 'body' => 'message', 'scheduled_at' => 'date_programmation', 'audience_type' => 'destinataires'] as $field => $label) {
+            if (! isset($columns[$field])) {
+                return back()->withErrors(['import_file' => "Colonne obligatoire manquante : {$label}. Téléchargez le modèle pour voir le format attendu."]);
+            }
+        }
+
+        $previewRows = [];
+        $validIdsByAudience = [];
+
+        foreach ($rows as $index => $row) {
+            $line = $index + 2;
+            $values = collect($columns)->map(fn ($position) => is_string($row[$position] ?? null) ? trim($row[$position]) : ($row[$position] ?? null));
+
+            if ($values->filter(fn ($value) => $value !== null && $value !== '')->isEmpty()) {
+                continue;
+            }
+
+            $previewRows[] = $this->buildImportRow($line, $values->all(), $service, $validIdsByAudience);
+        }
+
+        if (empty($previewRows)) {
+            return back()->withErrors(['import_file' => 'Le fichier ne contient aucune notification à importer.']);
+        }
+
+        if (count($previewRows) > 500) {
+            return back()->withErrors(['import_file' => 'Maximum 500 notifications par import.']);
+        }
+
+        // L'aperçu est conservé dans un fichier temporaire (seule la clé est en session) jusqu'à validation.
+        $this->forgetImportPreview();
+        $token = (string) \Illuminate\Support\Str::uuid();
+        Storage::disk('local')->put($this->importPreviewPath($token), json_encode([
+            'file_name' => $request->file('import_file')->getClientOriginalName(),
+            'actor' => $this->actorType() . ':' . $this->actorId(),
+            'rows' => $previewRows,
+        ]));
+        session()->put('notification_import_token', $token);
+
+        return redirect()->route($this->routeName('notification-send.programmes'));
+    }
+
+    public function confirmImport()
+    {
+        $this->authorizeAccess();
+
+        $preview = $this->importPreview();
+        if (! $preview) {
+            return back()->withErrors(['import_file' => 'Aucun import en attente. Chargez à nouveau le fichier.']);
+        }
+
+        $invalidLines = collect($preview['rows'])->filter(fn ($row) => ! empty($row['errors']))->pluck('line');
+        if ($invalidLines->isNotEmpty()) {
+            return back()->withErrors(['import_file' => 'Corrigez les lignes en erreur (' . $invalidLines->implode(', ') . ') puis rechargez le fichier.']);
+        }
+
+        // La date a pu passer entre l'aperçu et la validation.
+        $pastLines = collect($preview['rows'])
+            ->filter(fn ($row) => \Carbon\Carbon::parse($row['campaign']['scheduled_at'])->lte(now()))
+            ->pluck('line');
+        if ($pastLines->isNotEmpty()) {
+            return back()->withErrors(['import_file' => 'Date de programmation dépassée pour les lignes ' . $pastLines->implode(', ') . '. Corrigez le fichier puis rechargez-le.']);
+        }
+
+        DB::transaction(function () use ($preview) {
+            foreach ($preview['rows'] as $row) {
+                NotificationCampaign::create($row['campaign'] + [
+                    'status' => NotificationCampaign::STATUS_SCHEDULED,
+                    'created_by' => $this->actorId(),
+                    'created_by_type' => $this->actorType(),
+                ]);
+            }
+        });
+
+        $this->forgetImportPreview();
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', count($preview['rows']) . ' notification(s) programmée(s) depuis le fichier.');
+
+        return redirect()->route($this->routeName('notification-send.programmes'));
+    }
+
+    public function updateImportRow(Request $request, int $line, NotificationCampaignService $service)
+    {
+        $this->authorizeAccess();
+
+        $preview = $this->importPreview();
+        $index = $preview ? collect($preview['rows'])->search(fn ($row) => $row['line'] === $line) : false;
+        if ($index === false) {
+            return back()->withErrors(['import_file' => 'Ligne introuvable dans l\'import en attente. Chargez à nouveau le fichier.']);
+        }
+
+        $validIdsByAudience = [];
+        $preview['rows'][$index] = $this->buildImportRow($line, $request->only([
+            'title', 'body', 'scheduled_at', 'audience_type', 'ids', 'image_url', 'action_url',
+        ]), $service, $validIdsByAudience);
+        $this->saveImportPreview($preview);
+
+        $errors = $preview['rows'][$index]['errors'];
+        session()->flash('type', empty($errors) ? 'alert-success' : 'alert-danger');
+        session()->flash('message', empty($errors) ? "Ligne {$line} corrigée." : "Ligne {$line} enregistrée, mais elle contient encore des erreurs.");
+
+        return redirect()->to(route($this->routeName('notification-send.programmes')) . '#notification-import-preview');
+    }
+
+    public function removeImportRow(int $line)
+    {
+        $this->authorizeAccess();
+
+        $preview = $this->importPreview();
+        if (! $preview) {
+            return back()->withErrors(['import_file' => 'Aucun import en attente. Chargez à nouveau le fichier.']);
+        }
+
+        $preview['rows'] = collect($preview['rows'])->reject(fn ($row) => $row['line'] === $line)->values()->all();
+        if (empty($preview['rows'])) {
+            return $this->cancelImport();
+        }
+
+        $this->saveImportPreview($preview);
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', "Ligne {$line} retirée de l'import.");
+
+        return redirect()->to(route($this->routeName('notification-send.programmes')) . '#notification-import-preview');
+    }
+
+    public function cancelImport()
+    {
+        $this->authorizeAccess();
+
+        $this->forgetImportPreview();
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', 'Import annulé.');
+
+        return redirect()->route($this->routeName('notification-send.programmes'));
+    }
+
+    public function importTemplate()
+    {
+        $this->authorizeAccess();
+
+        $rows = [
+            ['titre', 'message', 'date_programmation', 'destinataires', 'ids', 'image_url', 'lien_action'],
+            ['Rappel vidange', 'Pensez à faire la vidange de votre véhicule.', now()->addDay()->format('d/m/Y') . ' 09:00', NotificationCampaign::AUDIENCE_ALL_USERS, '', '', ''],
+            ['Offre spéciale', 'Profitez de -20% ce week-end.', now()->addDays(2)->format('d/m/Y') . ' 10:30', NotificationCampaign::AUDIENCE_SELECTED_USERS, '12,45,78', '', 'https://tooauto.com'],
+        ];
+
+        return response()->streamDownload(function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            foreach ($rows as $row) {
+                fputcsv($handle, $row, ';');
+            }
+            fclose($handle);
+        }, 'modele_notifications_programmees.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function sendNow(NotificationCampaign $notificationCampaign, NotificationCampaignService $service)
@@ -299,6 +485,190 @@ class NotificationCampaignController extends Controller
         return collect($filters)
             ->only(['user_ids', 'keyword', 'user_id', 'fcm_token', 'statut', 'ville_id', 'commune_id'])
             ->all();
+    }
+
+    private function buildImportRow(int $line, array $values, NotificationCampaignService $service, array &$validIdsByAudience): array
+    {
+        $audienceType = $this->importAudienceType((string) $this->importValue($values, 'audience_type'));
+        $scheduledAt = $this->importDate($this->importValue($values, 'scheduled_at'));
+
+        $validator = \Illuminate\Support\Facades\Validator::make([
+            'titre' => (string) $this->importValue($values, 'title'),
+            'message' => (string) $this->importValue($values, 'body'),
+            'image_url' => $this->importValue($values, 'image_url') ?: null,
+            'lien_action' => $this->importValue($values, 'action_url') ?: null,
+        ], [
+            'titre' => 'required|string|max:255',
+            'message' => 'required|string|max:1000',
+            'image_url' => 'nullable|url|max:500',
+            'lien_action' => 'nullable|url|max:500',
+        ], [
+            'required' => ':attribute obligatoire.',
+            'max' => ':attribute trop long (:max caractères max).',
+            'url' => ':attribute doit être une URL valide (https://...).',
+        ]);
+
+        $rowErrors = $validator->errors()->all();
+
+        if (! $audienceType) {
+            $rowErrors[] = 'destinataires « ' . $this->importValue($values, 'audience_type') . ' » inconnu.';
+        }
+
+        if (! $scheduledAt) {
+            $rowErrors[] = 'date_programmation invalide (format attendu : JJ/MM/AAAA HH:MM).';
+        } elseif ($scheduledAt->lte(now())) {
+            $rowErrors[] = 'date_programmation doit être dans le futur.';
+        }
+
+        $filters = [];
+        $selectionKey = $audienceType ? ($this->selectedAudienceTypes()[$audienceType] ?? null) : null;
+        if ($selectionKey) {
+            $filters = $this->cleanFilters([$selectionKey => [(string) $this->importValue($values, 'ids')]], $audienceType);
+            $ids = $filters[$selectionKey];
+
+            if (empty($ids)) {
+                $rowErrors[] = 'ids obligatoires pour ce type de destinataires.';
+            } else {
+                $validIdsByAudience[$audienceType] ??= $service->selectionOptions($audienceType)
+                    ->pluck('recipient_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->flip();
+                $unknownIds = collect($ids)->reject(fn ($id) => $validIdsByAudience[$audienceType]->has($id));
+                if ($unknownIds->isNotEmpty()) {
+                    $rowErrors[] = 'ids introuvables ou sans token FCM : ' . $unknownIds->implode(', ') . '.';
+                }
+            }
+        }
+
+        return [
+            'line' => $line,
+            'errors' => $rowErrors,
+            // Valeurs d'origine pour pré-remplir le formulaire de correction quand elles n'ont pas pu être interprétées.
+            'raw' => [
+                'scheduled_at' => (string) $this->importValue($values, 'scheduled_at'),
+                'ids' => (string) $this->importValue($values, 'ids'),
+            ],
+            'campaign' => [
+                'title' => html_entity_decode((string) $this->importValue($values, 'title')),
+                'body' => html_entity_decode((string) $this->importValue($values, 'body')),
+                'image_url' => $this->importValue($values, 'image_url') ?: null,
+                'action_url' => $this->importValue($values, 'action_url') ?: null,
+                'audience_type' => $audienceType ?: (string) $this->importValue($values, 'audience_type'),
+                'audience_filters' => $filters,
+                'scheduled_at' => $scheduledAt?->format('Y-m-d H:i:s'),
+            ],
+        ];
+    }
+
+    private function importValue(array $values, string $key)
+    {
+        $value = $values[$key] ?? null;
+
+        return is_string($value) ? trim($value) : $value;
+    }
+
+    private function importPreviewPath(string $token): string
+    {
+        return 'notification-imports/' . $token . '.json';
+    }
+
+    private function importPreview(): ?array
+    {
+        $token = session('notification_import_token');
+        if (! $token || ! Storage::disk('local')->exists($this->importPreviewPath($token))) {
+            return null;
+        }
+
+        $preview = json_decode(Storage::disk('local')->get($this->importPreviewPath($token)), true);
+
+        // Un aperçu n'est valable que pour la personne qui l'a chargé.
+        if (! is_array($preview) || ($preview['actor'] ?? null) !== $this->actorType() . ':' . $this->actorId()) {
+            return null;
+        }
+
+        return $preview;
+    }
+
+    private function saveImportPreview(array $preview): void
+    {
+        Storage::disk('local')->put($this->importPreviewPath(session('notification_import_token')), json_encode($preview));
+    }
+
+    private function forgetImportPreview(): void
+    {
+        $token = session()->pull('notification_import_token');
+        if ($token) {
+            Storage::disk('local')->delete($this->importPreviewPath($token));
+        }
+    }
+
+    private function importColumns(array $header): array
+    {
+        $aliases = [
+            'title' => ['titre', 'title'],
+            'body' => ['message', 'body', 'contenu'],
+            'scheduled_at' => ['date_programmation', 'date', 'scheduled_at', 'date_envoi'],
+            'audience_type' => ['destinataires', 'cible', 'audience', 'audience_type'],
+            'ids' => ['ids', 'id', 'destinataires_ids'],
+            'image_url' => ['image_url', 'image'],
+            'action_url' => ['lien_action', 'action_url', 'lien'],
+        ];
+
+        $columns = [];
+        foreach ($header as $position => $name) {
+            $normalized = $this->normalizeImportKey((string) $name);
+            foreach ($aliases as $field => $names) {
+                if (! isset($columns[$field]) && in_array($normalized, $names, true)) {
+                    $columns[$field] = $position;
+                }
+            }
+        }
+
+        return $columns;
+    }
+
+    private function importAudienceType(string $value): ?string
+    {
+        $normalized = $this->normalizeImportKey($value);
+
+        foreach ($this->audienceLabels() as $type => $label) {
+            if ($type === NotificationCampaign::AUDIENCE_ALERT_EXPIRATION) {
+                continue;
+            }
+
+            if ($normalized === $type || $normalized === $this->normalizeImportKey($label)) {
+                return $type;
+            }
+        }
+
+        return null;
+    }
+
+    private function importDate($value): ?\Carbon\Carbon
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        // Date Excel stockée en nombre de jours depuis le 30/12/1899.
+        if (is_int($value) || is_float($value)) {
+            return \Carbon\Carbon::create(1899, 12, 30)->addSeconds((int) round($value * 86400))->seconds(0);
+        }
+
+        foreach (['d/m/Y H:i', 'd/m/Y H:i:s', 'd-m-Y H:i', 'Y-m-d H:i', 'Y-m-d H:i:s', 'Y-m-d\TH:i'] as $format) {
+            $date = \DateTime::createFromFormat('!' . $format, $value);
+            $dateErrors = \DateTime::getLastErrors();
+            if ($date && (! $dateErrors || ($dateErrors['warning_count'] === 0 && $dateErrors['error_count'] === 0))) {
+                return \Carbon\Carbon::instance($date)->seconds(0);
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeImportKey(string $value): string
+    {
+        return trim(preg_replace('/[^a-z0-9]+/', '_', strtolower(\Illuminate\Support\Str::ascii(trim($value)))), '_');
     }
 
     private function audienceViewData(Request $request, NotificationCampaignService $service): array

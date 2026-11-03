@@ -154,6 +154,15 @@ Un lavage ou une station peut avoir plusieurs appareils. Le service envoie a cha
 
 Les fichiers de vues sont dans `resources/views/notification_send`. Le formulaire se trouve directement dans `programmes.blade.php`. Ne pas recreer un ecran intermediaire sans demande explicite.
 
+### Import Excel / CSV
+
+Sur `/notification-send/programmes` (et sous `/call-center`), l'admin peut charger un `.xlsx` ou `.csv` (5 Mo, 500 lignes max) : une ligne = une campagne `scheduled`. Colonnes : `titre`, `message`, `date_programmation` (JJ/MM/AAAA HH:MM ou date Excel, obligatoirement future), `destinataires` (code d'audience ou libelle, sauf `alert_expiration`), `ids` (obligatoire pour `selected_*`), `image_url`, `lien_action`. Modele CSV : `notification-send.import-template`.
+
+- `SpreadsheetReader` lit CSV (`;` ou `,`, UTF-8 ou Windows-1252) et la premiere feuille XLSX via `ZipArchive`, sans PhpSpreadsheet. L'extension PHP `zip` est requise pour les `.xlsx`.
+- Flux en deux etapes : `import` analyse et valide chaque ligne, puis ecrit un apercu JSON dans `storage/app/notification-imports/{uuid}.json` ; seule la cle est en session (`notification_import_token`). L'apercu est affiche en haut de la page. `confirmImport` cree les campagnes en transaction, uniquement si aucune ligne n'est en erreur et que toutes les dates sont encore futures ; `cancelImport` supprime l'apercu. Un apercu n'est lisible que par l'acteur qui l'a charge.
+- Depuis l'apercu, chaque ligne peut etre corrigee (`updateImportRow`, formulaire depliable sous la ligne) ou retiree (`removeImportRow`). La correction repasse par `buildImportRow()`, la meme validation que le chargement du fichier. Pour les audiences `selected_*`, le formulaire propose une liste a cocher construite en JS a partir de `$selectionOptions` (deja charge par la page), serialisee dans le champ cache `ids`.
+- Les `ids` des audiences `selected_*` sont verifies contre `selectionOptions()` : un id inconnu ou sans token bloque la ligne. Ne jamais accepter une selection vide, car `whereSelectedIds()` n'applique aucun filtre sur une liste vide et la campagne partirait a toute l'audience.
+
 ### Etats et audiences
 
 Etats de campagne : `draft`, `scheduled`, `sending`, `sent`, `failed`, `cancelled`.
@@ -181,6 +190,8 @@ Laravel planifie la commande chaque minute dans `app/Console/Kernel.php` :
 ```php
 $schedule->command('notification-campaigns:send-due --limit=50')->everyMinute();
 ```
+
+La commande `notification-imports:clean --hours=24` tourne chaque heure et supprime les apercus d'import (`storage/app/notification-imports/`) abandonnes depuis plus de 24 h.
 
 Le verrou global `withoutOverlapping()` a ete retire pour ce traitement. La reservation atomique protege des doublons et permet au passage suivant de prendre une autre campagne si un envoi est long.
 

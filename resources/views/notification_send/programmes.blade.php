@@ -81,6 +81,186 @@
 
 <div class="row">
     <div class="col-lg-12 col-md-12">
+        @if($importPreview)
+            @php
+                $previewRows = collect($importPreview['rows']);
+                $invalidCount = $previewRows->filter(fn ($row) => ! empty($row['errors']))->count();
+                $importRecipientOptions = $selectionOptions->groupBy('audience_type')->map(fn ($recipients) => $recipients->map(function ($recipient) {
+                    $name = trim(($recipient->nom ?? '') . ' ' . ($recipient->prenoms ?? '')) ?: 'Destinataire';
+                    $contact = $recipient->telephone ?? $recipient->mobile ?? $recipient->email ?? '';
+
+                    return ['id' => (int) $recipient->recipient_id, 'label' => '#' . $recipient->recipient_id . ' - ' . $name . ($contact ? ' - ' . $contact : '')];
+                })->values());
+            @endphp
+            <script>window.notificationImportRecipients = @json($importRecipientOptions);</script>
+            <div class="card mb-4 border {{ $invalidCount ? 'border-danger' : 'border-success' }}" id="notification-import-preview">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                        <div>
+                            <h4 class="card-title mb-1">Aperçu de l'import</h4>
+                            <div class="small text-muted">{{ $importPreview['file_name'] }}</div>
+                        </div>
+                        <div>
+                            <span class="badge badge-light border">{{ $previewRows->count() }} ligne(s)</span>
+                            <span class="badge badge-success">{{ $previewRows->count() - $invalidCount }} valide(s)</span>
+                            @if($invalidCount)
+                                <span class="badge badge-danger">{{ $invalidCount }} en erreur</span>
+                            @endif
+                        </div>
+                    </div>
+
+                    @if($invalidCount)
+                        <div class="alert alert-danger py-2">
+                            Corrigez les lignes en rouge avec le bouton « Corriger », retirez-les, ou rechargez un fichier corrigé. Aucune notification n'est créée tant que l'import n'est pas validé.
+                        </div>
+                    @endif
+
+                    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Ligne</th>
+                                    <th>Notification</th>
+                                    <th>Programmation</th>
+                                    <th>Destinataires</th>
+                                    <th>Liens</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($previewRows as $row)
+                                    @php
+                                        $previewCampaign = $row['campaign'];
+                                        $previewIds = collect($previewCampaign['audience_filters'])->flatten()->filter();
+                                    @endphp
+                                    <tr class="{{ empty($row['errors']) ? '' : 'table-danger' }}">
+                                        <td>{{ $row['line'] }}</td>
+                                        <td style="min-width: 240px;">
+                                            <strong>{{ $previewCampaign['title'] ?: '-' }}</strong>
+                                            <div class="small text-muted">{{ \Illuminate\Support\Str::limit($previewCampaign['body'], 150) }}</div>
+                                        </td>
+                                        <td style="min-width: 140px;">
+                                            {{ $previewCampaign['scheduled_at'] ? \Carbon\Carbon::parse($previewCampaign['scheduled_at'])->format('d/m/Y H:i') : '-' }}
+                                        </td>
+                                        <td style="min-width: 180px;">
+                                            {{ $audienceLabels[$previewCampaign['audience_type']] ?? ($previewCampaign['audience_type'] ?: '-') }}
+                                            @if($previewIds->isNotEmpty())
+                                                <div class="small text-muted" title="{{ $previewIds->implode(', ') }}">
+                                                    {{ $previewIds->count() }} id(s) : {{ \Illuminate\Support\Str::limit($previewIds->implode(', '), 60) }}
+                                                </div>
+                                            @endif
+                                        </td>
+                                        <td class="small" style="max-width: 200px; word-break: break-all;">
+                                            @if($previewCampaign['image_url'])<div>Image : {{ $previewCampaign['image_url'] }}</div>@endif
+                                            @if($previewCampaign['action_url'])<div>Lien : {{ $previewCampaign['action_url'] }}</div>@endif
+                                        </td>
+                                        <td style="min-width: 200px;">
+                                            @if(empty($row['errors']))
+                                                <span class="badge badge-success">OK</span>
+                                            @else
+                                                <ul class="small text-danger pl-3 mb-0">
+                                                    @foreach($row['errors'] as $rowError)
+                                                        <li>{{ $rowError }}</li>
+                                                    @endforeach
+                                                </ul>
+                                            @endif
+                                        </td>
+                                        <td style="min-width: 150px;">
+                                            <button type="button" class="btn btn-sm {{ empty($row['errors']) ? 'btn-outline-primary' : 'btn-primary' }} notification-import-edit-toggle" data-target="notification-import-edit-{{ $row['line'] }}">
+                                                {{ empty($row['errors']) ? 'Modifier' : 'Corriger' }}
+                                            </button>
+                                            <form method="POST" action="{{ route($importRowRemoveRouteName, $row['line']) }}" class="d-inline" onsubmit="return confirm('Retirer la ligne {{ $row['line'] }} de l\'import ?');">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Retirer</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    @php
+                                        $editIds = $previewIds->isNotEmpty() ? $previewIds->implode(',') : ($row['raw']['ids'] ?? '');
+                                        $editDate = $previewCampaign['scheduled_at'] ? \Carbon\Carbon::parse($previewCampaign['scheduled_at'])->format('Y-m-d\TH:i') : '';
+                                    @endphp
+                                    <tr id="notification-import-edit-{{ $row['line'] }}" class="bg-light" style="display: none;">
+                                        <td colspan="7">
+                                            <form method="POST" action="{{ route($importRowUpdateRouteName, $row['line']) }}" class="p-2">
+                                                @csrf
+                                                <div class="form-row">
+                                                    <div class="form-group col-md-6">
+                                                        <label class="small mb-1">Titre</label>
+                                                        <input type="text" name="title" class="form-control form-control-sm" value="{{ $previewCampaign['title'] }}" maxlength="255">
+                                                    </div>
+                                                    <div class="form-group col-md-3">
+                                                        <label class="small mb-1">Date de programmation</label>
+                                                        <input type="datetime-local" name="scheduled_at" class="form-control form-control-sm" value="{{ $editDate }}">
+                                                        @if(! $editDate && ! empty($row['raw']['scheduled_at']))
+                                                            <small class="text-muted">Valeur du fichier : {{ $row['raw']['scheduled_at'] }}</small>
+                                                        @endif
+                                                    </div>
+                                                    <div class="form-group col-md-3">
+                                                        <label class="small mb-1">Destinataires</label>
+                                                        <select name="audience_type" class="form-control form-control-sm">
+                                                            @unless(isset($audienceLabels[$previewCampaign['audience_type']]))
+                                                                <option value="">-- Choisir ({{ $previewCampaign['audience_type'] ?: 'vide' }}) --</option>
+                                                            @endunless
+                                                            @foreach(collect($audienceLabels)->except('alert_expiration') as $value => $label)
+                                                                <option value="{{ $value }}" {{ $previewCampaign['audience_type'] === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label class="small mb-1">Message</label>
+                                                    <textarea name="body" class="form-control form-control-sm" rows="2" maxlength="1000">{{ $previewCampaign['body'] }}</textarea>
+                                                </div>
+                                                <div class="form-group notification-import-ids">
+                                                    <label class="small mb-1">Destinataires sélectionnés <span class="notification-import-ids-count text-muted"></span></label>
+                                                    <input type="hidden" name="ids" value="{{ $editIds }}">
+                                                    <div class="small text-muted notification-import-ids-none">Pas de sélection nécessaire : la notification part à tous les destinataires de ce type.</div>
+                                                    <div class="border rounded bg-white p-2 notification-import-ids-picker">
+                                                        <div class="d-flex mb-2">
+                                                            <input type="text" class="form-control form-control-sm mr-2 notification-import-ids-search" placeholder="Rechercher (nom, téléphone, email, #id)">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary mr-2 text-nowrap notification-import-ids-check">Tout cocher</button>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary notification-import-ids-clear">Vider</button>
+                                                        </div>
+                                                        <div class="notification-import-ids-list" style="max-height: 200px; overflow-y: auto;"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="form-row">
+                                                    <div class="form-group col-md-6">
+                                                        <label class="small mb-1">Image URL</label>
+                                                        <input type="text" name="image_url" class="form-control form-control-sm" value="{{ $previewCampaign['image_url'] }}" placeholder="https://...">
+                                                    </div>
+                                                    <div class="form-group col-md-6">
+                                                        <label class="small mb-1">Lien d'action</label>
+                                                        <input type="text" name="action_url" class="form-control form-control-sm" value="{{ $previewCampaign['action_url'] }}" placeholder="https://...">
+                                                    </div>
+                                                </div>
+                                                <button type="submit" class="btn btn-sm btn-success">Enregistrer la ligne</button>
+                                                <button type="button" class="btn btn-sm btn-light notification-import-edit-toggle" data-target="notification-import-edit-{{ $row['line'] }}">Fermer</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex mt-3">
+                        <form method="POST" action="{{ route($importConfirmRoute) }}" class="flex-fill mr-2">
+                            @csrf
+                            <button type="submit" class="btn btn-success btn-block" {{ $invalidCount ? 'disabled' : '' }}>
+                                Valider et programmer {{ $previewRows->count() }} notification(s)
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route($importCancelRoute) }}" class="flex-fill">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-secondary btn-block">Annuler l'import</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="card mb-4">
             <div class="card-body">
                 <h4 class="card-title mb-3">Formulaire notification</h4>
@@ -158,6 +338,37 @@
                         <button type="submit" name="send_now" value="1" class="btn btn-success flex-fill">Envoyer</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="card-title mb-0">Importer un fichier Excel / CSV</h4>
+                    <a href="{{ route($importTemplateRoute) }}" class="btn btn-sm btn-outline-secondary">Télécharger le modèle</a>
+                </div>
+                <form method="POST" action="{{ route($importRoute) }}" enctype="multipart/form-data">
+                    @csrf
+                    <div class="form-row align-items-end">
+                        <div class="form-group col-md-9">
+                            <label>Fichier (.xlsx ou .csv, 5 Mo max)</label>
+                            <input type="file" name="import_file" class="form-control" accept=".xlsx,.csv" required>
+                        </div>
+                        <div class="form-group col-md-3">
+                            <button type="submit" class="btn btn-primary btn-block">Importer et programmer</button>
+                        </div>
+                    </div>
+                </form>
+                <small class="form-text text-muted">
+                    Une ligne = une notification. Colonnes : <strong>titre</strong>, <strong>message</strong>,
+                    <strong>date_programmation</strong> (JJ/MM/AAAA HH:MM, dans le futur), <strong>destinataires</strong>,
+                    ids (obligatoire pour les types « selected_… », séparés par des virgules), image_url, lien_action.
+                    Valeurs possibles pour destinataires :
+                    @foreach(collect($audienceLabels)->except('alert_expiration') as $value => $label)
+                        <code title="{{ $label }}">{{ $value }}</code>{{ $loop->last ? '.' : ',' }}
+                    @endforeach
+                    Un aperçu de chaque ligne s'affiche avant validation.
+                </small>
             </div>
         </div>
 
@@ -278,6 +489,104 @@
 </div>
 
 <script>
+    document.querySelectorAll('.notification-import-edit-toggle').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var row = document.getElementById(button.getAttribute('data-target'));
+            if (row) {
+                row.style.display = row.style.display === 'none' ? '' : 'none';
+            }
+        });
+    });
+
+    document.querySelectorAll('.notification-import-ids').forEach(function (group) {
+        var form = group.closest('form');
+        var audienceSelect = form.querySelector('select[name="audience_type"]');
+        var hiddenInput = group.querySelector('input[name="ids"]');
+        var picker = group.querySelector('.notification-import-ids-picker');
+        var none = group.querySelector('.notification-import-ids-none');
+        var list = group.querySelector('.notification-import-ids-list');
+        var search = group.querySelector('.notification-import-ids-search');
+        var count = group.querySelector('.notification-import-ids-count');
+        var selected = hiddenInput.value.split(/[\s,;]+/).filter(Boolean).map(Number).filter(function (id) { return !isNaN(id); });
+
+        function sync() {
+            hiddenInput.value = selected.join(',');
+            count.textContent = selected.length ? '(' + selected.length + ')' : '';
+        }
+
+        function render() {
+            var audience = audienceSelect.value;
+            var isSelection = audience.indexOf('selected_') === 0;
+            picker.style.display = isSelection ? '' : 'none';
+            none.style.display = isSelection ? 'none' : '';
+            count.style.display = isSelection ? '' : 'none';
+            if (!isSelection) {
+                return;
+            }
+
+            var options = (window.notificationImportRecipients || {})[audience] || [];
+            var known = {};
+            options.forEach(function (option) { known[option.id] = true; });
+            // Les ids du fichier absents de la liste restent visibles pour pouvoir les décocher.
+            var unknown = selected.filter(function (id) { return !known[id]; }).map(function (id) {
+                return { id: id, label: '#' + id + ' - introuvable ou sans token FCM', unknown: true };
+            });
+            var keyword = search.value.toLowerCase().trim();
+
+            list.innerHTML = '';
+            unknown.concat(options).forEach(function (option) {
+                if (keyword && option.label.toLowerCase().indexOf(keyword) === -1) {
+                    return;
+                }
+
+                var label = document.createElement('label');
+                label.className = 'd-block mb-1 small' + (option.unknown ? ' text-danger' : '');
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'mr-2';
+                checkbox.value = option.id;
+                checkbox.checked = selected.indexOf(option.id) !== -1;
+                checkbox.addEventListener('change', function () {
+                    selected = selected.filter(function (id) { return id !== option.id; });
+                    if (checkbox.checked) {
+                        selected.push(option.id);
+                    }
+                    sync();
+                });
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(option.label));
+                list.appendChild(label);
+            });
+
+            if (!list.children.length) {
+                list.innerHTML = '<div class="small text-muted">Aucun destinataire avec FCM trouvé.</div>';
+            }
+            sync();
+        }
+
+        audienceSelect.addEventListener('change', function () {
+            selected = [];
+            search.value = '';
+            render();
+        });
+        search.addEventListener('keyup', render);
+        group.querySelector('.notification-import-ids-check').addEventListener('click', function () {
+            list.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
+                var id = Number(checkbox.value);
+                if (selected.indexOf(id) === -1) {
+                    selected.push(id);
+                }
+            });
+            render();
+        });
+        group.querySelector('.notification-import-ids-clear').addEventListener('click', function () {
+            selected = [];
+            render();
+        });
+
+        render();
+    });
+
     (function () {
         var audienceSelect = document.getElementById('notification-audience-type');
         var recipientsGroup = document.getElementById('notification-recipients-group');

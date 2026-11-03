@@ -11,6 +11,7 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('message-conseils:send-due')->everyMinute()->withoutOverlapping();
         $schedule->command('notification-campaigns:send-due --limit=50')->everyMinute();
+        $schedule->command('notification-imports:clean --hours=24')->hourly();
     }
 
     protected function commands(): void
