@@ -2435,17 +2435,24 @@ class CallCenterSpaceController extends Controller
             return [];
         }
 
-        $decoded = json_decode($photos, true);
+        // L'API usager encode les chemins avec json_encode() alors que le modele a deja le cast "array" :
+        // la colonne contient alors une chaine JSON encodee plusieurs fois ("[\"images\/vehicule\/...\"]").
+        $decoded = $photos;
+        for ($depth = 0; $depth < 3 && is_string($decoded); $depth++) {
+            $next = json_decode($decoded, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                break;
+            }
+
+            $decoded = $next;
+        }
+
         if (is_array($decoded)) {
-            return $decoded;
+            return array_values(array_filter($decoded, fn ($item) => is_string($item) && trim($item) !== ''));
         }
 
-        $decodedTwice = json_decode(trim($photos, '"'), true);
-        if (is_array($decodedTwice)) {
-            return $decodedTwice;
-        }
-
-        return [$photos];
+        return is_string($decoded) && trim($decoded) !== '' ? [$decoded] : [];
     }
 
     private function isImagePath(string $path): bool
