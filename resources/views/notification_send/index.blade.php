@@ -1,30 +1,6 @@
-@include('layouts.header')
-@if(!$isCallCenter)
-    @include('layouts.menu')
-@endif
-@include('layouts.fileariane')
+@extends($isCallCenter ? 'call-centers.layout' : 'notification_send.layout')
 
-@if($isCallCenter)
-    <div class="row mb-3">
-        <div class="col-lg-12">
-            <div class="card">
-                <div class="card-body d-flex justify-content-between align-items-center py-3">
-                    <div>
-                        <strong>Espace Call Center</strong>
-                        <div class="small text-muted">Notification send</div>
-                    </div>
-                    <div class="d-flex align-items-center">
-                        <a href="{{ route('call-center.dashboard') }}" class="btn btn-outline-secondary btn-sm mr-2">Dashboard</a>
-                        <form action="{{ route('call-center.logout') }}" method="POST" class="mb-0">
-                            @csrf
-                            <button type="submit" class="btn btn-outline-danger btn-sm">Déconnexion</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-@endif
+@section('content')
 @php
     $statusClasses = [
         'draft' => 'badge-secondary',
@@ -51,7 +27,7 @@
 
 <div class="row">
     <div class="col-lg-12 col-md-12">
-        @if(session()->has('message'))
+        @if(session()->has('message') && ! $isCallCenter)
             <div style="padding: 10px" class="alert {{ session()->get('type') }}">{{ session()->get('message') }}</div>
         @endif
         @if ($errors->any())
@@ -283,7 +259,7 @@
                         </tbody>
                     </table>
                 </div>
-                {{ $previewUsers->links() }}
+                {{ $isCallCenter ? $previewUsers->links('call-centers.partials.pagination') : $previewUsers->links() }}
             </div>
         </div>
 
@@ -352,5 +328,4 @@
         syncSelectedUsers();
     })();
 </script>
-
-@include('layouts.footer')
+@endsection

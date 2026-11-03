@@ -10,29 +10,45 @@
         $dateFromFilter = $dateFilters->get('date_from');
         $dateToFilter = $dateFilters->get('date_to');
         $hasDateColumn = array_key_exists('date_creation', $columns ?? []);
+        $activeFilterCount = collect($filters ?? [])->filter(fn ($filter) => filled($filter['value'] ?? null))->count();
     @endphp
 
     <div class="cc-card">
         <div class="cc-card-header">
             <div>
-                <h5 class="cc-card-title">{{ $title }}</h5>
-                <p class="cc-card-subtitle">Liste filtrable des donnees disponibles.</p>
+                <h5 class="cc-card-title">Liste</h5>
+                <p class="cc-card-subtitle">Filtrez et consultez les donnees disponibles.</p>
             </div>
-            <div class="d-flex align-items-center gap-2">
+            <div class="cc-header-actions">
                 @if(!empty($backUrl))
-                    <a href="{{ $backUrl }}" class="btn btn-outline-secondary mr-2">{{ $backLabel ?? 'Retour' }}</a>
+                    <a href="{{ $backUrl }}" class="btn btn-plain">
+                        @include('call-centers.partials.icon', ['name' => 'back'])
+                        {{ $backLabel ?? 'Retour' }}
+                    </a>
                 @endif
-                <span class="badge badge-light border">{{ $items->total() }} element(s)</span>
+                <span class="cc-count">{{ number_format($items->total(), 0, ',', ' ') }} element(s)</span>
             </div>
         </div>
 
         @if($standardFilters->isNotEmpty() || $dateFilters->isNotEmpty())
             <form method="GET" class="cc-filter-panel">
+                <div class="cc-filter-head">
+                    <span>
+                        Filtres
+                        @if($activeFilterCount > 0)
+                            <span class="cc-filter-count">{{ $activeFilterCount }} actif(s)</span>
+                        @endif
+                    </span>
+                    @if($hasActiveFilters)
+                        <a href="{{ url()->current() }}">Tout effacer</a>
+                    @endif
+                </div>
+
                 @if($standardFilters->isNotEmpty())
-                    <div class="row">
+                    <div class="cc-filter-grid">
                         @foreach ($standardFilters as $filter)
-                            <div class="col-xl-3 col-md-6 mb-3">
-                                <label class="form-label d-block">{{ $filter['label'] }}</label>
+                            <div>
+                                <label class="cc-field-label">{{ $filter['label'] }}</label>
 
                                 @if (($filter['type'] ?? 'text') === 'select')
                                     <select name="{{ $filter['name'] }}" class="form-control">
@@ -47,7 +63,7 @@
                                     <input
                                         type="{{ $filter['type'] ?? 'text' }}"
                                         name="{{ $filter['name'] }}"
-                                        class="form-control"
+                                        class="form-control {{ ($filter['type'] ?? 'text') === 'text' ? 'cc-input-search' : '' }}"
                                         value="{{ $filter['value'] ?? '' }}"
                                         placeholder="{{ $filter['placeholder'] ?? '' }}"
                                     >
@@ -58,15 +74,15 @@
                 @endif
 
                 @if($dateFilters->isNotEmpty())
-                    <div class="cc-date-filter">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong>Filtrer par date</strong>
-                            <small class="text-muted">Date de creation</small>
-                        </div>
-                        <div class="row">
+                    <div class="cc-filter-divider">
+                        @include('call-centers.partials.icon', ['name' => 'calendar'])
+                        Date de creation
+                    </div>
+                    <div>
+                        <div class="cc-filter-grid">
                             @if($dateFromFilter)
-                                <div class="col-xl-3 col-md-6 mb-2">
-                                    <label class="form-label d-block">{{ $dateFromFilter['label'] }}</label>
+                                <div>
+                                    <label class="cc-field-label">{{ $dateFromFilter['label'] }}</label>
                                     <input
                                         type="date"
                                         name="{{ $dateFromFilter['name'] }}"
@@ -77,8 +93,8 @@
                             @endif
 
                             @if($dateToFilter)
-                                <div class="col-xl-3 col-md-6 mb-2">
-                                    <label class="form-label d-block">{{ $dateToFilter['label'] }}</label>
+                                <div>
+                                    <label class="cc-field-label">{{ $dateToFilter['label'] }}</label>
                                     <input
                                         type="date"
                                         name="{{ $dateToFilter['name'] }}"
@@ -91,24 +107,19 @@
                     </div>
                 @endif
 
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">Filtrer</button>
-                    @if($hasActiveFilters)
-                        <a href="{{ url()->current() }}" class="btn btn-outline-secondary">Reinitialiser</a>
+                <div class="cc-filter-actions">
+                    <button type="submit" class="btn btn-primary">
+                        @include('call-centers.partials.icon', ['name' => 'search'])
+                        Filtrer
+                    </button>
+                    @if($hasDateColumn && (request()->filled('date_from') || request()->filled('date_to')))
+                        <span class="cc-filter-chip">
+                            @include('call-centers.partials.icon', ['name' => 'calendar'])
+                            {{ request('date_from', '...') }} au {{ request('date_to', '...') }}
+                        </span>
                     @endif
                 </div>
             </form>
-        @endif
-
-        @if($hasDateColumn)
-            <div class="alert alert-light border d-flex justify-content-between align-items-center py-2 mb-3">
-                <span>Colonne date activee sur cette liste.</span>
-                @if(request()->filled('date_from') || request()->filled('date_to'))
-                    <span class="badge badge-primary">
-                        {{ request('date_from', '...') }} au {{ request('date_to', '...') }}
-                    </span>
-                @endif
-            </div>
         @endif
 
         @if($items->count() > 0)
@@ -123,7 +134,11 @@
                     </thead>
                     <tbody>
                         @foreach ($items as $item)
-                            <tr>
+                            @php
+                                $dueDays = property_exists($item, 'echeance') && $item->echeance !== null ? (int) $item->echeance : null;
+                                $dueRowClass = $dueDays === null ? '' : ($dueDays < 0 ? 'cc-row-expired' : ($dueDays <= 7 ? 'cc-row-urgent' : ''));
+                            @endphp
+                            <tr class="{{ $dueRowClass }}">
                                 @foreach (array_keys($columns) as $key)
                                     @php
                                         $value = $item->{$key} ?? null;
@@ -139,8 +154,16 @@
                                             }
                                         }
                                     @endphp
-                                    <td class="{{ $key === 'actions' ? 'cc-table-actions' : '' }}" data-label="{{ $key === 'date_creation' ? 'Date' : ($columns[$key] ?? '') }}">
-                                        @if ($key === 'suivi_appel')
+                                    <td class="{{ $key === 'actions' ? 'cc-table-actions' : '' }} {{ in_array($key, ['echeance', 'date_fin'], true) ? 'cc-td-full' : '' }}" data-label="{{ $key === 'date_creation' ? 'Date' : ($columns[$key] ?? '') }}">
+                                        @if ($key === 'echeance')
+                                            @if($dueDays === null)
+                                                <span class="cc-muted">&mdash;</span>
+                                            @else
+                                                @include('call-centers.partials.alert-due', ['days' => $dueDays])
+                                            @endif
+                                        @elseif ($key === 'date_fin' && $dueDays !== null && filled($item->date_fin ?? null))
+                                            @include('call-centers.partials.alert-due', ['days' => $dueDays, 'mode' => 'date', 'date' => $item->date_fin])
+                                        @elseif ($key === 'suivi_appel')
                                             @php
                                                 $hasCallFollowUp = property_exists($item, 'call_center_deja_appele') && property_exists($item, 'call_center_commentaire');
                                                 $dejaAppele = (string) ($item->call_center_deja_appele ?? '0') === '1';
@@ -149,21 +172,23 @@
 
                                             @if($hasCallFollowUp)
                                                 <div class="cc-follow-badges">
-                                                    <span class="badge {{ $dejaAppele ? 'badge-success' : 'badge-light border' }}">
-                                                        {{ $dejaAppele ? 'Deja appele' : 'Non appele' }}
+                                                    <span class="badge {{ $dejaAppele ? 'badge-success' : 'badge-light' }}">
+                                                        <span class="cc-dot"></span>{{ $dejaAppele ? 'Deja appele' : 'Non appele' }}
                                                     </span>
                                                     @if($callCommentaire !== '')
                                                         <span class="badge badge-info">Commente</span>
                                                     @endif
                                                 </div>
                                             @else
-                                                -
+                                                <span class="cc-muted">&mdash;</span>
                                             @endif
-                                        @elseif ($key === 'actions' && in_array(($menu ?? ''), ['call-center-users', 'call-center-professionnels', 'call-center-etablissements', 'call-center-concessionnaires', 'call-center-station-services', 'call-center-station-de-lavages'], true))
+                                        @elseif ($key === 'actions' && in_array(($menu ?? ''), ['call-center-users', 'call-center-alertes', 'call-center-professionnels', 'call-center-etablissements', 'call-center-concessionnaires', 'call-center-station-services', 'call-center-station-de-lavages'], true))
                                             @php
                                                 $entityId = $item->row_id ?? null;
                                                 $routeName = [
                                                     'call-center-users' => 'call-center.users.suivi-appel',
+                                                    // Sur la liste des alertes, row_id est l'id du user : le suivi d'appel porte sur lui.
+                                                    'call-center-alertes' => 'call-center.users.suivi-appel',
                                                     'call-center-professionnels' => 'call-center.professionnels.suivi-appel',
                                                     'call-center-etablissements' => 'call-center.etablissements.suivi-appel',
                                                     'call-center-concessionnaires' => 'call-center.concessionnaires.suivi-appel',
@@ -183,8 +208,12 @@
 
                                             @if($entityId)
                                                 <details class="cc-actions-dropdown">
-                                                    <summary class="btn btn-sm btn-outline-primary cc-actions-toggle">Actions</summary>
+                                                    <summary class="btn btn-sm btn-outline-primary cc-actions-toggle">
+                                                        Actions
+                                                        @include('call-centers.partials.icon', ['name' => 'chevron'])
+                                                    </summary>
                                                     <div class="cc-actions-menu">
+                                                        <div class="cc-menu-label">Consulter</div>
                                                         <div class="cc-action-links">
                                                             @if(($menu ?? '') === 'call-center-etablissements')
                                                                 <a class="btn btn-sm btn-outline-primary" href="{{ route('call-center.etablissements.articles', $entityId) }}">Articles</a>
@@ -197,9 +226,12 @@
 
                                                         @if($hasCallFollowUp)
                                                             <div class="cc-call-panel">
-                                                                <span class="badge {{ $badgeClass }}">{{ $badgeLabel }}</span>
+                                                                <div class="cc-call-panel-head">
+                                                                    <span class="cc-menu-label mb-0">Suivi d'appel</span>
+                                                                    <span class="badge {{ $badgeClass }}"><span class="cc-dot"></span>{{ $badgeLabel }}</span>
+                                                                </div>
 
-                                                                <div class="cc-action-buttons mt-2">
+                                                                <div class="cc-action-buttons">
                                                                     <form action="{{ route($routeName, $entityId) }}" method="POST" class="d-inline">
                                                                         @csrf
                                                                         <input type="hidden" name="call_center_deja_appele" value="{{ $nextStatus }}">
@@ -221,22 +253,26 @@
                                                             <div id="{{ $commentBlockId }}" class="d-none cc-note-editor">
                                                                 <form action="{{ route($routeName, $entityId) }}" method="POST">
                                                                     @csrf
-                                                                    <textarea name="call_center_commentaire" class="form-control form-control-sm mb-2" rows="3" placeholder="Note ou commentaire d'appel">{{ $callCommentaire }}</textarea>
+                                                                    <textarea name="call_center_commentaire" class="form-control form-control-sm mb-2" rows="3" style="resize: vertical;" placeholder="Note ou commentaire d'appel">{{ $callCommentaire }}</textarea>
                                                                     <button type="submit" class="btn btn-sm btn-primary">Enregistrer</button>
                                                                 </form>
                                                             </div>
                                                         @else
-                                                            <div class="small text-danger mt-2">Migration requise.</div>
+                                                            <div class="alert alert-danger mt-3 mb-0 py-2">Migration requise.</div>
                                                         @endif
                                                     </div>
                                                 </details>
                                             @else
-                                                -
+                                                <span class="cc-muted">&mdash;</span>
                                             @endif
                                         @elseif ($key === 'actions' && $value)
                                             {!! $value !!}
                                         @else
-                                            {{ $value === null || $value === '' ? '-' : \Illuminate\Support\Str::limit((string) $value, 80) }}
+                                            @if($value === null || $value === '')
+                                                <span class="cc-muted">&mdash;</span>
+                                            @else
+                                                {{ \Illuminate\Support\Str::limit((string) $value, 80) }}
+                                            @endif
                                         @endif
                                     </td>
                                 @endforeach
@@ -246,12 +282,17 @@
                 </table>
             </div>
 
-            <div class="mt-3">
-                {{ $items->links() }}
+            <div>
+                {{ $items->links('call-centers.partials.pagination') }}
             </div>
         @else
             <div class="cc-empty-state">
-                Aucune donnee disponible pour cette liste avec les filtres actuels.
+                @include('call-centers.partials.icon', ['name' => 'empty'])
+                <strong>Aucun resultat</strong>
+                <span>Aucune donnee disponible pour cette liste avec les filtres actuels.</span>
+                @if($hasActiveFilters ?? false)
+                    <a href="{{ url()->current() }}" class="btn btn-outline-primary mt-2">Reinitialiser les filtres</a>
+                @endif
             </div>
         @endif
     </div>

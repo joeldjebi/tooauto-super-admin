@@ -1,53 +1,87 @@
 @extends('call-centers.layout')
 
+@section('lead', 'Details et images du vehicule.')
+
+@section('header-actions')
+    <a href="{{ $backUrl }}" class="btn btn-plain">
+        @include('call-centers.partials.icon', ['name' => 'back'])
+        {{ $backLabel }}
+    </a>
+@endsection
+
 @section('content')
+    @php
+        $columnsLeft = [
+            'Matricule' => $vehicule->matricule ?? null,
+            'Carte grise' => $vehicule->carte_grise ?? null,
+            'Utilisateur' => $vehicule->utilisateur ?: null,
+            'Marque' => $vehicule->marque ?? null,
+        ];
+        $columnsRight = [
+            'Type de vehicule' => $vehicule->type_vehicule ?? null,
+            'Carburant' => $vehicule->carburant ?? null,
+            'Modele' => $vehicule->modele ?? null,
+            'Couleur' => $vehicule->couleur ?? null,
+        ];
+    @endphp
+
     <div class="cc-card">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="cc-card-header">
+            <div class="d-flex align-items-center" style="gap: 14px;">
+                <span class="cc-tile cc-tile-lg cc-tone-teal">
+                    @include('call-centers.partials.icon', ['name' => 'vehicules'])
+                </span>
+                <div>
+                    <h5 class="cc-card-title">Vehicule {{ $vehicule->matricule ?? '#' . $vehicule->id }}</h5>
+                    <p class="cc-card-subtitle">{{ trim(($vehicule->marque ?? '') . ' ' . ($vehicule->modele ?? '')) ?: 'Informations generales' }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            @foreach ([$columnsLeft, $columnsRight] as $group)
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <dl class="cc-grouped">
+                        @foreach ($group as $label => $value)
+                            <div class="cc-grouped-row">
+                                <dt>{{ $label }}</dt>
+                                <dd>{!! filled($value) ? e($value) : '<span class="cc-muted">&mdash;</span>' !!}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </div>
+            @endforeach
+        </div>
+    </div>
+
+    <div class="cc-card">
+        <div class="cc-card-header">
             <div>
-                <h5 class="mb-1">Vehicule {{ $vehicule->matricule ?? '#' . $vehicule->id }}</h5>
-                <p class="text-muted mb-0">Details et images du vehicule.</p>
+                <h5 class="cc-card-title">Photos</h5>
+                <p class="cc-card-subtitle">Images stockees sur Wasabi.</p>
             </div>
-            <a href="{{ $backUrl }}" class="btn btn-outline-secondary">{{ $backLabel }}</a>
+            <span class="cc-count">{{ count($photoUrls) }} image(s)</span>
         </div>
-
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <p><strong>Matricule :</strong> {{ $vehicule->matricule ?? '-' }}</p>
-                <p><strong>Carte grise :</strong> {{ $vehicule->carte_grise ?? '-' }}</p>
-                <p><strong>Utilisateur :</strong> {{ $vehicule->utilisateur ?: '-' }}</p>
-                <p><strong>Marque :</strong> {{ $vehicule->marque ?? '-' }}</p>
-            </div>
-            <div class="col-md-6">
-                <p><strong>Type de vehicule :</strong> {{ $vehicule->type_vehicule ?? '-' }}</p>
-                <p><strong>Carburant :</strong> {{ $vehicule->carburant ?? '-' }}</p>
-                <p><strong>Modele :</strong> {{ $vehicule->modele ?? '-' }}</p>
-                <p><strong>Couleur :</strong> {{ $vehicule->couleur ?? '-' }}</p>
-            </div>
-        </div>
-
-        <h6 class="mb-3">Images Wasabi</h6>
 
         @if(count($photoUrls) > 0)
-            <div class="row">
+            <div class="cc-gallery">
                 @foreach($photoUrls as $index => $photoUrl)
-                    <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
-                        <div class="card border-0 shadow-sm h-100">
-                            <a href="{{ $photoUrl }}" target="_blank" rel="noopener noreferrer">
-                                <img src="{{ $photoUrl }}" alt="Photo vehicule {{ $index + 1 }}" class="card-img-top" style="height: 220px; object-fit: cover;">
-                            </a>
-                            <div class="card-body">
-                                <p class="mb-2">Image {{ $index + 1 }}</p>
-                                <a href="{{ $photoUrl }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
-                                    Ouvrir
-                                </a>
-                            </div>
+                    <a href="{{ $photoUrl }}" target="_blank" rel="noopener noreferrer" class="cc-media">
+                        <div class="cc-media-thumb">
+                            <img src="{{ $photoUrl }}" alt="Photo vehicule {{ $index + 1 }}" loading="lazy">
                         </div>
-                    </div>
+                        <div class="cc-media-body">
+                            <span>Image {{ $index + 1 }}</span>
+                            <span class="cc-open">Ouvrir</span>
+                        </div>
+                    </a>
                 @endforeach
             </div>
         @else
-            <div class="alert alert-light border mb-0">
-                Aucune image disponible pour ce vehicule.
+            <div class="cc-empty-state">
+                @include('call-centers.partials.icon', ['name' => 'empty'])
+                <strong>Aucune image</strong>
+                <span>Aucune image disponible pour ce vehicule.</span>
             </div>
         @endif
     </div>

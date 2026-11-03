@@ -1,3 +1,15 @@
+@if($isCallCenter ?? false)
+    @php
+        $isLogsPage = request()->routeIs('*.logs');
+        $isProgrammesPage = ! $isLogsPage && in_array(($menu ?? ''), ['notification-programmes', 'call-center-notification-programmes'], true);
+        $isTargetingPage = ! $isLogsPage && ! $isProgrammesPage;
+    @endphp
+    <nav class="cc-segmented mb-4" aria-label="Notifications">
+        <a href="{{ route($indexRoute) }}" class="{{ $isTargetingPage ? 'active' : '' }}">Ciblage</a>
+        <a href="{{ route($programmesRoute) }}" class="{{ $isProgrammesPage ? 'active' : '' }}">Notifs programmées</a>
+        <a href="{{ route($logsRoute) }}" class="{{ $isLogsPage ? 'active' : '' }}">Logs</a>
+    </nav>
+@else
 <div class="mb-3 d-flex flex-wrap align-items-center">
     <a href="{{ route($indexRoute) }}" class="btn btn-sm {{ in_array(($menu ?? ''), ['notification-send', 'call-center-notification-send'], true) ? 'btn-primary' : 'btn-outline-primary' }} mr-2 mb-2">
         Ciblage
@@ -9,3 +21,4 @@
         Logs
     </a>
 </div>
+@endif

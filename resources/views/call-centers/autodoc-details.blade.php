@@ -1,61 +1,92 @@
 @extends('call-centers.layout')
 
+@section('lead', 'Affichage des fichiers signes depuis Wasabi.')
+
+@section('header-actions')
+    <a href="{{ $backUrl }}" class="btn btn-plain">
+        @include('call-centers.partials.icon', ['name' => 'back'])
+        {{ $backLabel }}
+    </a>
+@endsection
+
 @section('content')
+    @php
+        $columnsLeft = [
+            'Vehicule' => $autodoc->vehicule ?? null,
+            'Type document' => $autodoc->type_document ?? null,
+        ];
+        $columnsRight = [
+            'Source' => $autodoc->provenance_source ?? null,
+            'Date creation' => $autodoc->created_at ?? null,
+        ];
+    @endphp
+
     <div class="cc-card">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="cc-card-header">
+            <div class="d-flex align-items-center" style="gap: 14px;">
+                <span class="cc-tile cc-tile-lg cc-tone-yellow">
+                    @include('call-centers.partials.icon', ['name' => 'autodocs'])
+                </span>
+                <div>
+                    <h5 class="cc-card-title">Document automobile #{{ $autodoc->id }}</h5>
+                    <p class="cc-card-subtitle">{{ $autodoc->type_document ?? 'Informations generales' }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            @foreach ([$columnsLeft, $columnsRight] as $group)
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <dl class="cc-grouped">
+                        @foreach ($group as $label => $value)
+                            <div class="cc-grouped-row">
+                                <dt>{{ $label }}</dt>
+                                <dd>{!! filled($value) ? e($value) : '<span class="cc-muted">&mdash;</span>' !!}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </div>
+            @endforeach
+        </div>
+    </div>
+
+    <div class="cc-card">
+        <div class="cc-card-header">
             <div>
-                <h5 class="mb-1">Document automobile #{{ $autodoc->id }}</h5>
-                <p class="text-muted mb-0">Affichage des fichiers signes depuis Wasabi.</p>
+                <h5 class="cc-card-title">Fichiers signes</h5>
+                <p class="cc-card-subtitle">Liens temporaires generes depuis Wasabi.</p>
             </div>
-            <a href="{{ $backUrl }}" class="btn btn-outline-secondary">{{ $backLabel }}</a>
+            <span class="cc-count">{{ count($signedFiles) }} fichier(s)</span>
         </div>
-
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <p><strong>Vehicule :</strong> {{ $autodoc->vehicule ?? '-' }}</p>
-                <p><strong>Type document :</strong> {{ $autodoc->type_document ?? '-' }}</p>
-            </div>
-            <div class="col-md-6">
-                <p><strong>Source :</strong> {{ $autodoc->provenance_source ?? '-' }}</p>
-                <p><strong>Date creation :</strong> {{ $autodoc->created_at ?? '-' }}</p>
-            </div>
-        </div>
-
-        <h6 class="mb-3">Fichiers signes Wasabi</h6>
 
         @if(count($signedFiles) > 0)
-            <div class="row">
+            <div class="cc-gallery">
                 @foreach($signedFiles as $index => $file)
-                    <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
-                        <div class="card border-0 shadow-sm h-100">
+                    <a href="{{ $file['url'] }}" target="_blank" rel="noopener noreferrer" class="cc-media">
+                        <div class="cc-media-thumb">
                             @if($file['is_image'])
-                                <a href="{{ $file['url'] }}" target="_blank" rel="noopener noreferrer">
-                                    <img src="{{ $file['url'] }}" alt="Document {{ $index + 1 }}" class="card-img-top" style="height: 220px; object-fit: cover;">
-                                </a>
+                                <img src="{{ $file['url'] }}" alt="Document {{ $index + 1 }}" loading="lazy">
                             @else
-                                <div class="card-body d-flex flex-column justify-content-center align-items-start" style="min-height: 220px;">
-                                    <h6 class="mb-2">Fichier {{ $index + 1 }}</h6>
-                                    <p class="text-muted small mb-3">{{ $file['path'] }}</p>
-                                    <a href="{{ $file['url'] }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
-                                        Ouvrir le fichier
-                                    </a>
-                                </div>
-                            @endif
-                            @if($file['is_image'])
-                                <div class="card-body">
-                                    <p class="mb-2">Image {{ $index + 1 }}</p>
-                                    <a href="{{ $file['url'] }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
-                                        Ouvrir
-                                    </a>
-                                </div>
+                                @include('call-centers.partials.icon', ['name' => 'file'])
                             @endif
                         </div>
-                    </div>
+                        <div class="cc-media-body">
+                            <div style="min-width: 0;">
+                                <span>{{ $file['is_image'] ? 'Image' : 'Fichier' }} {{ $index + 1 }}</span>
+                                @unless($file['is_image'])
+                                    <small title="{{ $file['path'] }}">{{ $file['path'] }}</small>
+                                @endunless
+                            </div>
+                            <span class="cc-open">Ouvrir</span>
+                        </div>
+                    </a>
                 @endforeach
             </div>
         @else
-            <div class="alert alert-light border mb-0">
-                Aucun fichier disponible pour ce document automobile.
+            <div class="cc-empty-state">
+                @include('call-centers.partials.icon', ['name' => 'empty'])
+                <strong>Aucun fichier</strong>
+                <span>Aucun fichier disponible pour ce document automobile.</span>
             </div>
         @endif
     </div>

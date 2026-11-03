@@ -16,13 +16,21 @@ class CallCenterSpaceController extends Controller
     {
     }
 
+    private const ALERT_SOON_DAYS = 30;
+    private const ALERT_URGENT_DAYS = 7;
+
     public function dashboard()
     {
         return view('call-centers.dashboard', [
             'title' => 'Dashboard Call Center',
             'menu' => 'call-center-dashboard',
             'user' => Auth::guard('call_center')->user(),
+            'alertStats' => $this->alertStats(),
+            'upcomingAlerts' => $this->dashboardAlerts('upcoming'),
+            'expiredAlerts' => $this->dashboardAlerts('expired'),
+            'alertFilter' => $this->alertExpirationFilter(null),
             'cards' => [
+                ['label' => 'Alertes', 'route' => route('call-center.alertes')],
                 ['label' => 'Users', 'route' => route('call-center.users')],
                 ['label' => 'Professionnels', 'route' => route('call-center.professionnels')],
                 ['label' => 'Vehicules', 'route' => route('call-center.vehicules')],
@@ -163,12 +171,14 @@ class CallCenterSpaceController extends Controller
                     $this->hasColumn('alerts', 'kilometrage') ? 'alerts.kilometrage' : null,
                     $this->hasColumn('alerts', 'autres') ? 'alerts.autres' : null,
                 ]));
+                $this->applyAlertExpirationFilter($query, $request->input('echeance'));
             },
             array_filter([
                 $this->hasColumn('vehicules', 'matricule') ? 'vehicules.matricule as vehicule' : null,
                 $this->hasColumn('type_alerts', 'libelle') ? 'type_alerts.libelle as type_alerte' : null,
                 $this->hasColumn('alerts', 'date_debut') ? 'alerts.date_debut' : null,
                 $this->hasColumn('alerts', 'date_fin') ? 'alerts.date_fin' : null,
+                $this->hasColumn('alerts', 'date_fin') ? DB::raw('DATEDIFF(alerts.date_fin, CURDATE()) as echeance') : null,
                 $this->hasColumn('alerts', 'kilometrage') ? 'alerts.kilometrage' : null,
                 $this->hasColumn('alerts', 'autres') ? 'alerts.autres' : null,
                 'alerts.created_at as date_creation',
@@ -176,8 +186,9 @@ class CallCenterSpaceController extends Controller
             array_filter([
                 'vehicule' => 'Vehicule',
                 'type_alerte' => 'Type alerte',
+                'date_fin' => "Date d'expiration",
+                'echeance' => 'Echeance',
                 'date_debut' => 'Date debut',
-                'date_fin' => 'Date fin',
                 'kilometrage' => 'Kilometrage',
                 'autres' => 'Autres',
                 'date_creation' => 'Date creation',
@@ -190,7 +201,129 @@ class CallCenterSpaceController extends Controller
                     'placeholder' => 'Vehicule, type, kilometrage',
                     'value' => $request->input('search', ''),
                 ],
-            ]
+                $this->alertExpirationFilter($request->input('echeance')),
+            ],
+            fn (Builder $query) => $this->applyAlertOrder($query, $request->input('echeance'))
+        );
+    }
+
+    public function alerts(Request $request)
+    {
+        $hasCallFollowUp = $this->hasCallFollowUpColumns('users');
+        $query = $this->alertsBaseQuery();
+
+        $selects = [
+            'users.id as row_id',
+            DB::raw("TRIM(CONCAT(COALESCE(users.nom, ''), ' ', COALESCE(users.prenoms, ''))) as utilisateur"),
+        ];
+        $this->pushSelect($selects, 'users.mobile', 'mobile');
+        $this->pushSelect($selects, 'vehicules.matricule', 'vehicule');
+        $this->pushSelect($selects, 'type_alerts.libelle', 'type_alerte');
+        $selects[] = 'alerts.date_fin';
+        $selects[] = DB::raw('DATEDIFF(alerts.date_fin, CURDATE()) as echeance');
+        $this->pushSelect($selects, 'alerts.date_debut', 'date_debut');
+        $selects[] = DB::raw("
+            CONCAT(
+                '<a class=\"btn btn-sm btn-outline-warning mr-1 mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/alertes', '\">Alertes du user</a>',
+                '<a class=\"btn btn-sm btn-outline-success mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/vehicules', '\">Vehicules</a>'
+            ) as actions
+        ");
+
+        if ($hasCallFollowUp) {
+            $selects[] = 'users.call_center_deja_appele';
+            $selects[] = 'users.call_center_commentaire';
+        }
+
+        $searchColumns = [];
+        $this->pushSearchColumn($searchColumns, 'users.nom');
+        $this->pushSearchColumn($searchColumns, 'users.prenoms');
+        $this->pushSearchColumn($searchColumns, 'users.email');
+        $this->pushSearchColumn($searchColumns, 'users.mobile');
+        $this->pushSearchColumn($searchColumns, 'vehicules.matricule');
+        $this->pushSearchColumn($searchColumns, 'type_alerts.libelle');
+
+        $this->applySearch($query, $request->string('search')->toString(), $searchColumns);
+        $this->applyAlertExpirationFilter($query, $request->input('echeance'));
+
+        if ($request->filled('type_alert_id')) {
+            $query->where('alerts.type_alert_id', $request->input('type_alert_id'));
+        }
+
+        if ($request->filled('fin_from')) {
+            $query->whereDate('alerts.date_fin', '>=', $request->input('fin_from'));
+        }
+
+        if ($request->filled('fin_to')) {
+            $query->whereDate('alerts.date_fin', '<=', $request->input('fin_to'));
+        }
+
+        if ($hasCallFollowUp && $request->filled('call_center_deja_appele')) {
+            $query->where('users.call_center_deja_appele', $request->boolean('call_center_deja_appele'));
+        }
+
+        $columns = [
+            'utilisateur' => 'Utilisateur',
+            'mobile' => 'Mobile',
+            'vehicule' => 'Vehicule',
+            'type_alerte' => 'Type alerte',
+            'date_fin' => "Date d'expiration",
+            'echeance' => 'Echeance',
+            'date_debut' => 'Date debut',
+        ];
+
+        if ($hasCallFollowUp) {
+            $columns['suivi_appel'] = 'Suivi appel';
+        }
+
+        $columns['actions'] = 'Actions';
+
+        return $this->renderList(
+            $request,
+            'Alertes',
+            'call-center-alertes',
+            $query->select($selects),
+            $columns,
+            array_values(array_filter([
+                [
+                    'name' => 'search',
+                    'label' => 'Recherche',
+                    'type' => 'text',
+                    'placeholder' => 'Nom, mobile, vehicule, type',
+                    'value' => $request->input('search', ''),
+                ],
+                $this->alertExpirationFilter($request->input('echeance')),
+                [
+                    'name' => 'type_alert_id',
+                    'label' => 'Type alerte',
+                    'type' => 'select',
+                    'value' => (string) $request->input('type_alert_id', ''),
+                    'options' => $this->tableOptions('type_alerts', 'id', 'libelle'),
+                ],
+                $hasCallFollowUp ? [
+                    'name' => 'call_center_deja_appele',
+                    'label' => 'Appel',
+                    'type' => 'select',
+                    'value' => $request->input('call_center_deja_appele', ''),
+                    'options' => [
+                        ['value' => '1', 'label' => 'Deja appele'],
+                        ['value' => '0', 'label' => 'Non appele'],
+                    ],
+                ] : null,
+                [
+                    'name' => 'fin_from',
+                    'label' => 'Expire a partir du',
+                    'type' => 'date',
+                    'value' => $request->input('fin_from', ''),
+                ],
+                [
+                    'name' => 'fin_to',
+                    'label' => "Expire jusqu'au",
+                    'type' => 'date',
+                    'value' => $request->input('fin_to', ''),
+                ],
+            ])),
+            null,
+            fn (Builder $query) => $this->applyAlertOrder($query, $request->input('echeance'))
         );
     }
 
@@ -1577,15 +1710,21 @@ class CallCenterSpaceController extends Controller
         Builder $query,
         array $columns,
         array $filters,
-        ?callable $decorateRows = null
+        ?callable $decorateRows = null,
+        ?callable $applyOrder = null
     ) {
         if (array_key_exists('date_creation', $columns)) {
             $this->applyDateCreationFilter($query, $request);
             $filters = array_merge($filters, $this->dateCreationFilters($request));
         }
 
+        if ($applyOrder !== null) {
+            $applyOrder($query);
+        } else {
+            $query->orderByDesc($this->resolveOrderColumn(array_keys($columns)));
+        }
+
         $items = $query
-            ->orderByDesc($this->resolveOrderColumn(array_keys($columns)))
             ->paginate(15)
             ->withQueryString();
 
@@ -1612,12 +1751,13 @@ class CallCenterSpaceController extends Controller
         callable $configureQuery,
         array $selects,
         array $columns,
-        array $filters
+        array $filters,
+        ?callable $applyOrder = null
     ) {
         $query = $queryFactory();
         $configureQuery($query);
 
-        $response = $this->renderList($request, $title, 'call-center-users', $query->select($selects), $columns, $filters);
+        $response = $this->renderList($request, $title, 'call-center-users', $query->select($selects), $columns, $filters, null, $applyOrder);
         $response->with('backUrl', route('call-center.users'));
         $response->with('backLabel', 'Retour aux users');
         $response->with('relatedUserId', $userId);
@@ -1700,6 +1840,107 @@ class CallCenterSpaceController extends Controller
     private function resolveOrderColumn(array $aliases): string
     {
         return in_array('date_creation', $aliases, true) ? 'date_creation' : $aliases[0];
+    }
+
+    private function alertsBaseQuery(): Builder
+    {
+        return DB::table('alerts')
+            ->leftJoin('users', 'users.id', '=', 'alerts.user_id')
+            ->leftJoin('vehicules', 'vehicules.id', '=', 'alerts.vehicule_id')
+            ->leftJoin('type_alerts', 'type_alerts.id', '=', 'alerts.type_alert_id');
+    }
+
+    private function alertExpirationFilter(mixed $value): array
+    {
+        return [
+            'name' => 'echeance',
+            'label' => 'Echeance',
+            'type' => 'select',
+            'value' => (string) ($value ?? ''),
+            'options' => [
+                ['value' => 'expirees', 'label' => 'Expirees'],
+                ['value' => 'aujourdhui', 'label' => "Expirent aujourd'hui"],
+                ['value' => '7j', 'label' => 'Expirent sous ' . self::ALERT_URGENT_DAYS . ' jours'],
+                ['value' => '30j', 'label' => 'Expirent sous ' . self::ALERT_SOON_DAYS . ' jours'],
+                ['value' => 'a_traiter', 'label' => 'Expirees ou sous ' . self::ALERT_SOON_DAYS . ' jours'],
+                ['value' => 'valides', 'label' => 'Valides (+' . self::ALERT_SOON_DAYS . ' jours)'],
+            ],
+        ];
+    }
+
+    private function applyAlertExpirationFilter(Builder $query, mixed $value): void
+    {
+        $today = now()->toDateString();
+
+        match ((string) $value) {
+            'expirees' => $query->where('alerts.date_fin', '<', $today),
+            'aujourdhui' => $query->where('alerts.date_fin', $today),
+            '7j' => $query->whereBetween('alerts.date_fin', [$today, now()->addDays(self::ALERT_URGENT_DAYS)->toDateString()]),
+            '30j' => $query->whereBetween('alerts.date_fin', [$today, now()->addDays(self::ALERT_SOON_DAYS)->toDateString()]),
+            'a_traiter' => $query->where('alerts.date_fin', '<=', now()->addDays(self::ALERT_SOON_DAYS)->toDateString()),
+            'valides' => $query->where('alerts.date_fin', '>', now()->addDays(self::ALERT_SOON_DAYS)->toDateString()),
+            default => null,
+        };
+    }
+
+    private function applyAlertOrder(Builder $query, mixed $expiration): void
+    {
+        if ((string) $expiration === 'expirees') {
+            // Les plus recemment expirees d'abord : ce sont les plus faciles a relancer.
+            $query->orderByDesc('alerts.date_fin');
+        } elseif (in_array((string) $expiration, ['aujourdhui', '7j', '30j', 'valides'], true)) {
+            $query->orderBy('alerts.date_fin');
+        } else {
+            // Sans filtre precis : les echeances les plus proches d'aujourd'hui (passees ou a venir) d'abord.
+            $query->orderByRaw('ABS(DATEDIFF(alerts.date_fin, CURDATE()))')->orderBy('alerts.date_fin');
+        }
+
+        $query->orderByDesc('alerts.id');
+    }
+
+    private function alertStats(): ?object
+    {
+        if (! Schema::hasTable('alerts') || ! $this->hasColumn('alerts', 'date_fin')) {
+            return null;
+        }
+
+        $today = now()->toDateString();
+
+        return DB::table('alerts')
+            ->selectRaw('SUM(date_fin < ?) as expirees', [$today])
+            ->selectRaw('SUM(date_fin = ?) as aujourdhui', [$today])
+            ->selectRaw('SUM(date_fin BETWEEN ? AND ?) as sous_7j', [$today, now()->addDays(self::ALERT_URGENT_DAYS)->toDateString()])
+            ->selectRaw('SUM(date_fin BETWEEN ? AND ?) as sous_30j', [$today, now()->addDays(self::ALERT_SOON_DAYS)->toDateString()])
+            ->first();
+    }
+
+    private function dashboardAlerts(string $kind)
+    {
+        if (! Schema::hasTable('alerts') || ! $this->hasColumn('alerts', 'date_fin')) {
+            return collect();
+        }
+
+        $selects = [
+            'alerts.id',
+            'alerts.user_id',
+            'alerts.date_fin',
+            DB::raw('DATEDIFF(alerts.date_fin, CURDATE()) as echeance'),
+            DB::raw("TRIM(CONCAT(COALESCE(users.nom, ''), ' ', COALESCE(users.prenoms, ''))) as utilisateur"),
+        ];
+        $this->pushSelect($selects, 'users.mobile', 'mobile');
+        $this->pushSelect($selects, 'vehicules.matricule', 'vehicule');
+        $this->pushSelect($selects, 'type_alerts.libelle', 'type_alerte');
+
+        $query = $this->alertsBaseQuery()->select($selects);
+        $today = now()->toDateString();
+
+        if ($kind === 'expired') {
+            $query->where('alerts.date_fin', '<', $today)->orderByDesc('alerts.date_fin');
+        } else {
+            $query->whereBetween('alerts.date_fin', [$today, now()->addDays(self::ALERT_SOON_DAYS)->toDateString()])->orderBy('alerts.date_fin');
+        }
+
+        return $query->limit(6)->get();
     }
 
     private function statusFilter(mixed $value): array
