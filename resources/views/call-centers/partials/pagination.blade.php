@@ -5,9 +5,9 @@
         @if ($paginator->hasPages())
             <ul class="pagination">
                 @if ($paginator->onFirstPage())
-                    <li class="page-item disabled" aria-disabled="true"><span class="page-link" aria-label="Precedent">&lsaquo;</span></li>
+                    <li class="page-item disabled" aria-disabled="true"><span class="page-link" aria-label="Précédent">&lsaquo;</span></li>
                 @else
-                    <li class="page-item"><a class="page-link" href="{{ $paginator->previousPageUrl() }}" rel="prev" aria-label="Precedent">&lsaquo;</a></li>
+                    <li class="page-item"><a class="page-link" href="{{ $paginator->previousPageUrl() }}" rel="prev" aria-label="Précédent">&lsaquo;</a></li>
                 @endif
 
                 @foreach ($elements as $element)

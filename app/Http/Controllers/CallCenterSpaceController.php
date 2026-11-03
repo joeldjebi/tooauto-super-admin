@@ -34,7 +34,7 @@ class CallCenterSpaceController extends Controller
     public function dashboard()
     {
         return view('call-centers.dashboard', [
-            'title' => 'Dashboard Call Center',
+            'title' => 'Tableau de bord',
             'menu' => 'call-center-dashboard',
             'user' => Auth::guard('call_center')->user(),
             'alertStats' => $this->cachedDashboard('stats', fn () => $this->alertStats()),
@@ -44,18 +44,18 @@ class CallCenterSpaceController extends Controller
             'alertFilter' => $this->alertExpirationFilter(null),
             'cards' => [
                 ['label' => 'Alertes', 'route' => route('call-center.alertes')],
-                ['label' => 'Users', 'route' => route('call-center.users')],
+                ['label' => 'Usagers', 'route' => route('call-center.users')],
                 ['label' => 'Professionnels', 'route' => route('call-center.professionnels')],
-                ['label' => 'Vehicules', 'route' => route('call-center.vehicules')],
-                ['label' => 'Station services', 'route' => route('call-center.station-services')],
-                ['label' => 'Station de lavages', 'route' => route('call-center.station-de-lavages')],
+                ['label' => 'Véhicules', 'route' => route('call-center.vehicules')],
+                ['label' => 'Stations service', 'route' => route('call-center.station-services')],
+                ['label' => 'Stations de lavage', 'route' => route('call-center.station-de-lavages')],
                 ['label' => 'Annonces', 'route' => route('call-center.annonces')],
-                ['label' => 'Annonce concessionnaires', 'route' => route('call-center.annonce-concessionnaires')],
-                ['label' => 'Annonce etablissements', 'route' => route('call-center.annonce-etablissements')],
+                ['label' => 'Annonces concessionnaires', 'route' => route('call-center.annonce-concessionnaires')],
+                ['label' => 'Annonces établissements', 'route' => route('call-center.annonce-etablissements')],
                 ['label' => 'Concessionnaires', 'route' => route('call-center.concessionnaires')],
-                ['label' => 'Etablissements', 'route' => route('call-center.etablissements')],
+                ['label' => 'Établissements', 'route' => route('call-center.etablissements')],
                 ['label' => 'Autodocs', 'route' => route('call-center.autodocs')],
-                ['label' => 'Notification send', 'route' => route('call-center.notification-send.index')],
+                ['label' => 'Envoi de notifications', 'route' => route('call-center.notification-send.index')],
             ],
         ]);
     }
@@ -82,9 +82,9 @@ class CallCenterSpaceController extends Controller
             CONCAT(
                 '<div class=\"d-flex flex-wrap gap-1\">',
                 '<a class=\"btn btn-sm btn-outline-warning mr-1 mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/alertes', '\">Alertes</a>',
-                '<a class=\"btn btn-sm btn-outline-success mr-1 mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/vehicules', '\">Vehicules</a>',
+                '<a class=\"btn btn-sm btn-outline-success mr-1 mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/vehicules', '\">Véhicules</a>',
                 '<a class=\"btn btn-sm btn-outline-primary mr-1 mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/annonces', '\">Annonces</a>',
-                '<a class=\"btn btn-sm btn-outline-info mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/autodocs', '\">Docs auto</a>',
+                '<a class=\"btn btn-sm btn-outline-info mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/autodocs', '\">Documents auto</a>',
                 '</div>'
             ) as actions
         ");
@@ -115,11 +115,11 @@ class CallCenterSpaceController extends Controller
 
         $columns = [
             'nom' => 'Nom',
-            'prenoms' => 'Prenoms',
-            'nom_affiche' => 'Nom affiche',
+            'prenoms' => 'Prénoms',
+            'nom_affiche' => 'Nom affiché',
             'email' => 'Email',
             'mobile' => 'Mobile',
-            'telephone' => 'Telephone',
+            'telephone' => 'Téléphone',
             'commercial' => 'Commercial',
             'statut' => 'Statut',
         ];
@@ -129,13 +129,13 @@ class CallCenterSpaceController extends Controller
         }
 
         $columns += [
-            'date_creation' => 'Date creation',
+            'date_creation' => 'Date de création',
             'actions' => 'Actions',
         ];
 
         return $this->renderList(
             $request,
-            'Users',
+            'Usagers',
             'call-center-users',
             $query->select($selects),
             $columns,
@@ -144,7 +144,7 @@ class CallCenterSpaceController extends Controller
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Nom, prenoms, email, telephone',
+                    'placeholder' => 'Nom, prénoms, email, téléphone',
                     'value' => $request->input('search', ''),
                 ],
                 $this->statusFilter($request->input('statut')),
@@ -154,8 +154,8 @@ class CallCenterSpaceController extends Controller
                     'type' => 'select',
                     'value' => $request->input('call_center_deja_appele', ''),
                     'options' => [
-                        ['value' => '1', 'label' => 'Deja appele'],
-                        ['value' => '0', 'label' => 'Non appele'],
+                        ['value' => '1', 'label' => 'Déjà appelé'],
+                        ['value' => '0', 'label' => 'Non appelé'],
                     ],
                 ] : null,
             ])
@@ -199,21 +199,21 @@ class CallCenterSpaceController extends Controller
                 'alerts.created_at as date_creation',
             ]),
             array_filter([
-                'vehicule' => 'Vehicule',
-                'type_alerte' => 'Type alerte',
+                'vehicule' => 'Véhicule',
+                'type_alerte' => 'Type d’alerte',
                 'date_fin' => "Date d'expiration",
-                'echeance' => 'Echeance',
-                'date_debut' => 'Date debut',
-                'kilometrage' => 'Kilometrage',
+                'echeance' => 'Échéance',
+                'date_debut' => 'Date de début',
+                'kilometrage' => 'Kilométrage',
                 'autres' => 'Autres',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
             ]),
             [
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Vehicule, type, kilometrage',
+                    'placeholder' => 'Véhicule, type, kilométrage',
                     'value' => $request->input('search', ''),
                 ],
                 $this->alertExpirationFilter($request->input('echeance')),
@@ -244,8 +244,8 @@ class CallCenterSpaceController extends Controller
         $this->pushSelect($selects, 'alerts.date_debut', 'date_debut');
         $selects[] = DB::raw("
             CONCAT(
-                '<a class=\"btn btn-sm btn-outline-warning mr-1 mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/alertes', '\">Alertes du user</a>',
-                '<a class=\"btn btn-sm btn-outline-success mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/vehicules', '\">Vehicules</a>'
+                '<a class=\"btn btn-sm btn-outline-warning mr-1 mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/alertes', '\">Alertes de l’usager</a>',
+                '<a class=\"btn btn-sm btn-outline-success mb-1\" href=\"', '" . route('call-center.users') . "/', users.id, '/vehicules', '\">Véhicules</a>'
             ) as actions
         ");
 
@@ -283,12 +283,12 @@ class CallCenterSpaceController extends Controller
 
         $columns = [
             'utilisateur' => 'Utilisateur',
-            'mobile' => 'Telephone',
-            'vehicule' => 'Vehicule',
-            'type_alerte' => 'Type alerte',
+            'mobile' => 'Téléphone',
+            'vehicule' => 'Véhicule',
+            'type_alerte' => 'Type d’alerte',
             'date_fin' => "Date d'expiration",
-            'echeance' => 'Echeance',
-            'date_debut' => 'Date debut',
+            'echeance' => 'Échéance',
+            'date_debut' => 'Date de début',
         ];
 
         if ($hasCallFollowUp) {
@@ -308,13 +308,13 @@ class CallCenterSpaceController extends Controller
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Nom, mobile, vehicule, type',
+                    'placeholder' => 'Nom, mobile, véhicule, type',
                     'value' => $request->input('search', ''),
                 ],
                 $this->alertExpirationFilter($request->input('echeance')),
                 [
                     'name' => 'type_alert_id',
-                    'label' => 'Type alerte',
+                    'label' => 'Type d’alerte',
                     'type' => 'select',
                     'value' => (string) $request->input('type_alert_id', ''),
                     'options' => $this->tableOptions('type_alerts', 'id', 'libelle'),
@@ -325,13 +325,13 @@ class CallCenterSpaceController extends Controller
                     'type' => 'select',
                     'value' => $request->input('call_center_deja_appele', ''),
                     'options' => [
-                        ['value' => '1', 'label' => 'Deja appele'],
-                        ['value' => '0', 'label' => 'Non appele'],
+                        ['value' => '1', 'label' => 'Déjà appelé'],
+                        ['value' => '0', 'label' => 'Non appelé'],
                     ],
                 ] : null,
                 [
                     'name' => 'fin_from',
-                    'label' => 'Expire a partir du',
+                    'label' => 'Expire à partir du',
                     'type' => 'date',
                     'value' => $request->input('fin_from', ''),
                 ],
@@ -352,7 +352,7 @@ class CallCenterSpaceController extends Controller
         return $this->renderUserRelatedList(
             $request,
             $user,
-            "Vehicules de l'utilisateur #{$user}",
+            "Véhicules de l'utilisateur #{$user}",
             function () use ($user) {
                 return DB::table('vehicules')
             ->leftJoin('marques', 'marques.id', '=', 'vehicules.marque_id')
@@ -379,17 +379,17 @@ class CallCenterSpaceController extends Controller
                 'vehicules.couleur',
                 'vehicules.statut',
                 'vehicules.created_at as date_creation',
-                DB::raw("CONCAT('<a class=\"btn btn-sm btn-outline-primary\" href=\"', '" . route('call-center.vehicules') . "/', vehicules.id, '/details?back=user&user_id={$user}', '\">Details</a>') as actions"),
+                DB::raw("CONCAT('<a class=\"btn btn-sm btn-outline-primary\" href=\"', '" . route('call-center.vehicules') . "/', vehicules.id, '/details?back=user&user_id={$user}', '\">Détails</a>') as actions"),
             ],
             [
                 'matricule' => 'Matricule',
                 'carte_grise' => 'Carte grise',
                 'marque' => 'Marque',
-                'type_vehicule' => 'Type vehicule',
-                'modele' => 'Modele',
+                'type_vehicule' => 'Type de véhicule',
+                'modele' => 'Modèle',
                 'couleur' => 'Couleur',
                 'statut' => 'Statut',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
                 'actions' => 'Actions',
             ],
             [
@@ -397,7 +397,7 @@ class CallCenterSpaceController extends Controller
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Matricule, carte grise, modele',
+                    'placeholder' => 'Matricule, carte grise, modèle',
                     'value' => $request->input('search', ''),
                 ],
             ]
@@ -434,20 +434,20 @@ class CallCenterSpaceController extends Controller
                 'annonces.created_at as date_creation',
             ]),
             array_filter([
-                'libelle' => 'Libelle',
+                'libelle' => 'Libellé',
                 'marque' => 'Marque',
-                'modele' => 'Modele',
+                'modele' => 'Modèle',
                 'mobile' => 'Mobile',
                 'is_whatsapp' => 'WhatsApp',
                 'statut' => 'Statut',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
             ]),
             [
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Libelle, modele, marque',
+                    'placeholder' => 'Libellé, modèle, marque',
                     'value' => $request->input('search', ''),
                 ],
             ]
@@ -541,14 +541,14 @@ class CallCenterSpaceController extends Controller
                     END as provenance_source
                 ") : null,
                 $this->hasColumn('autodocs', 'created_at') ? 'autodocs.created_at as date_creation' : null,
-                DB::raw("CONCAT('<a class=\"btn btn-sm btn-outline-primary\" href=\"', '" . route('call-center.users') . "/', {$user}, '/autodocs/', autodocs.id, '/details', '\">Details</a>') as actions"),
+                DB::raw("CONCAT('<a class=\"btn btn-sm btn-outline-primary\" href=\"', '" . route('call-center.users') . "/', {$user}, '/autodocs/', autodocs.id, '/details', '\">Détails</a>') as actions"),
             ]),
             array_filter([
-                'vehicule' => 'Vehicule',
+                'vehicule' => 'Véhicule',
                 'type_document' => 'Type document',
                 'images_resume' => 'Fichiers',
                 'provenance_source' => 'Source',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
                 'actions' => 'Actions',
             ]),
             [
@@ -556,7 +556,7 @@ class CallCenterSpaceController extends Controller
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Vehicule, type document, provenance',
+                    'placeholder' => 'Véhicule, type document, provenance',
                     'value' => $request->input('search', ''),
                 ],
             ]
@@ -614,7 +614,7 @@ class CallCenterSpaceController extends Controller
         }, $files)));
 
         return view('call-centers.autodoc-details', [
-            'title' => 'Details document automobile',
+            'title' => 'Détails du document automobile',
             'menu' => 'call-center-users',
             'user' => Auth::guard('call_center')->user(),
             'autodoc' => $autodocItem,
@@ -637,12 +637,12 @@ class CallCenterSpaceController extends Controller
             'professionnels.mobile',
             'professionnels.statut',
             'professionnels.created_at as date_creation',
-            DB::raw("CONCAT('<a class=\"btn btn-sm btn-outline-primary\" href=\"', '" . route('call-center.professionnels') . "/', professionnels.id, '/details', '\">Details</a>') as actions"),
+            DB::raw("CONCAT('<a class=\"btn btn-sm btn-outline-primary\" href=\"', '" . route('call-center.professionnels') . "/', professionnels.id, '/details', '\">Détails</a>') as actions"),
         ];
         $columns = [
             'nom' => 'Nom',
-            'prenoms' => 'Prenoms',
-            'role' => 'Role',
+            'prenoms' => 'Prénoms',
+            'role' => 'Rôle',
             'email' => 'Email',
             'mobile' => 'Mobile',
             'statut' => 'Statut',
@@ -669,7 +669,7 @@ class CallCenterSpaceController extends Controller
         }
 
         $columns += [
-            'date_creation' => 'Date creation',
+            'date_creation' => 'Date de création',
             'actions' => 'Actions',
         ];
 
@@ -684,12 +684,12 @@ class CallCenterSpaceController extends Controller
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Nom, prenoms, email, mobile',
+                    'placeholder' => 'Nom, prénoms, email, mobile',
                     'value' => $request->input('search', ''),
                 ],
                 [
                     'name' => 'role',
-                    'label' => 'Role',
+                    'label' => 'Rôle',
                     'type' => 'select',
                     'value' => $request->input('role', ''),
                     'options' => $this->distinctOptions('professionnels', 'role', 'role'),
@@ -769,7 +769,7 @@ class CallCenterSpaceController extends Controller
         }
 
         return view('call-centers.professionnel-details', [
-            'title' => 'Details professionnel',
+            'title' => 'Détails du professionnel',
             'menu' => 'call-center-professionnels',
             'user' => Auth::guard('call_center')->user(),
             'professionnel' => $professionnelItem,
@@ -807,7 +807,7 @@ class CallCenterSpaceController extends Controller
 
         return $this->renderList(
             $request,
-            'Vehicules',
+            'Véhicules',
             'call-center-vehicules',
             $query->select([
                 'vehicules.id as row_id',
@@ -819,17 +819,17 @@ class CallCenterSpaceController extends Controller
                 'type_de_carburants.libelle as carburant',
                 'vehicules.statut',
                 'vehicules.created_at as date_creation',
-                DB::raw("CONCAT('<a class=\"btn btn-sm btn-outline-primary\" href=\"', '" . route('call-center.vehicules') . "/', vehicules.id, '/details?back=list', '\">Details</a>') as actions"),
+                DB::raw("CONCAT('<a class=\"btn btn-sm btn-outline-primary\" href=\"', '" . route('call-center.vehicules') . "/', vehicules.id, '/details?back=list', '\">Détails</a>') as actions"),
             ]),
             [
                 'matricule' => 'Matricule',
-                'modele' => 'Modele',
+                'modele' => 'Modèle',
                 'utilisateur' => 'Utilisateur',
                 'marque' => 'Marque',
-                'type_vehicule' => 'Type de vehicule',
+                'type_vehicule' => 'Type de véhicule',
                 'carburant' => 'Carburant',
                 'statut' => 'Statut',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
                 'actions' => 'Actions',
             ],
             [
@@ -837,7 +837,7 @@ class CallCenterSpaceController extends Controller
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Matricule, modele, utilisateur',
+                    'placeholder' => 'Matricule, modèle, utilisateur',
                     'value' => $request->input('search', ''),
                 ],
                 [
@@ -905,8 +905,8 @@ class CallCenterSpaceController extends Controller
             'adresse' => 'Adresse',
             'ville' => 'Ville',
             'commune' => 'Commune',
-            'borne_electrique' => 'Borne electrique',
-            'date_creation' => 'Date creation',
+            'borne_electrique' => 'Borne électrique',
+            'date_creation' => 'Date de création',
         ];
 
         if ($hasCallFollowUp) {
@@ -918,7 +918,7 @@ class CallCenterSpaceController extends Controller
 
         return $this->renderList(
             $request,
-            'Station services',
+            'Stations service',
             'call-center-station-services',
             $query->select($selects),
             $columns + [
@@ -989,15 +989,15 @@ class CallCenterSpaceController extends Controller
         )));
 
         $backUrl = route('call-center.vehicules');
-        $backLabel = 'Retour aux vehicules';
+        $backLabel = 'Retour aux véhicules';
 
         if ($request->input('back') === 'user' && $request->filled('user_id')) {
             $backUrl = route('call-center.users.vehicules', ['user' => $request->input('user_id')]);
-            $backLabel = "Retour aux vehicules de l'utilisateur";
+            $backLabel = "Retour aux véhicules de l'utilisateur";
         }
 
         return view('call-centers.vehicule-details', [
-            'title' => 'Details vehicule',
+            'title' => 'Détails du véhicule',
             'menu' => 'call-center-vehicules',
             'user' => Auth::guard('call_center')->user(),
             'vehicule' => $vehiculeItem,
@@ -1029,7 +1029,7 @@ class CallCenterSpaceController extends Controller
             'longitude' => 'Longitude',
             'latitude' => 'Latitude',
             'statut' => 'Statut',
-            'date_creation' => 'Date creation',
+            'date_creation' => 'Date de création',
         ];
 
         if ($this->hasColumn('station_de_lavages', 'created_by') && $this->tableExists('commercials')) {
@@ -1059,7 +1059,7 @@ class CallCenterSpaceController extends Controller
 
         return $this->renderList(
             $request,
-            'Station de lavages',
+            'Stations de lavage',
             'call-center-station-de-lavages',
             $query->select($selects),
             $columns + [
@@ -1118,16 +1118,16 @@ class CallCenterSpaceController extends Controller
             [
                 'utilisateur' => 'Utilisateur',
                 'marque' => 'Marque',
-                'type_piece' => 'Type de piece',
+                'type_piece' => 'Type de pièce',
                 'statut' => 'Statut',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
             ],
             [
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Utilisateur, marque, type de piece',
+                    'placeholder' => 'Utilisateur, marque, type de pièce',
                     'value' => $request->input('search', ''),
                 ],
                 [
@@ -1163,15 +1163,15 @@ class CallCenterSpaceController extends Controller
             'utilisateur' => 'Utilisateur',
             'concessionnaire' => 'Concessionnaire',
             'marque' => 'Marque',
-            'modele' => 'Modele',
+            'modele' => 'Modèle',
             'type_demande' => 'Type de demande',
-            'type_vehicule' => 'Type de vehicule',
+            'type_vehicule' => 'Type de véhicule',
             'statut' => 'Statut',
         ];
 
         if ($this->hasColumn('annonce_concessionnaires', 'created_at')) {
             $selects[] = 'annonce_concessionnaires.created_at as date_creation';
-            $columns['date_creation'] = 'Date creation';
+            $columns['date_creation'] = 'Date de création';
         }
 
         $searchColumns = [
@@ -1185,7 +1185,7 @@ class CallCenterSpaceController extends Controller
         if ($this->hasColumn('annonce_concessionnaires', 'type_de_piece_id')) {
             $query->leftJoin('type_de_pieces', 'type_de_pieces.id', '=', 'annonce_concessionnaires.type_de_piece_id');
             $selects[] = 'type_de_pieces.libelle as type_piece';
-            $columns['type_piece'] = 'Type de piece';
+            $columns['type_piece'] = 'Type de pièce';
             $searchColumns[] = 'type_de_pieces.libelle';
         }
 
@@ -1202,7 +1202,7 @@ class CallCenterSpaceController extends Controller
 
         return $this->renderList(
             $request,
-            'Annonce concessionnaires',
+            'Annonces concessionnaires',
             'call-center-annonce-concessionnaires',
             $query->select($selects),
             $columns,
@@ -1211,7 +1211,7 @@ class CallCenterSpaceController extends Controller
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Utilisateur, concessionnaire, modele',
+                    'placeholder' => 'Utilisateur, concessionnaire, modèle',
                     'value' => $request->input('search', ''),
                 ],
                 [
@@ -1258,7 +1258,7 @@ class CallCenterSpaceController extends Controller
 
         return $this->renderList(
             $request,
-            'Annonce etablissements',
+            'Annonces établissements',
             'call-center-annonce-etablissements',
             $query->select([
                 DB::raw("TRIM(CONCAT(COALESCE(users.prenoms, ''), ' ', COALESCE(users.nom, ''))) as utilisateur"),
@@ -1270,21 +1270,21 @@ class CallCenterSpaceController extends Controller
             [
                 'utilisateur' => 'Utilisateur',
                 'marque' => 'Marque',
-                'etablissement' => 'Etablissement',
+                'etablissement' => 'Établissement',
                 'is_visible' => 'Visible',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
             ],
             [
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Utilisateur, etablissement, marque',
+                    'placeholder' => 'Utilisateur, établissement, marque',
                     'value' => $request->input('search', ''),
                 ],
                 [
                     'name' => 'etablissement_id',
-                    'label' => 'Etablissement',
+                    'label' => 'Établissement',
                     'type' => 'select',
                     'value' => $request->input('etablissement_id', ''),
                     'options' => $this->tableOptions('etablissements', 'id', 'name'),
@@ -1354,7 +1354,7 @@ class CallCenterSpaceController extends Controller
             $query->select($selects),
             $columns + [
                 'statut' => 'Statut',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
                 'actions' => 'Actions',
             ],
             array_values(array_filter([
@@ -1406,7 +1406,7 @@ class CallCenterSpaceController extends Controller
 
         if ($this->hasColumn('etablissements', 'created_at')) {
             $selects[] = 'etablissements.created_at as date_creation';
-            $columns['date_creation'] = 'Date creation';
+            $columns['date_creation'] = 'Date de création';
         }
 
         if ($hasCallFollowUp) {
@@ -1418,13 +1418,13 @@ class CallCenterSpaceController extends Controller
         if ($this->tableExists('categorie_services') && $this->hasColumn('etablissements', 'categorie_service_id')) {
             $query->leftJoin('categorie_services', 'categorie_services.id', '=', 'etablissements.categorie_service_id');
             $selects[] = 'categorie_services.libelle as categorie';
-            $columns['categorie'] = 'Categorie';
+            $columns['categorie'] = 'Catégorie';
         }
 
         if ($this->tableExists('type_etablissements') && $this->hasColumn('etablissements', 'type_etablissement_id')) {
             $query->leftJoin('type_etablissements', 'type_etablissements.id', '=', 'etablissements.type_etablissement_id');
             $selects[] = 'type_etablissements.libelle as type_etablissement';
-            $columns['type_etablissement'] = 'Type etablissement';
+            $columns['type_etablissement'] = 'Type d’établissement';
         }
 
         if ($this->tableExists('villes') && $this->hasColumn('etablissements', 'ville_id')) {
@@ -1479,7 +1479,7 @@ class CallCenterSpaceController extends Controller
 
         return $this->renderList(
             $request,
-            'Etablissements',
+            'Établissements',
             'call-center-etablissements',
             $query->select($selects),
             $columns + [
@@ -1523,7 +1523,7 @@ class CallCenterSpaceController extends Controller
 
     public function updateEtablissementCallFollowUp(Request $request, int $etablissement)
     {
-        return $this->updateCallFollowUp($request, 'etablissements', $etablissement, 'Etablissement');
+        return $this->updateCallFollowUp($request, 'etablissements', $etablissement, 'Établissement');
     }
 
     public function etablissementArticles(Request $request, int $etablissement)
@@ -1543,7 +1543,7 @@ class CallCenterSpaceController extends Controller
 
         return $this->renderChildList(
             $request,
-            'Articles de l\'etablissement',
+            'Articles de l\'établissement',
             'call-center-etablissements',
             $query->select(array_filter([
                 'articles.id as row_id',
@@ -1554,23 +1554,23 @@ class CallCenterSpaceController extends Controller
                 $this->hasColumn('articles', 'created_at') ? 'articles.created_at as date_creation' : null,
             ])),
             array_filter([
-                'libelle' => 'Libelle',
+                'libelle' => 'Libellé',
                 'description' => 'Description',
                 'amount' => 'Montant',
                 'image' => 'Image',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
             ]),
             [
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Libelle, description, montant',
+                    'placeholder' => 'Libellé, description, montant',
                     'value' => $request->input('search', ''),
                 ],
             ],
             route('call-center.etablissements'),
-            'Retour aux etablissements'
+            'Retour aux établissements'
         );
     }
 
@@ -1591,7 +1591,7 @@ class CallCenterSpaceController extends Controller
 
         return $this->renderChildList(
             $request,
-            'Promotions de l\'etablissement',
+            'Promotions de l\'établissement',
             'call-center-etablissements',
             $query->select(array_filter([
                 'promotions.id as row_id',
@@ -1603,25 +1603,25 @@ class CallCenterSpaceController extends Controller
                 $this->hasColumn('promotions', 'created_at') ? 'promotions.created_at as date_creation' : null,
             ])),
             array_filter([
-                'libelle' => 'Libelle',
+                'libelle' => 'Libellé',
                 'mobile' => 'Mobile',
-                'date_debut' => 'Date debut',
+                'date_debut' => 'Date de début',
                 'date_fin' => 'Date fin',
                 'statut' => 'Statut',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
             ]),
             array_values(array_filter([
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Libelle, mobile, description',
+                    'placeholder' => 'Libellé, mobile, description',
                     'value' => $request->input('search', ''),
                 ],
                 $this->statusFilter($request->input('statut')),
             ])),
             route('call-center.etablissements'),
-            'Retour aux etablissements'
+            'Retour aux établissements'
         );
     }
 
@@ -1651,7 +1651,7 @@ class CallCenterSpaceController extends Controller
 
         return $this->renderChildList(
             $request,
-            'Abonnements de l\'etablissement',
+            'Abonnements de l\'établissement',
             'call-center-etablissements',
             $query->select(array_filter([
                 $abonnementTable . '.id as row_id',
@@ -1665,12 +1665,12 @@ class CallCenterSpaceController extends Controller
             ])),
             array_filter([
                 'forfait' => 'Forfait',
-                'duree' => 'Duree',
+                'duree' => 'Durée',
                 'prix' => 'Prix',
-                'date_debut' => 'Date debut',
+                'date_debut' => 'Date de début',
                 'date_fin' => 'Date fin',
                 'statut' => 'Statut',
-                'date_creation' => 'Date creation',
+                'date_creation' => 'Date de création',
             ]),
             array_values(array_filter([
                 [
@@ -1683,7 +1683,7 @@ class CallCenterSpaceController extends Controller
                 $this->hasColumn($abonnementTable, 'statut') ? $this->statusFilter($request->input('statut')) : null,
             ])),
             route('call-center.etablissements'),
-            'Retour aux etablissements'
+            'Retour aux établissements'
         );
     }
 
@@ -1706,17 +1706,17 @@ class CallCenterSpaceController extends Controller
                 'type_docautos.updated_at as date_mise_a_jour',
             ]),
             [
-                'libelle' => 'Libelle',
+                'libelle' => 'Libellé',
                 'image' => 'Image',
-                'date_creation' => 'Date creation',
-                'date_mise_a_jour' => 'Date mise a jour',
+                'date_creation' => 'Date de création',
+                'date_mise_a_jour' => 'Date de mise à jour',
             ],
             [
                 [
                     'name' => 'search',
                     'label' => 'Recherche',
                     'type' => 'text',
-                    'placeholder' => 'Libelle',
+                    'placeholder' => 'Libellé',
                     'value' => $request->input('search', ''),
                 ],
             ]
@@ -1837,7 +1837,7 @@ class CallCenterSpaceController extends Controller
 
         $response = $this->renderList($request, $title, 'call-center-users', $query->select($selects), $columns, $filters, null, $applyOrder);
         $response->with('backUrl', route('call-center.users'));
-        $response->with('backLabel', 'Retour aux users');
+        $response->with('backLabel', 'Retour aux usagers');
         $response->with('relatedUserId', $userId);
 
         return $response;
@@ -1992,7 +1992,7 @@ class CallCenterSpaceController extends Controller
         return [
             [
                 'name' => 'date_from',
-                'label' => 'Date debut',
+                'label' => 'Date de début',
                 'type' => 'date',
                 'value' => $request->input('date_from', ''),
             ],
@@ -2048,15 +2048,15 @@ class CallCenterSpaceController extends Controller
     {
         return [
             'name' => 'echeance',
-            'label' => 'Echeance',
+            'label' => 'Échéance',
             'type' => 'select',
             'value' => (string) ($value ?? ''),
             'options' => [
-                ['value' => 'expirees', 'label' => 'Expirees'],
+                ['value' => 'expirees', 'label' => 'Expirées'],
                 ['value' => 'aujourdhui', 'label' => "Expirent aujourd'hui"],
                 ['value' => '7j', 'label' => 'Expirent sous ' . self::ALERT_URGENT_DAYS . ' jours'],
                 ['value' => '30j', 'label' => 'Expirent sous ' . self::ALERT_SOON_DAYS . ' jours'],
-                ['value' => 'a_traiter', 'label' => 'Expirees ou sous ' . self::ALERT_SOON_DAYS . ' jours'],
+                ['value' => 'a_traiter', 'label' => 'Expirées ou sous ' . self::ALERT_SOON_DAYS . ' jours'],
                 ['value' => 'valides', 'label' => 'Valides (+' . self::ALERT_SOON_DAYS . ' jours)'],
             ],
         ];
@@ -2254,8 +2254,8 @@ class CallCenterSpaceController extends Controller
             'type' => 'select',
             'value' => (string) ($value ?? ''),
             'options' => [
-                ['value' => '1', 'label' => 'Deja appele'],
-                ['value' => '0', 'label' => 'Non appele'],
+                ['value' => '1', 'label' => 'Déjà appelé'],
+                ['value' => '0', 'label' => 'Non appelé'],
             ],
         ];
     }
@@ -2278,7 +2278,7 @@ class CallCenterSpaceController extends Controller
         if (! $this->tableExists($table) || ! $this->hasCallFollowUpColumns($table)) {
             return back()->with([
                 'type' => 'alert-danger',
-                'message' => "Le suivi d'appel {$label} n'est pas encore disponible. Creez les colonnes avant d'enregistrer une note.",
+                'message' => "Le suivi d'appel {$label} n'est pas encore disponible. Créez les colonnes avant d'enregistrer une note.",
             ]);
         }
 
@@ -2320,7 +2320,7 @@ class CallCenterSpaceController extends Controller
 
         return back()->with([
             'type' => 'alert-success',
-            'message' => 'Suivi appel enregistre avec succes.',
+            'message' => 'Suivi appel enregistré avec succès.',
         ]);
     }
 

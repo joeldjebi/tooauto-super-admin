@@ -7,7 +7,7 @@
                 <div class="cc-card">
                     <div class="cc-card-header"><div><h5 class="cc-card-title">{{ $title }}</h5></div></div>
                     @if(empty($breakdown['data']))
-                        <p class="cc-muted mb-0">Aucun appel sur la periode.</p>
+                        <p class="cc-muted mb-0">Aucun appel sur la période.</p>
                     @else
                         @php $max = max(1, max($breakdown['data'])); $sum = max(1, array_sum($breakdown['data'])); @endphp
                         <div class="cc-r-hbars">

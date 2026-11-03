@@ -140,7 +140,7 @@
             </div>
 
             <div class="cc-log-group">
-                <span class="cc-log-label">Resultat</span>
+                <span class="cc-log-label">Résultat</span>
                 <div class="cc-chips">
                     @foreach(CallCenterOutcomes::resultatLabels() as $key => $label)
                         <label class="cc-chip"><input type="radio" name="resultat" value="{{ $key }}"><span>{{ $label }}</span></label>
@@ -152,17 +152,17 @@
                 <div>
                     <label for="cc-log-rappel">Rappeler le</label>
                     <input type="datetime-local" class="form-control" id="cc-log-rappel" name="rappel_le">
-                    <div class="cc-log-hint" id="cc-log-rappel-hint">Facultatif. Obligatoire pour « A rappeler ».</div>
+                    <div class="cc-log-hint" id="cc-log-rappel-hint">Facultatif. Obligatoire pour « À rappeler ».</div>
                 </div>
                 <div>
-                    <label for="cc-log-duree">Duree (minutes)</label>
+                    <label for="cc-log-duree">Durée (minutes)</label>
                     <input type="number" class="form-control" id="cc-log-duree" name="duree_minutes" min="0" max="600" inputmode="numeric" placeholder="ex. 3">
                 </div>
             </div>
 
             <div class="cc-log-group">
                 <label for="cc-log-commentaire">Commentaire</label>
-                <textarea class="form-control" id="cc-log-commentaire" name="commentaire" rows="3" maxlength="2000" style="resize: vertical;" placeholder="Ce qui a ete dit, la suite a donner..."></textarea>
+                <textarea class="form-control" id="cc-log-commentaire" name="commentaire" rows="3" maxlength="2000" style="resize: vertical;" placeholder="Ce qui a été dit, la suite à donner..."></textarea>
             </div>
         </div>
 
@@ -225,7 +225,7 @@
                     if (token !== loadToken) return;
                     var appels = body.appels || [];
                     if (!appels.length) {
-                        recentStatus.textContent = 'Aucun appel enregistre pour ce contact.';
+                        recentStatus.textContent = 'Aucun appel enregistré pour ce contact.';
                         return;
                     }
                     recentStatus.textContent = '';
@@ -233,7 +233,7 @@
                     var todayLabel = pad(today.getDate()) + '/' + pad(today.getMonth() + 1) + '/' + today.getFullYear();
                     if (appels[0].date.indexOf(todayLabel) === 0) {
                         recent.classList.add('is-today');
-                        recentWarning.textContent = 'Deja contacte aujourd\'hui par ' + appels[0].agent + ' (' + appels[0].il_y_a + ').';
+                        recentWarning.textContent = 'Déjà contacté aujourd\'hui par ' + appels[0].agent + ' (' + appels[0].il_y_a + ').';
                         recentWarning.hidden = false;
                     }
                     appels.forEach(function (appel) {
@@ -243,7 +243,7 @@
                         head.appendChild(badge);
                         head.appendChild(el('span', '', appel.date + ' · ' + appel.agent + ' · ' + appel.canal + (appel.alerte ? ' · ' + appel.alerte : '')));
                         li.appendChild(head);
-                        if (appel.rappel) li.appendChild(el('div', 'cc-log-recent-note', 'Rappel prevu le ' + appel.rappel));
+                        if (appel.rappel) li.appendChild(el('div', 'cc-log-recent-note', 'Rappel prévu le ' + appel.rappel));
                         if (appel.commentaire) li.appendChild(el('div', 'cc-log-recent-note', appel.commentaire));
                         recentList.appendChild(li);
                     });
@@ -293,7 +293,7 @@
         form.addEventListener('submit', function (event) {
             event.preventDefault();
             if (!form.querySelector('input[name="motif"]:checked')) return showError('Choisissez le motif de l\'appel.');
-            if (!form.querySelector('input[name="resultat"]:checked')) return showError('Choisissez le resultat de l\'appel.');
+            if (!form.querySelector('input[name="resultat"]:checked')) return showError('Choisissez le résultat de l\'appel.');
             if (form.querySelector('input[name="resultat"]:checked').value === 'a_rappeler' && !rappel.value) return showError('Indiquez la date du rappel.');
 
             submit.disabled = true;
@@ -310,11 +310,11 @@
                         return;
                     }
                     var errors = body.errors ? Object.keys(body.errors).map(function (key) { return body.errors[key][0]; }) : [];
-                    showError(errors.length ? errors.join(' ') : (body.message || 'Enregistrement impossible. Reessayez.'));
+                    showError(errors.length ? errors.join(' ') : (body.message || 'Enregistrement impossible. Réessayez.'));
                     submit.disabled = false;
                 });
             }).catch(function () {
-                showError('Connexion impossible. Verifiez votre reseau et reessayez.');
+                showError('Connexion impossible. Vérifiez votre réseau et réessayez.');
                 submit.disabled = false;
             });
         });

@@ -20,7 +20,7 @@ class CallCenterMySpaceController extends Controller
         [$from, $to, $period] = CallCenterReportService::resolvePeriod($request, '7j');
 
         $data = [
-            'title' => 'Mon activite',
+            'title' => 'Mon activité',
             'menu' => 'call-center-mon-activite',
             'user' => $agent,
             'periods' => CallCenterReportService::PERIODS,
@@ -109,13 +109,13 @@ class CallCenterMySpaceController extends Controller
         $agent = Auth::guard('call_center')->user();
         $row = CallCenterInteraction::query()->findOrFail($interaction);
 
-        abort_unless((int) $row->call_center_user_id === (int) $agent->id || $agent->isSuperviseur(), 403, 'Ce rappel appartient a un autre agent.');
+        abort_unless((int) $row->call_center_user_id === (int) $agent->id || $agent->isSuperviseur(), 403, 'Ce rappel appartient à un autre agent.');
 
         if ($row->rappel_le && ! $row->rappel_fait_at) {
             $row->update(['rappel_fait_at' => now()]);
         }
 
-        return back()->with(['type' => 'alert-success', 'message' => 'Rappel marque comme traite.']);
+        return back()->with(['type' => 'alert-success', 'message' => 'Rappel marqué comme traité.']);
     }
 
     /** Appels d'aujourd'hui, des 7 et des 30 derniers jours (tuiles du haut, independantes du filtre). */

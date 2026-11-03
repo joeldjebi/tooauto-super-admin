@@ -19,8 +19,8 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h4 class="card-title mb-1">Modifier un user call center</h4>
-                        <p class="text-muted mb-0">Mettez a jour les informations du compte call center.</p>
+                        <h4 class="card-title mb-1">Modifier un agent call center</h4>
+                        <p class="text-muted mb-0">Mettez à jour les informations du compte call center.</p>
                     </div>
                     <a href="{{ route('call-centers.index') }}" class="btn btn-outline-secondary">Retour</a>
                 </div>
@@ -28,6 +28,8 @@
                 <form action="{{ route('call-centers.update', $callCenter->id) }}" method="post">
                     @csrf
                     @method('PUT')
+
+                    @include('call-centers.partials.role-picker', ['current' => $callCenter->role ?? \App\Models\CallCenterUser::ROLE_AGENT])
 
                     <div class="row">
                         <div class="col-md-6">
@@ -38,7 +40,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Prenoms</label>
+                                <label>Prénoms</label>
                                 <input class="form-control" name="prenoms" type="text" value="{{ old('prenoms', $callCenter->prenoms) }}" required>
                             </div>
                         </div>
@@ -57,18 +59,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Role</label>
-                                <select class="form-control" name="role" required>
-                                    @foreach(\App\Models\CallCenterUser::ROLES as $roleKey => $roleLabel)
-                                        <option value="{{ $roleKey }}" {{ old('role', $callCenter->role ?? 'agent') === $roleKey ? 'selected' : '' }}>{{ $roleLabel }}</option>
-                                    @endforeach
-                                </select>
-                                <small class="text-muted">Le superviseur voit les rapports de toute l'equipe.</small>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Nouveau mot de passe numerique</label>
+                                <label>Nouveau mot de passe numérique</label>
                                 <input class="form-control" name="password" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="Laisser vide pour ne pas changer">
                             </div>
                         </div>

@@ -25,8 +25,8 @@ class CallCenterReportService
         '7j' => '7 derniers jours',
         '30j' => '30 derniers jours',
         'mois' => 'Ce mois-ci',
-        'mois_precedent' => 'Mois precedent',
-        'personnalisee' => 'Personnalisee',
+        'mois_precedent' => 'Mois précédent',
+        'personnalisee' => 'Personnalisée',
     ];
 
     /**

@@ -1,6 +1,6 @@
 @extends('call-centers.layout')
 
-@section('lead', 'Informations du professionnel et de ses etablissements.')
+@section('lead', 'Informations du professionnel et de ses établissements.')
 
 @section('header-actions')
     <a href="{{ $backUrl }}" class="btn btn-plain">
@@ -16,12 +16,12 @@
         $isActive = isset($professionnel->statut) ? (string) $professionnel->statut === '1' : null;
         $fields = [
             'Nom' => $professionnel->nom ?? null,
-            'Prenoms' => $professionnel->prenoms ?? null,
-            'Role' => $professionnel->role ?? null,
+            'Prénoms' => $professionnel->prenoms ?? null,
+            'Rôle' => $professionnel->role ?? null,
             'Email' => $professionnel->email ?? null,
             'Mobile' => $professionnel->mobile ?? null,
-            'Telephone' => $professionnel->telephone ?? null,
-            'Date creation' => $professionnel->created_at ?? null,
+            'Téléphone' => $professionnel->telephone ?? null,
+            'Date de création' => $professionnel->created_at ?? null,
         ];
     @endphp
 
@@ -77,7 +77,7 @@
                                     <span class="cc-muted">&mdash;</span>
                                 @elseif($label === 'Email')
                                     <a href="mailto:{{ $value }}">{{ $value }}</a>
-                                @elseif(in_array($label, ['Mobile', 'Telephone'], true))
+                                @elseif(in_array($label, ['Mobile', 'Téléphone'], true))
                                     <a href="tel:{{ preg_replace('/\s+/', '', $value) }}">{{ $value }}</a>
                                 @else
                                     {{ $value }}
@@ -93,8 +93,8 @@
             <div class="cc-card h-100">
                 <div class="cc-card-header">
                     <div>
-                        <h5 class="cc-card-title">Etablissements</h5>
-                        <p class="cc-card-subtitle">Etablissements rattaches a ce professionnel.</p>
+                        <h5 class="cc-card-title">Établissements</h5>
+                        <p class="cc-card-subtitle">Établissements rattachés à ce professionnel.</p>
                     </div>
                     <span class="cc-count">{{ $etablissements->count() }} element(s)</span>
                 </div>
@@ -142,8 +142,8 @@
                 @else
                     <div class="cc-empty-state">
                         @include('call-centers.partials.icon', ['name' => 'etablissements'])
-                        <strong>Aucun etablissement</strong>
-                        <span>Aucun etablissement lie a ce professionnel.</span>
+                        <strong>Aucun établissement</strong>
+                        <span>Aucun établissement lié à ce professionnel.</span>
                     </div>
                 @endif
             </div>

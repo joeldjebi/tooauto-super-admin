@@ -29,9 +29,17 @@
 
         <div class="card text-left">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="card-title mb-0">Users call center</h4>
-                    <a href="{{ route('call-centers.create') }}" class="btn btn-primary">Ajouter un user</a>
+                <div class="d-flex justify-content-between align-items-center flex-wrap mb-3" style="gap: 10px;">
+                    <h4 class="card-title mb-0">Agents call center</h4>
+                    <a href="{{ route('call-centers.create') }}" class="btn btn-primary">Ajouter un agent</a>
+                </div>
+
+                {{-- Filtre par rôle --}}
+                <div class="btn-group mb-3" role="group" aria-label="Filtrer par rôle">
+                    <a href="{{ route('call-centers.index') }}" class="btn btn-sm {{ $roleFilter ? 'btn-outline-primary' : 'btn-primary' }}">Tous ({{ $roleCounts['total'] }})</a>
+                    @foreach(\App\Models\CallCenterUser::ROLES as $roleKey => $roleLabel)
+                        <a href="{{ route('call-centers.index', ['role' => $roleKey]) }}" class="btn btn-sm {{ $roleFilter === $roleKey ? 'btn-primary' : 'btn-outline-primary' }}">{{ $roleLabel }}s ({{ $roleCounts[$roleKey] ?? 0 }})</a>
+                    @endforeach
                 </div>
 
                 @if($users->isNotEmpty())
@@ -41,10 +49,10 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Nom</th>
-                                    <th>Prenoms</th>
+                                    <th>Prénoms</th>
                                     <th>Mobile</th>
                                     <th>Email</th>
-                                    <th>Role</th>
+                                    <th>Rôle</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -56,8 +64,13 @@
                                         <td>{{ $user->prenoms }}</td>
                                         <td>{{ $user->mobile }}</td>
                                         <td>{{ $user->email }}</td>
-                                        <td>
-                                            <span class="badge {{ $user->isSuperviseur() ? 'badge-primary' : 'badge-light' }}">{{ $user->role_label }}</span>
+                                        <td data-order="{{ $user->role_label }}">
+                                            <span class="badge {{ $user->isSuperviseur() ? 'badge-primary' : 'badge-secondary' }}" style="font-size: 12px; padding: 5px 10px;">
+                                                <i class="{{ $user->isSuperviseur() ? 'i-Business-ManWoman' : 'i-Headset' }} mr-1"></i>{{ $user->role_label }}
+                                            </span>
+                                            @unless($user->statut)
+                                                <span class="badge badge-light ml-1">Inactif</span>
+                                            @endunless
                                         </td>
                                         <td>
                                             <div class="dropdown">
@@ -68,11 +81,24 @@
                                                     <a class="dropdown-item" href="{{ route('call-centers.edit', $user->id) }}">
                                                         Modifier
                                                     </a>
+                                                    @php
+                                                        $newRole = $user->isSuperviseur() ? \App\Models\CallCenterUser::ROLE_AGENT : \App\Models\CallCenterUser::ROLE_SUPERVISEUR;
+                                                        $newRoleLabel = \App\Models\CallCenterUser::ROLES[$newRole];
+                                                    @endphp
+                                                    <form action="{{ route('call-centers.role', $user->id) }}" method="POST">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <input type="hidden" name="role" value="{{ $newRole }}">
+                                                        <button type="submit" class="dropdown-item" onclick="return confirm({{ json_encode('Passer ' . trim($user->prenoms . ' ' . $user->nom) . ' en ' . mb_strtolower($newRoleLabel) . ' ?') }})">
+                                                            <i class="{{ $user->isSuperviseur() ? 'i-Headset' : 'i-Business-ManWoman' }} mr-1"></i>
+                                                            Passer {{ mb_strtolower($newRoleLabel) }}
+                                                        </button>
+                                                    </form>
                                                     <div class="dropdown-divider"></div>
                                                     <form action="{{ route('call-centers.destroy', $user->id) }}" method="POST">
                                                         @csrf
                                                         @method('DELETE')
-                                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Supprimer ce user call center ?')">
+                                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Supprimer cet agent call center ?')">
                                                             Supprimer
                                                         </button>
                                                     </form>
@@ -85,7 +111,7 @@
                         </table>
                     </div>
                 @else
-                    <p>Aucun user call center enregistre.</p>
+                    <p>{{ $roleFilter ? 'Aucun compte avec ce rôle.' : 'Aucun agent call center enregistré.' }}</p>
                 @endif
             </div>
         </div>

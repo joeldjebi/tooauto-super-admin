@@ -5,13 +5,13 @@
     $activeFilters = collect($filters)->filter(fn ($value) => filled($value))->count();
 @endphp
 
-@section('lead', "Tous les appels de l'equipe : qui a appele qui, quand, et avec quel resultat.")
+@section('lead', "Tous les appels de l'équipe : qui a appelé qui, quand, et avec quel résultat.")
 
 @section('content')
     <div class="cc-card">
         <div class="cc-card-header">
             <div>
-                <h5 class="cc-card-title">Appels enregistres</h5>
+                <h5 class="cc-card-title">Appels enregistrés</h5>
                 <p class="cc-card-subtitle">Cliquez sur un contact pour voir tout son historique.</p>
             </div>
             @if($interactions)
@@ -46,7 +46,7 @@
                     </select>
                 </div>
                 <div>
-                    <label class="cc-field-label">Resultat</label>
+                    <label class="cc-field-label">Résultat</label>
                     <select name="resultat" class="form-control">
                         <option value="">Tous</option>
                         @foreach(CallCenterOutcomes::resultatLabels() as $key => $label)
@@ -90,12 +90,12 @@
         </form>
 
         @if($interactions === null)
-            <div class="alert alert-warning mb-0">Le journal des appels n'est pas encore installe : creez la table <code>call_center_interactions</code>.</div>
+            <div class="alert alert-warning mb-0">Le journal des appels n'est pas encore installe : créez la table <code>call_center_interactions</code>.</div>
         @elseif($interactions->count() === 0)
             <div class="cc-empty-state">
                 @include('call-centers.partials.icon', ['name' => 'empty'])
                 <strong>Aucun appel</strong>
-                <span>{{ $activeFilters > 0 ? 'Aucun appel ne correspond a ces filtres.' : 'Les appels enregistres par les agents apparaitront ici.' }}</span>
+                <span>{{ $activeFilters > 0 ? 'Aucun appel ne correspond à ces filtres.' : 'Les appels enregistrés par les agents apparaîtront ici.' }}</span>
             </div>
         @else
             <div class="cc-table-wrap">
@@ -106,7 +106,7 @@
                             <th>Contact</th>
                             <th>Agent</th>
                             <th>Canal / motif</th>
-                            <th>Resultat</th>
+                            <th>Résultat</th>
                             <th>Rappel</th>
                             <th>Commentaire</th>
                         </tr>
@@ -124,7 +124,7 @@
                                     <a href="{{ route('call-center.interactions.history', [$interaction->cible_type, $interaction->cible_id]) }}">{{ $cibleNom }}</a>
                                     <div class="cc-muted" style="font-size: 12px;">{{ CallCenterOutcomes::label('cible', $interaction->cible_type) }}{{ $interaction->type_alerte ? ' · ' . $interaction->type_alerte : '' }}</div>
                                 </td>
-                                <td data-label="Agent">{{ $interaction->agent ?: 'Agent supprime' }}</td>
+                                <td data-label="Agent">{{ $interaction->agent ?: 'Agent supprimé' }}</td>
                                 <td data-label="Canal / motif">
                                     {{ CallCenterOutcomes::label('canal', $interaction->canal) }}
                                     <div class="cc-muted" style="font-size: 12px;">{{ CallCenterOutcomes::label('motif', $interaction->motif) }}</div>
@@ -137,11 +137,11 @@
                                         {{ $rappel->format('d/m/Y H:i') }}
                                         <div style="font-size: 12px;">
                                             @if($interaction->rappel_fait_at)
-                                                <span class="cc-muted">traite</span>
+                                                <span class="cc-muted">traité</span>
                                             @elseif($rappel->isPast())
                                                 <span class="text-danger">en retard</span>
                                             @else
-                                                <span class="cc-muted">prevu</span>
+                                                <span class="cc-muted">prévu</span>
                                             @endif
                                         </div>
                                     @else

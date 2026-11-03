@@ -42,7 +42,7 @@ class CallCenterInteractionController extends Controller
             ],
         ], [
             'rappel_le.required' => 'Indiquez la date du rappel.',
-            'rappel_le.after_or_equal' => 'La date de rappel ne peut pas etre dans le passe.',
+            'rappel_le.after_or_equal' => 'La date de rappel ne peut pas être dans le passé.',
         ]);
 
         $table = $validated['cible_type'];
@@ -105,7 +105,7 @@ class CallCenterInteractionController extends Controller
 
         Cache::forever(self::COUNT_VERSION_KEY, (int) Cache::get(self::COUNT_VERSION_KEY, 0) + 1);
 
-        $message = 'Appel enregistre : ' . CallCenterOutcomes::label('resultat', $validated['resultat']) . '.';
+        $message = 'Appel enregistré : ' . CallCenterOutcomes::label('resultat', $validated['resultat']) . '.';
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'message' => $message]);

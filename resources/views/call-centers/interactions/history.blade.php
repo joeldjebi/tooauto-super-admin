@@ -23,7 +23,7 @@
         <div class="cc-card-header">
             <div>
                 <h5 class="cc-card-title">Appels et actions</h5>
-                <p class="cc-card-subtitle">Du plus recent au plus ancien, tous agents confondus.</p>
+                <p class="cc-card-subtitle">Du plus récent au plus ancien, tous agents confondus.</p>
             </div>
             @if($interactions)
                 <span class="cc-count">{{ number_format($interactions->total(), 0, ',', ' ') }} appel(s)</span>
@@ -35,8 +35,8 @@
         @elseif($interactions->count() === 0)
             <div class="cc-empty-state">
                 @include('call-centers.partials.icon', ['name' => 'empty'])
-                <strong>Aucun appel enregistre</strong>
-                <span>Utilisez « Enregistrer un appel » apres chaque contact.</span>
+                <strong>Aucun appel enregistré</strong>
+                <span>Utilisez « Enregistrer un appel » après chaque contact.</span>
             </div>
         @else
             <div class="cc-table-wrap">
@@ -46,7 +46,7 @@
                             <th>Date</th>
                             <th>Agent</th>
                             <th>Canal / motif</th>
-                            <th>Resultat</th>
+                            <th>Résultat</th>
                             <th>Alerte</th>
                             <th>Rappel</th>
                             <th>Commentaire</th>
@@ -82,11 +82,11 @@
                                         {{ $rappel->format('d/m/Y H:i') }}
                                         <div style="font-size: 12px;">
                                             @if($interaction->rappel_fait_at)
-                                                <span class="cc-muted">traite</span>
+                                                <span class="cc-muted">traité</span>
                                             @elseif($rappel->isPast())
                                                 <span class="text-danger">en retard</span>
                                             @else
-                                                <span class="cc-muted">prevu</span>
+                                                <span class="cc-muted">prévu</span>
                                             @endif
                                         </div>
                                     @else

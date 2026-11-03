@@ -3,22 +3,22 @@
 @php
     use App\Support\CallCenterOutcomes;
     $sections = [
-        'en_retard' => ['title' => 'En retard', 'subtitle' => 'Rappels dont la date est passee : a traiter en priorite.', 'tone' => 'red'],
-        'aujourdhui' => ['title' => "Aujourd'hui", 'subtitle' => 'Rappels prevus pour la journee.', 'tone' => 'orange'],
-        'a_venir' => ['title' => 'A venir', 'subtitle' => 'Rappels programmes les prochains jours.', 'tone' => 'gray'],
+        'en_retard' => ['title' => 'En retard', 'subtitle' => 'Rappels dont la date est passée : à traiter en priorité.', 'tone' => 'red'],
+        'aujourdhui' => ['title' => "Aujourd'hui", 'subtitle' => 'Rappels prévus pour la journée.', 'tone' => 'orange'],
+        'a_venir' => ['title' => 'À venir', 'subtitle' => 'Rappels programmés les prochains jours.', 'tone' => 'gray'],
     ];
     $totalDue = $groups['en_retard']->count() + $groups['aujourdhui']->count();
 @endphp
 
 @section('lead')
-    {{ $totalDue > 0 ? $totalDue . ' rappel(s) a faire aujourd\'hui, dont ' . $groups['en_retard']->count() . ' en retard.' : "Aucun rappel en attente pour aujourd'hui." }}
+    {{ $totalDue > 0 ? $totalDue . ' rappel(s) à faire aujourd\'hui, dont ' . $groups['en_retard']->count() . ' en retard.' : "Aucun rappel en attente pour aujourd'hui." }}
 @endsection
 
 @section('header-actions')
     @if($isSupervisor)
-        <div class="btn-group" role="group" aria-label="Rappels affiches">
+        <div class="btn-group" role="group" aria-label="Rappels affichés">
             <a href="{{ route('call-center.mes-rappels') }}" class="btn {{ $showAll ? 'btn-outline-secondary' : 'btn-primary' }}">Mes rappels</a>
-            <a href="{{ route('call-center.mes-rappels', ['agent' => 'tous']) }}" class="btn {{ $showAll ? 'btn-primary' : 'btn-outline-secondary' }}">Toute l'equipe</a>
+            <a href="{{ route('call-center.mes-rappels', ['agent' => 'tous']) }}" class="btn {{ $showAll ? 'btn-primary' : 'btn-outline-secondary' }}">Toute l'équipe</a>
         </div>
     @endif
 @endsection
@@ -44,13 +44,13 @@
     </style>
 
     @if(! $available)
-        <div class="alert alert-warning">Le journal des appels n'est pas encore installe : creez la table <code>call_center_interactions</code>.</div>
+        <div class="alert alert-warning">Le journal des appels n'est pas encore installe : créez la table <code>call_center_interactions</code>.</div>
     @elseif($groups['en_retard']->isEmpty() && $groups['aujourdhui']->isEmpty() && $groups['a_venir']->isEmpty())
         <div class="cc-card">
             <div class="cc-empty-state">
                 @include('call-centers.partials.icon', ['name' => 'calendar'])
                 <strong>Aucun rappel en attente</strong>
-                <span>Quand un appel se termine par « A rappeler », le rappel apparait ici a la date choisie.</span>
+                <span>Quand un appel se termine par « À rappeler », le rappel apparaît ici à la date choisie.</span>
             </div>
         </div>
     @else
@@ -89,7 +89,7 @@
                                         @if($alerte)
                                             <span>{{ $alerte }}</span>
                                         @endif
-                                        <span>Programme le {{ \Carbon\Carbon::parse($row->created_at)->format('d/m/Y') }}{{ $showAll ? ' par ' . ($row->agent ?: 'Agent supprime') : '' }}</span>
+                                        <span>Programmé le {{ \Carbon\Carbon::parse($row->created_at)->format('d/m/Y') }}{{ $showAll ? ' par ' . ($row->agent ?: 'Agent supprimé') : '' }}</span>
                                     </div>
                                     @if($row->commentaire)
                                         <div class="cc-cb-note">{{ \Illuminate\Support\Str::limit($row->commentaire, 220) }}</div>
@@ -103,7 +103,7 @@
                                     </button>
                                     <form method="POST" action="{{ route('call-center.mes-rappels.traite', $row->id) }}" class="mb-0">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Le rappel n'est plus necessaire (client deja joint autrement...)">Marquer traite</button>
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Le rappel n'est plus nécessaire (client déjà joint autrement...)">Marquer traité</button>
                                     </form>
                                 </div>
                             </article>
@@ -112,6 +112,6 @@
                 @endif
             </section>
         @endforeach
-        <p class="cc-muted" style="font-size: 12.5px;">Enregistrer un appel sur un contact cloture automatiquement ses rappels en attente. Pour reporter, enregistrez l'appel avec le resultat « A rappeler » et une nouvelle date.</p>
+        <p class="cc-muted" style="font-size: 12.5px;">Enregistrer un appel sur un contact clôture automatiquement ses rappels en attente. Pour reporter, enregistrez l'appel avec le résultat « À rappeler » et une nouvelle date.</p>
     @endif
 @endsection

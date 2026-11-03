@@ -9,7 +9,7 @@
 @endphp
 
 @section('lead')
-    {{ $from->isSameDay($to) ? 'Le ' . $from->format('d/m/Y') : 'Du ' . $from->format('d/m/Y') . ' au ' . $to->format('d/m/Y') }}{{ $agentName ? ' · ' . $agentName : " · toute l'equipe" }}
+    {{ $from->isSameDay($to) ? 'Le ' . $from->format('d/m/Y') : 'Du ' . $from->format('d/m/Y') . ' au ' . $to->format('d/m/Y') }}{{ $agentName ? ' · ' . $agentName : " · toute l'équipe" }}
 @endsection
 
 @section('header-actions')
@@ -28,7 +28,7 @@
     <div class="cc-card mb-0">
         <form method="GET" class="cc-r-filters">
             <div>
-                <label class="cc-field-label" for="cc-r-periode">Periode</label>
+                <label class="cc-field-label" for="cc-r-periode">Période</label>
                 <select id="cc-r-periode" name="periode" class="form-control" onchange="document.querySelectorAll('[data-cc-custom]').forEach(function (el) { el.hidden = this.value !== 'personnalisee'; }, this)">
                     @foreach($periods as $key => $label)
                         <option value="{{ $key }}" {{ $period === $key ? 'selected' : '' }}>{{ $label }}</option>
@@ -46,7 +46,7 @@
             <div>
                 <label class="cc-field-label" for="cc-r-agent">Agent</label>
                 <select id="cc-r-agent" name="agent_id" class="form-control">
-                    <option value="">Toute l'equipe</option>
+                    <option value="">Toute l'équipe</option>
                     @foreach($agents as $agent)
                         <option value="{{ $agent->id }}" {{ (int) $agentId === (int) $agent->id ? 'selected' : '' }}>{{ trim($agent->prenoms . ' ' . $agent->nom) }}</option>
                     @endforeach
@@ -59,34 +59,34 @@
     </div>
 
     @if(! $available)
-        <div class="alert alert-warning mt-4">Le journal des appels n'est pas encore installe : creez la table <code>call_center_interactions</code>.</div>
+        <div class="alert alert-warning mt-4">Le journal des appels n'est pas encore installe : créez la table <code>call_center_interactions</code>.</div>
     @else
         {{-- Indicateurs cles --}}
         <div class="cc-r-tiles">
             <div class="cc-r-tile">
                 <span class="cc-r-tile-label">Appels</span>
                 <span class="cc-r-tile-value">{{ $fmt($summary['total']) }}</span>
-                <span class="cc-r-tile-hint">{{ $fmt($summary['contacts']) }} contacts differents{{ $summary['minutes'] ? ' · ' . $fmt($summary['minutes']) . ' min' : '' }}</span>
+                <span class="cc-r-tile-hint">{{ $fmt($summary['contacts']) }} contacts différents{{ $summary['minutes'] ? ' · ' . $fmt($summary['minutes']) . ' min' : '' }}</span>
             </div>
             <div class="cc-r-tile">
-                <span class="cc-r-tile-label">Taux de joignabilite</span>
+                <span class="cc-r-tile-label">Taux de joignabilité</span>
                 <span class="cc-r-tile-value">{{ $pct($summary['taux_joints']) }}</span>
                 <span class="cc-r-tile-hint">{{ $fmt($summary['joints']) }} appels avec la personne en ligne</span>
             </div>
             <div class="cc-r-tile">
-                <span class="cc-r-tile-label">Interesses</span>
+                <span class="cc-r-tile-label">Intéressés</span>
                 <span class="cc-r-tile-value">{{ $fmt($acquisition['interesses']) }}</span>
-                <span class="cc-r-tile-hint">{{ $fmt($acquisition['inscrits']) }} inscrits · {{ $fmt($acquisition['convertis']) }} convertis (declares)</span>
+                <span class="cc-r-tile-hint">{{ $fmt($acquisition['inscrits']) }} inscrits · {{ $fmt($acquisition['convertis']) }} convertis (déclarés)</span>
             </div>
             <div class="cc-r-tile is-good">
-                <span class="cc-r-tile-label">Clients gagnes</span>
+                <span class="cc-r-tile-label">Clients gagnés</span>
                 <span class="cc-r-tile-value">{{ $fmt($acquisition['abonnements']) }}</span>
-                <span class="cc-r-tile-hint">abonnements &le; {{ \App\Services\CallCenterReportService::CONVERSION_DAYS }} j apres un appel · {{ $fmt($acquisition['abonnements_payants']) }} payants</span>
+                <span class="cc-r-tile-hint">abonnements &le; {{ \App\Services\CallCenterReportService::CONVERSION_DAYS }} j après un appel · {{ $fmt($acquisition['abonnements_payants']) }} payants</span>
             </div>
             <div class="cc-r-tile">
                 <span class="cc-r-tile-label">Couverture des alertes</span>
                 <span class="cc-r-tile-value">{{ $pct($alerts['couverture'] ?? null) }}</span>
-                <span class="cc-r-tile-hint">{{ $fmt($alerts['a_venir_relancees'] ?? 0) }} / {{ $fmt($alerts['a_venir'] ?? 0) }} alertes sous 30 j deja relancees</span>
+                <span class="cc-r-tile-hint">{{ $fmt($alerts['a_venir_relancees'] ?? 0) }} / {{ $fmt($alerts['a_venir'] ?? 0) }} alertes sous 30 j déjà relancées</span>
             </div>
             <div class="cc-r-tile {{ $callbacks['en_retard'] > 0 ? 'is-alert' : '' }}">
                 <span class="cc-r-tile-label">Rappels en retard</span>
@@ -115,12 +115,12 @@
                             <th class="cc-r-num">Joints</th>
                             <th class="cc-r-num">Contacts</th>
                             <th class="cc-r-num">Relances alertes</th>
-                            <th class="cc-r-num">Interesses</th>
-                            <th class="cc-r-num">A rappeler</th>
+                            <th class="cc-r-num">Intéressés</th>
+                            <th class="cc-r-num">À rappeler</th>
                             <th class="cc-r-num">Refus</th>
                             <th class="cc-r-num">Inscrits</th>
                             <th class="cc-r-num">Convertis</th>
-                            <th class="cc-r-num" title="Abonnements souscrits dans les {{ \App\Services\CallCenterReportService::CONVERSION_DAYS }} jours apres un appel de l'agent">Abonnements</th>
+                            <th class="cc-r-num" title="Abonnements souscrits dans les {{ \App\Services\CallCenterReportService::CONVERSION_DAYS }} jours après un appel de l'agent">Abonnements</th>
                             <th class="cc-r-num">Rappels en retard</th>
                             <th>Dernier appel</th>
                         </tr>
@@ -161,7 +161,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="cc-r-note">« Joints » : la personne a repondu (tous les resultats sauf pas de reponse, messagerie, injoignable, mauvais numero). « Rappels en retard » : sur l'ensemble des rappels en attente, quelle que soit la periode.</p>
+            <p class="cc-r-note">« Joints » : la personne a répondu (tous les résultats sauf pas de réponse, messagerie, injoignable, mauvais numéro). « Rappels en retard » : sur l'ensemble des rappels en attente, quelle que soit la période.</p>
         </div>
 
         <div class="cc-r-two">
@@ -170,7 +170,7 @@
                 <div class="cc-card-header">
                     <div>
                         <h5 class="cc-card-title">Relances d'alertes</h5>
-                        <p class="cc-card-subtitle">Assurances, visites techniques... a relancer avant expiration.</p>
+                        <p class="cc-card-subtitle">Assurances, visites techniques... à relancer avant expiration.</p>
                     </div>
                 </div>
                 @if(empty($alerts))
@@ -179,26 +179,26 @@
                     <div class="cc-r-section-title" style="margin-top: 0;">Alertes qui expirent dans les 30 prochains jours</div>
                     <div class="cc-r-hbars">
                         <div>
-                            <div class="cc-r-hbar-head"><span>Deja relancees</span><strong>{{ $fmt($alerts['a_venir_relancees']) }} / {{ $fmt($alerts['a_venir']) }} · {{ $pct($alerts['couverture']) }}</strong></div>
+                            <div class="cc-r-hbar-head"><span>Déjà relancées</span><strong>{{ $fmt($alerts['a_venir_relancees']) }} / {{ $fmt($alerts['a_venir']) }} · {{ $pct($alerts['couverture']) }}</strong></div>
                             <div class="cc-r-hbar-track"><div class="cc-r-hbar-fill" style="width: {{ (int) ($alerts['couverture'] ?? 0) }}%"></div></div>
                         </div>
                     </div>
                     <div class="cc-r-sub mt-1">{{ $fmt($alerts['a_venir_7j']) }} expirent dans les 7 jours.</div>
 
-                    <div class="cc-r-section-title">Alertes expirees sur la periode</div>
+                    <div class="cc-r-section-title">Alertes expirées sur la période</div>
                     <div class="cc-r-kv">
-                        <div><span>Alertes expirees</span><strong>{{ $fmt($alerts['expirees']) }}</strong></div>
-                        <div><span>Relancees avant ou apres expiration</span><strong>{{ $fmt($alerts['expirees_relancees']) }}</strong></div>
-                        <div><span class="{{ $alerts['expirees_sans_relance'] > 0 ? 'text-danger' : '' }}">Jamais relancees</span><strong class="{{ $alerts['expirees_sans_relance'] > 0 ? 'text-danger' : '' }}">{{ $fmt($alerts['expirees_sans_relance']) }}</strong></div>
-                        <div><span>Renouvelees — si relancees</span><strong>{{ $pct($alerts['taux_renouvellement_relancees']) }}</strong></div>
-                        <div><span>Renouvelees — sans relance</span><strong>{{ $pct($alerts['taux_renouvellement_non_relancees']) }}</strong></div>
+                        <div><span>Alertes expirées</span><strong>{{ $fmt($alerts['expirees']) }}</strong></div>
+                        <div><span>Relancées avant ou après expiration</span><strong>{{ $fmt($alerts['expirees_relancees']) }}</strong></div>
+                        <div><span class="{{ $alerts['expirees_sans_relance'] > 0 ? 'text-danger' : '' }}">Jamais relancées</span><strong class="{{ $alerts['expirees_sans_relance'] > 0 ? 'text-danger' : '' }}">{{ $fmt($alerts['expirees_sans_relance']) }}</strong></div>
+                        <div><span>Renouvelées — si relancées</span><strong>{{ $pct($alerts['taux_renouvellement_relancees']) }}</strong></div>
+                        <div><span>Renouvelées — sans relance</span><strong>{{ $pct($alerts['taux_renouvellement_non_relancees']) }}</strong></div>
                     </div>
 
                     @if(count($alerts['par_type']) > 0)
-                        <div class="cc-r-section-title">Relances de la periode par type d'alerte</div>
+                        <div class="cc-r-section-title">Relances de la période par type d'alerte</div>
                         <div class="cc-table-wrap">
                             <table class="table cc-table cc-r-table">
-                                <thead><tr><th>Type</th><th class="cc-r-num">Relances</th><th class="cc-r-num">Joints</th><th class="cc-r-num">Renouvelees (declarees)</th></tr></thead>
+                                <thead><tr><th>Type</th><th class="cc-r-num">Relances</th><th class="cc-r-num">Joints</th><th class="cc-r-num">Renouvelées (déclarées)</th></tr></thead>
                                 <tbody>
                                     @foreach($alerts['par_type'] as $type)
                                         <tr><td>{{ $type->type }}</td><td class="cc-r-num">{{ $fmt($type->relances) }}</td><td class="cc-r-num">{{ $fmt($type->joints) }}</td><td class="cc-r-num">{{ $fmt($type->renouvelees) }}</td></tr>
@@ -207,7 +207,7 @@
                             </table>
                         </div>
                     @endif
-                    <p class="cc-r-note">Une alerte est « renouvelee » quand une nouvelle alerte du meme type existe pour le meme vehicule avec une echeance plus lointaine. Comparer les deux taux mesure l'effet des relances.</p>
+                    <p class="cc-r-note">Une alerte est « renouvelée » quand une nouvelle alerte du même type existe pour le même véhicule avec une échéance plus lointaine. Comparer les deux taux mesure l'effet des relances.</p>
                 @endif
             </div>
 
@@ -216,17 +216,17 @@
                 <div class="cc-card-header">
                     <div>
                         <h5 class="cc-card-title">Acquisition</h5>
-                        <p class="cc-card-subtitle">Contacts appeles sur la periode, du premier appel a l'abonnement.</p>
+                        <p class="cc-card-subtitle">Contacts appelés sur la période, du premier appel à l'abonnement.</p>
                     </div>
                 </div>
                 @php
                     $funnel = [
-                        ['Contacts appeles', $acquisition['appeles']],
+                        ['Contacts appelés', $acquisition['appeles']],
                         ['Joints', $acquisition['joints']],
-                        ['Interesses', $acquisition['interesses']],
-                        ['Inscrits (declares)', $acquisition['inscrits']],
-                        ['Convertis (declares)', $acquisition['convertis']],
-                        ['Abonnement souscrit apres l\'appel', $acquisition['abonnements']],
+                        ['Intéressés', $acquisition['interesses']],
+                        ['Inscrits (déclarés)', $acquisition['inscrits']],
+                        ['Convertis (déclarés)', $acquisition['convertis']],
+                        ['Abonnement souscrit après l\'appel', $acquisition['abonnements']],
                     ];
                     $funnelMax = max(1, $acquisition['appeles']);
                 @endphp
@@ -243,7 +243,7 @@
                     <div><span>Abonnements professionnels</span><strong>{{ $fmt($acquisition['abonnements_pros']) }}</strong></div>
                     <div><span>Dont payants</span><strong>{{ $fmt($acquisition['abonnements_payants']) }}</strong></div>
                 </div>
-                <p class="cc-r-note">« Abonnement souscrit apres l'appel » est calcule automatiquement : abonnement cree dans les {{ \App\Services\CallCenterReportService::CONVERSION_DAYS }} jours qui suivent le premier appel de la periode. « Inscrits » et « Convertis » sont les resultats saisis par les agents.</p>
+                <p class="cc-r-note">« Abonnement souscrit après l'appel » est calculé automatiquement : abonnement créé dans les {{ \App\Services\CallCenterReportService::CONVERSION_DAYS }} jours qui suivent le premier appel de la période. « Inscrits » et « Convertis » sont les résultats saisis par les agents.</p>
             </div>
         </div>
 

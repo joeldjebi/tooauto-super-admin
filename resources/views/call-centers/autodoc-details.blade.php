@@ -1,6 +1,6 @@
 @extends('call-centers.layout')
 
-@section('lead', 'Affichage des fichiers signes depuis Wasabi.')
+@section('lead', 'Affichage des fichiers signés depuis Wasabi.')
 
 @section('header-actions')
     <a href="{{ $backUrl }}" class="btn btn-plain">
@@ -12,12 +12,12 @@
 @section('content')
     @php
         $columnsLeft = [
-            'Vehicule' => $autodoc->vehicule ?? null,
-            'Type document' => $autodoc->type_document ?? null,
+            'Véhicule' => $autodoc->vehicule ?? null,
+            'Type de document' => $autodoc->type_document ?? null,
         ];
         $columnsRight = [
             'Source' => $autodoc->provenance_source ?? null,
-            'Date creation' => $autodoc->created_at ?? null,
+            'Date de création' => $autodoc->created_at ?? null,
         ];
     @endphp
 
@@ -29,7 +29,7 @@
                 </span>
                 <div>
                     <h5 class="cc-card-title">Document automobile #{{ $autodoc->id }}</h5>
-                    <p class="cc-card-subtitle">{{ $autodoc->type_document ?? 'Informations generales' }}</p>
+                    <p class="cc-card-subtitle">{{ $autodoc->type_document ?? 'Informations générales' }}</p>
                 </div>
             </div>
         </div>
@@ -53,8 +53,8 @@
     <div class="cc-card">
         <div class="cc-card-header">
             <div>
-                <h5 class="cc-card-title">Fichiers signes</h5>
-                <p class="cc-card-subtitle">Liens temporaires generes depuis Wasabi.</p>
+                <h5 class="cc-card-title">Fichiers signés</h5>
+                <p class="cc-card-subtitle">Liens temporaires générés depuis Wasabi.</p>
             </div>
             <span class="cc-count">{{ count($signedFiles) }} fichier(s)</span>
         </div>

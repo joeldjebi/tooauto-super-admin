@@ -15,7 +15,7 @@
         default => $abs . ' j',
     };
     $label = match ($tone) {
-        'expired' => 'Expiree depuis ' . $duration,
+        'expired' => 'Expirée depuis ' . $duration,
         'today' => "Expire aujourd'hui",
         'ok' => 'Valide · ' . $duration,
         default => 'Expire dans ' . $duration,

@@ -19,8 +19,8 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h4 class="card-title mb-1">Ajouter un user call center</h4>
-                        <p class="text-muted mb-0">Les acces sont generes automatiquement et envoyes par SMS.</p>
+                        <h4 class="card-title mb-1">Ajouter un agent call center</h4>
+                        <p class="text-muted mb-0">Les accès sont générés automatiquement et envoyés par SMS.</p>
                     </div>
                     <a href="{{ route('call-centers.index') }}" class="btn btn-outline-secondary">Retour</a>
                 </div>
@@ -29,8 +29,10 @@
                     @csrf
 
                     <div class="alert alert-info">
-                        Renseignez les informations du user call center. Le mot de passe sera cree par le systeme en chiffres uniquement.
+                        Renseignez les informations de l’agent call center. Le mot de passe sera créé par le système en chiffres uniquement.
                     </div>
+
+                    @include('call-centers.partials.role-picker', ['current' => \App\Models\CallCenterUser::ROLE_AGENT])
 
                     <div class="row">
                         <div class="col-md-6">
@@ -41,8 +43,8 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Prenoms</label>
-                                <input class="form-control" name="prenoms" type="text" value="{{ old('prenoms') }}" placeholder="Prenoms" required>
+                                <label>Prénoms</label>
+                                <input class="form-control" name="prenoms" type="text" value="{{ old('prenoms') }}" placeholder="Prénoms" required>
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -58,31 +60,20 @@
                                 <input class="form-control" name="mobile" type="text" value="{{ old('mobile') }}" placeholder="0700000000" required>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="form-group">
                                 <label>Email</label>
                                 <input class="form-control" name="email" type="email" value="{{ old('email') }}" placeholder="callcenter@tooauto.com" required>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Role</label>
-                                <select class="form-control" name="role" required>
-                                    @foreach(\App\Models\CallCenterUser::ROLES as $roleKey => $roleLabel)
-                                        <option value="{{ $roleKey }}" {{ old('role', 'agent') === $roleKey ? 'selected' : '' }}>{{ $roleLabel }}</option>
-                                    @endforeach
-                                </select>
-                                <small class="text-muted">Le superviseur voit les rapports de toute l'equipe.</small>
-                            </div>
-                        </div>
                     </div>
 
                     <div class="alert alert-light border mt-3">
-                        Connexion dediee call center : <strong>/call-center/login</strong>
+                        Connexion dédiée call center : <strong>/call-center/login</strong>
                     </div>
 
                     <div class="d-flex justify-content-end mt-3">
-                        <button type="submit" class="btn btn-primary">Creer et envoyer les acces</button>
+                        <button type="submit" class="btn btn-primary">Créer et envoyer les accès</button>
                     </div>
                 </form>
             </div>

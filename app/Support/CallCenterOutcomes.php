@@ -15,7 +15,7 @@ class CallCenterOutcomes
     public const CIBLES = [
         'users' => ['label' => 'Usager', 'name' => "TRIM(CONCAT(COALESCE(nom, ''), ' ', COALESCE(prenoms, '')))", 'mobile' => 'mobile', 'indicatif' => 'indicatif', 'whatsapp' => 'is_whatsapp'],
         'professionnels' => ['label' => 'Professionnel', 'name' => "TRIM(CONCAT(COALESCE(nom, ''), ' ', COALESCE(prenoms, '')))", 'mobile' => 'mobile', 'indicatif' => null, 'whatsapp' => null],
-        'etablissements' => ['label' => 'Etablissement', 'name' => 'name', 'mobile' => 'mobile', 'indicatif' => 'indicatif', 'whatsapp' => 'is_whatsapp'],
+        'etablissements' => ['label' => 'Établissement', 'name' => 'name', 'mobile' => 'mobile', 'indicatif' => 'indicatif', 'whatsapp' => 'is_whatsapp'],
         'concessionnaires' => ['label' => 'Concessionnaire', 'name' => 'name', 'mobile' => 'contact', 'indicatif' => null, 'whatsapp' => 'is_whatsapp'],
         'station_services' => ['label' => 'Station service', 'name' => 'name', 'mobile' => 'mobile', 'indicatif' => null, 'whatsapp' => null],
         'station_de_lavages' => ['label' => 'Station de lavage', 'name' => 'name', 'mobile' => 'contact', 'indicatif' => null, 'whatsapp' => null],
@@ -41,7 +41,7 @@ class CallCenterOutcomes
     public const MOTIFS = [
         'relance_alerte' => "Relance d'alerte",
         'prospection' => 'Prospection',
-        'inscription' => "Aide a l'inscription",
+        'inscription' => "Aide à l'inscription",
         'support' => 'Support / assistance',
         'satisfaction' => 'Satisfaction',
         'autre' => 'Autre',
@@ -52,17 +52,17 @@ class CallCenterOutcomes
      * "tone" = couleur du badge.
      */
     public const RESULTATS = [
-        'pas_de_reponse' => ['label' => 'Pas de reponse', 'contact' => false, 'tone' => 'light'],
+        'pas_de_reponse' => ['label' => 'Pas de réponse', 'contact' => false, 'tone' => 'light'],
         'messagerie' => ['label' => 'Messagerie', 'contact' => false, 'tone' => 'light'],
-        'injoignable' => ['label' => 'Injoignable / eteint', 'contact' => false, 'tone' => 'light'],
-        'mauvais_numero' => ['label' => 'Mauvais numero', 'contact' => false, 'tone' => 'danger'],
-        'a_rappeler' => ['label' => 'A rappeler', 'contact' => true, 'tone' => 'warning'],
-        'interesse' => ['label' => 'Interesse', 'contact' => true, 'tone' => 'info'],
-        'refus' => ['label' => 'Pas interesse / refus', 'contact' => true, 'tone' => 'danger'],
+        'injoignable' => ['label' => 'Injoignable / éteint', 'contact' => false, 'tone' => 'light'],
+        'mauvais_numero' => ['label' => 'Mauvais numéro', 'contact' => false, 'tone' => 'danger'],
+        'a_rappeler' => ['label' => 'À rappeler', 'contact' => true, 'tone' => 'warning'],
+        'interesse' => ['label' => 'Intéressé', 'contact' => true, 'tone' => 'info'],
+        'refus' => ['label' => 'Pas intéressé / refus', 'contact' => true, 'tone' => 'danger'],
         'inscrit' => ['label' => 'Inscrit', 'contact' => true, 'tone' => 'primary'],
-        'converti' => ['label' => 'Converti (client gagne)', 'contact' => true, 'tone' => 'success'],
-        'alerte_renouvelee' => ['label' => 'Alerte renouvelee', 'contact' => true, 'tone' => 'success'],
-        'informe' => ['label' => 'Informe / renseigne', 'contact' => true, 'tone' => 'info'],
+        'converti' => ['label' => 'Converti (client gagné)', 'contact' => true, 'tone' => 'success'],
+        'alerte_renouvelee' => ['label' => 'Alerte renouvelée', 'contact' => true, 'tone' => 'success'],
+        'informe' => ['label' => 'Informé / renseigné', 'contact' => true, 'tone' => 'info'],
     ];
 
     /** Resultats qui imposent une date de rappel. */

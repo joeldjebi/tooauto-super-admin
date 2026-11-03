@@ -43,6 +43,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/call-centers', [CallCenterUserController::class, 'store'])->name('call-centers.store');
     Route::get('/call-centers/{callCenter}/edit', [CallCenterUserController::class, 'edit'])->name('call-centers.edit');
     Route::put('/call-centers/{callCenter}', [CallCenterUserController::class, 'update'])->name('call-centers.update');
+    Route::patch('/call-centers/{callCenter}/role', [CallCenterUserController::class, 'updateRole'])->name('call-centers.role');
     Route::delete('/call-centers/{callCenter}', [CallCenterUserController::class, 'destroy'])->name('call-centers.destroy');
 
     // Routes pour l'enregistrement de l'établissement
@@ -415,7 +416,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notifications-by-alert/send', [NotificationController::class, 'sendByAlertExpiration'])->name('notifications.by-alert.send');
 });
 
-Route::prefix('call-center')->middleware('compact.html')->group(function () {
+Route::prefix('call-center')->middleware(['compact.html', 'call-center.fr'])->group(function () {
     Route::middleware(['guest:call_center'])->group(function () {
         Route::get('/login', [CallCenterAuthController::class, 'showLogin'])->name('call-center.login');
         Route::post('/login', [CallCenterAuthController::class, 'login'])->name('call-center.authenticate');

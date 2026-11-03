@@ -1,23 +1,23 @@
 @extends('call-centers.layout')
 
-@section('lead', 'Accedez rapidement aux listes et suivez vos appels.')
+@section('lead', 'Accédez rapidement aux listes et suivez vos appels.')
 
 @section('content')
     @php
         $cardStyles = [
-            'Alertes' => ['icon' => 'alertes', 'tone' => 'red', 'hint' => 'Echeances a relancer'],
-            'Users' => ['icon' => 'users', 'tone' => 'blue', 'hint' => 'Clients et suivi d\'appel'],
+            'Alertes' => ['icon' => 'alertes', 'tone' => 'red', 'hint' => 'Échéances à relancer'],
+            'Usagers' => ['icon' => 'users', 'tone' => 'blue', 'hint' => 'Clients et suivi d\'appel'],
             'Professionnels' => ['icon' => 'professionnels', 'tone' => 'indigo', 'hint' => 'Comptes professionnels'],
-            'Vehicules' => ['icon' => 'vehicules', 'tone' => 'teal', 'hint' => 'Parc et photos'],
-            'Station services' => ['icon' => 'station-services', 'tone' => 'orange', 'hint' => 'Stations carburant'],
-            'Station de lavages' => ['icon' => 'station-de-lavages', 'tone' => 'teal', 'hint' => 'Points de lavage'],
-            'Annonces' => ['icon' => 'annonces', 'tone' => 'pink', 'hint' => 'Annonces des users'],
-            'Annonce concessionnaires' => ['icon' => 'annonce-concessionnaires', 'tone' => 'purple', 'hint' => 'Offres concessionnaires'],
-            'Annonce etablissements' => ['icon' => 'annonce-etablissements', 'tone' => 'red', 'hint' => 'Offres etablissements'],
-            'Concessionnaires' => ['icon' => 'concessionnaires', 'tone' => 'indigo', 'hint' => 'Reseau concessionnaires'],
-            'Etablissements' => ['icon' => 'etablissements', 'tone' => 'green', 'hint' => 'Garages et services'],
+            'Véhicules' => ['icon' => 'vehicules', 'tone' => 'teal', 'hint' => 'Parc et photos'],
+            'Stations service' => ['icon' => 'station-services', 'tone' => 'orange', 'hint' => 'Stations carburant'],
+            'Stations de lavage' => ['icon' => 'station-de-lavages', 'tone' => 'teal', 'hint' => 'Points de lavage'],
+            'Annonces' => ['icon' => 'annonces', 'tone' => 'pink', 'hint' => 'Annonces des usagers'],
+            'Annonces concessionnaires' => ['icon' => 'annonce-concessionnaires', 'tone' => 'purple', 'hint' => 'Offres concessionnaires'],
+            'Annonces établissements' => ['icon' => 'annonce-etablissements', 'tone' => 'red', 'hint' => 'Offres établissements'],
+            'Concessionnaires' => ['icon' => 'concessionnaires', 'tone' => 'indigo', 'hint' => 'Réseau concessionnaires'],
+            'Établissements' => ['icon' => 'etablissements', 'tone' => 'green', 'hint' => 'Garages et services'],
             'Autodocs' => ['icon' => 'autodocs', 'tone' => 'yellow', 'hint' => 'Documents automobiles'],
-            'Notification send' => ['icon' => 'notification-send', 'tone' => 'red', 'hint' => 'Cibler et envoyer'],
+            'Envoi de notifications' => ['icon' => 'notification-send', 'tone' => 'red', 'hint' => 'Cibler et envoyer'],
         ];
     @endphp
 
@@ -239,14 +239,14 @@
     @if($alertStats)
         @php
             $statTiles = [
-                ['key' => 'expirees', 'label' => 'Expirees', 'hint' => 'Date depassee', 'tone' => 'expired', 'value' => $alertStats->expirees],
+                ['key' => 'expirees', 'label' => 'Expirées', 'hint' => 'Date dépassée', 'tone' => 'expired', 'value' => $alertStats->expirees],
                 ['key' => 'aujourdhui', 'label' => "Aujourd'hui", 'hint' => "Expirent aujourd'hui", 'tone' => 'today', 'value' => $alertStats->aujourdhui],
-                ['key' => '7j', 'label' => 'Sous 7 jours', 'hint' => 'A relancer en urgence', 'tone' => 'urgent', 'value' => $alertStats->sous_7j],
-                ['key' => '30j', 'label' => 'Sous 30 jours', 'hint' => 'Bientot a echeance', 'tone' => 'soon', 'value' => $alertStats->sous_30j],
+                ['key' => '7j', 'label' => 'Sous 7 jours', 'hint' => 'À relancer en urgence', 'tone' => 'urgent', 'value' => $alertStats->sous_7j],
+                ['key' => '30j', 'label' => 'Sous 30 jours', 'hint' => 'Bientôt à échéance', 'tone' => 'soon', 'value' => $alertStats->sous_30j],
             ];
             $alertBlocks = [
-                ['title' => 'Expirent bientot', 'subtitle' => 'Dans les 30 prochains jours', 'items' => $upcomingAlerts, 'filter' => '30j', 'empty' => "Aucune alerte n'expire dans les 30 jours."],
-                ['title' => 'Recemment expirees', 'subtitle' => "Les plus recentes d'abord", 'items' => $expiredAlerts, 'filter' => 'expirees', 'empty' => 'Aucune alerte expiree.'],
+                ['title' => 'Expirent bientôt', 'subtitle' => 'Dans les 30 prochains jours', 'items' => $upcomingAlerts, 'filter' => '30j', 'empty' => "Aucune alerte n'expire dans les 30 jours."],
+                ['title' => 'Récemment expirées', 'subtitle' => "Les plus récentes d'abord", 'items' => $expiredAlerts, 'filter' => 'expirees', 'empty' => 'Aucune alerte expirée.'],
             ];
         @endphp
 
@@ -270,13 +270,13 @@
             <div class="cc-card-header" style="margin-bottom: 16px;">
                 <div>
                     <h5 class="cc-card-title">Rechercher une alerte</h5>
-                    <p class="cc-card-subtitle">Trouvez les alertes expirees ou presque expirees.</p>
+                    <p class="cc-card-subtitle">Trouvez les alertes expirées ou presque expirées.</p>
                 </div>
             </div>
             <form method="GET" action="{{ route('call-center.alertes') }}" class="cc-alert-search">
                 <div>
                     <label class="cc-field-label" for="cc-alert-search">Recherche</label>
-                    <input id="cc-alert-search" type="text" name="search" class="form-control cc-input-search" placeholder="Nom, mobile, vehicule, type">
+                    <input id="cc-alert-search" type="text" name="search" class="form-control cc-input-search" placeholder="Nom, mobile, véhicule, type">
                 </div>
                 <div>
                     <label class="cc-field-label" for="cc-alert-due">{{ $alertFilter['label'] }}</label>
@@ -288,7 +288,7 @@
                     </select>
                 </div>
                 <div>
-                    <label class="cc-field-label" for="cc-alert-from">Expire a partir du</label>
+                    <label class="cc-field-label" for="cc-alert-from">Expire à partir du</label>
                     <input id="cc-alert-from" type="date" name="fin_from" class="form-control">
                 </div>
                 <div>
@@ -305,8 +305,8 @@
         <div class="cc-card mb-4">
             <div class="cc-card-header" style="margin-bottom: 10px;">
                 <div>
-                    <h5 class="cc-card-title">Users a rappeler</h5>
-                    <p class="cc-card-subtitle">Users ayant au moins une alerte expiree, non appeles en premier.</p>
+                    <h5 class="cc-card-title">Usagers à rappeler</h5>
+                    <p class="cc-card-subtitle">Usagers ayant au moins une alerte expirée, non appelés en premier.</p>
                 </div>
                 <div class="cc-header-actions">
                     <span class="cc-count">{{ $usersToCall['total'] }} user(s)</span>
@@ -318,14 +318,14 @@
                 <ul class="cc-alert-list cc-call-grid">
                     @foreach($usersToCall['items'] as $contact)
                         @php
-                            $contactName = trim(($contact->nom ?? '') . ' ' . ($contact->prenoms ?? '')) ?: 'User #' . $contact->id;
+                            $contactName = trim(($contact->nom ?? '') . ' ' . ($contact->prenoms ?? '')) ?: 'Usager #' . $contact->id;
                             $contactCalled = (string) ($contact->call_center_deja_appele ?? '0') === '1';
                         @endphp
                         <li class="cc-alert-item">
                             <span style="min-width: 0;">
                                 <a href="{{ route('call-center.users.alerts', $contact->id) }}" class="cc-alert-name">{{ $contactName }}</a>
                                 <small>
-                                    {{ $contact->nb_expirees }} alerte(s) expiree(s) · derniere le {{ \Carbon\Carbon::parse($contact->derniere_expiration)->format('d/m/Y') }}
+                                    {{ $contact->nb_expirees }} alerte(s) expiree(s) · dernière le {{ \Carbon\Carbon::parse($contact->derniere_expiration)->format('d/m/Y') }}
                                 </small>
                                 <span class="d-block mt-1">
                                     @include('call-centers.partials.phone', ['mobile' => $contact->mobile ?? null, 'indicatif' => $contact->indicatif ?? null, 'whatsapp' => (string) ($contact->is_whatsapp ?? '0') === '1'])
@@ -333,7 +333,7 @@
                             </span>
                             <span class="cc-alert-item-end">
                                 @if(property_exists($contact, 'call_center_deja_appele'))
-                                    <span class="badge {{ $contactCalled ? 'badge-success' : 'badge-light' }}"><span class="cc-dot"></span>{{ $contactCalled ? 'Deja appele' : 'A appeler' }}</span>
+                                    <span class="badge {{ $contactCalled ? 'badge-success' : 'badge-light' }}"><span class="cc-dot"></span>{{ $contactCalled ? 'Déjà appelé' : 'À appeler' }}</span>
                                 @endif
                                 @include('call-centers.partials.alert-due', ['days' => $contact->echeance])
                             </span>
@@ -342,7 +342,7 @@
                 </ul>
             @else
                 <div class="cc-empty-state" style="padding: 28px 12px;">
-                    <span>Aucun user avec une alerte expiree.</span>
+                    <span>Aucun usager avec une alerte expirée.</span>
                 </div>
             @endif
         </div>
@@ -365,7 +365,7 @@
                                     <li class="cc-alert-item">
                                         <span style="min-width: 0;">
                                             <a href="{{ $alert->user_id ? route('call-center.users.alerts', $alert->user_id) : '#' }}" class="cc-alert-name">
-                                                {{ $alert->utilisateur !== '' ? $alert->utilisateur : 'User #' . $alert->user_id }}
+                                                {{ $alert->utilisateur !== '' ? $alert->utilisateur : 'Usager #' . $alert->user_id }}
                                             </a>
                                             <small>{{ collect([$alert->type_alerte ?? null, $alert->vehicule ?? null])->filter()->implode(' · ') }}</small>
                                             <span class="d-block mt-1">
@@ -390,7 +390,7 @@
         </div>
 
         <div class="cc-section-head">
-            <h2>Acces rapide</h2>
+            <h2>Accès rapide</h2>
         </div>
     @endif
 

@@ -1,6 +1,6 @@
 @extends('call-centers.layout')
 
-@section('lead', 'Details et images du vehicule.')
+@section('lead', 'Détails et images du véhicule.')
 
 @section('header-actions')
     <a href="{{ $backUrl }}" class="btn btn-plain">
@@ -18,9 +18,9 @@
             'Marque' => $vehicule->marque ?? null,
         ];
         $columnsRight = [
-            'Type de vehicule' => $vehicule->type_vehicule ?? null,
+            'Type de véhicule' => $vehicule->type_vehicule ?? null,
             'Carburant' => $vehicule->carburant ?? null,
-            'Modele' => $vehicule->modele ?? null,
+            'Modèle' => $vehicule->modele ?? null,
             'Couleur' => $vehicule->couleur ?? null,
         ];
     @endphp
@@ -32,8 +32,8 @@
                     @include('call-centers.partials.icon', ['name' => 'vehicules'])
                 </span>
                 <div>
-                    <h5 class="cc-card-title">Vehicule {{ $vehicule->matricule ?? '#' . $vehicule->id }}</h5>
-                    <p class="cc-card-subtitle">{{ trim(($vehicule->marque ?? '') . ' ' . ($vehicule->modele ?? '')) ?: 'Informations generales' }}</p>
+                    <h5 class="cc-card-title">Véhicule {{ $vehicule->matricule ?? '#' . $vehicule->id }}</h5>
+                    <p class="cc-card-subtitle">{{ trim(($vehicule->marque ?? '') . ' ' . ($vehicule->modele ?? '')) ?: 'Informations générales' }}</p>
                 </div>
             </div>
         </div>
@@ -58,7 +58,7 @@
         <div class="cc-card-header">
             <div>
                 <h5 class="cc-card-title">Photos</h5>
-                <p class="cc-card-subtitle">Images stockees sur Wasabi.</p>
+                <p class="cc-card-subtitle">Images stockées sur Wasabi.</p>
             </div>
             <span class="cc-count">{{ count($photoUrls) }} image(s)</span>
         </div>
@@ -68,7 +68,7 @@
                 @foreach($photoUrls as $index => $photoUrl)
                     <a href="{{ $photoUrl }}" target="_blank" rel="noopener noreferrer" class="cc-media">
                         <div class="cc-media-thumb">
-                            <img src="{{ $photoUrl }}" alt="Photo vehicule {{ $index + 1 }}" loading="lazy">
+                            <img src="{{ $photoUrl }}" alt="Photo véhicule {{ $index + 1 }}" loading="lazy">
                         </div>
                         <div class="cc-media-body">
                             <span>Image {{ $index + 1 }}</span>
@@ -81,7 +81,7 @@
             <div class="cc-empty-state">
                 @include('call-centers.partials.icon', ['name' => 'empty'])
                 <strong>Aucune image</strong>
-                <span>Aucune image disponible pour ce vehicule.</span>
+                <span>Aucune image disponible pour ce véhicule.</span>
             </div>
         @endif
     </div>

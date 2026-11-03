@@ -157,7 +157,7 @@
         <div class="cc-login-card">
             <img class="cc-logo" src="/dist-assets/images/logo.png" alt="Logo" />
             <h1>Call Center</h1>
-            <p class="cc-sub">Connectez-vous avec l'URL dediee du call center.</p>
+            <p class="cc-sub">Connectez-vous avec l'URL dédiée du call center.</p>
 
             @if(session()->has("message"))
                 <div class="alert {{ session()->get('type') }}">{{ session()->get('message') }}</div>
@@ -178,7 +178,7 @@
                 <button type="submit" class="cc-submit">Se connecter</button>
             </form>
         </div>
-        <p class="cc-foot">Espace reserve aux agents du call center.</p>
+        <p class="cc-foot">Espace réservé aux agents du call center.</p>
     </main>
 </body>
 </html>

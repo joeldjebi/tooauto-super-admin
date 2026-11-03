@@ -29,7 +29,7 @@ class CallCenterAuthController extends Controller
             $request->session()->regenerate();
 
             session()->flash('type', 'alert-success');
-            session()->flash('message', 'Connexion call center effectuee avec succes.');
+            session()->flash('message', 'Connexion call center effectuée avec succès.');
 
             return redirect()->route('call-center.dashboard');
         }
@@ -42,7 +42,7 @@ class CallCenterAuthController extends Controller
 
     public function dashboard()
     {
-        $data['title'] = 'Dashboard call center';
+        $data['title'] = 'Tableau de bord';
         $data['menu'] = 'call-center-dashboard';
         $data['user'] = Auth::guard('call_center')->user();
 

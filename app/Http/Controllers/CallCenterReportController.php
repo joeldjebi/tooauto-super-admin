@@ -64,7 +64,7 @@ class CallCenterReportController extends Controller
         return response()->streamDownload(function () use ($report) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Date', 'Agent', 'Type de contact', 'Contact', 'Canal', 'Motif', 'Resultat', 'Joint', 'Alerte', 'Vehicule', 'Duree (min)', 'Rappel prevu', 'Rappel traite', 'Commentaire'], ';');
+            fputcsv($out, ['Date', 'Agent', 'Type de contact', 'Contact', 'Canal', 'Motif', 'Résultat', 'Joint', 'Alerte', 'Véhicule', 'Durée (min)', 'Rappel prévu', 'Rappel traité', 'Commentaire'], ';');
 
             foreach ($report->exportRows() as $row) {
                 fputcsv($out, [
@@ -91,7 +91,7 @@ class CallCenterReportController extends Controller
 
     private function authorizeSupervisor(): void
     {
-        abort_unless(Auth::guard('call_center')->user()?->isSuperviseur(), 403, 'Rapports reserves aux superviseurs.');
+        abort_unless(Auth::guard('call_center')->user()?->isSuperviseur(), 403, 'Rapports réservés aux superviseurs.');
     }
 
     /** @return array{0: Carbon, 1: Carbon, 2: string, 3: ?int} */

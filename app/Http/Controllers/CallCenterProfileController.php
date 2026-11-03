@@ -38,9 +38,9 @@ class CallCenterProfileController extends Controller
             'current_password' => ['required', 'string'],
         ], [
             'current_password.required' => 'Saisissez votre mot de passe actuel pour confirmer.',
-            'email.unique' => 'Cet email est deja utilise par un autre compte.',
-            'mobile.unique' => 'Ce numero est deja utilise par un autre compte.',
-            'mobile.regex' => 'Le numero ne doit contenir que des chiffres (et eventuellement +, espaces, points ou tirets).',
+            'email.unique' => 'Cet email est déjà utilisé par un autre compte.',
+            'mobile.unique' => 'Ce numéro est déjà utilisé par un autre compte.',
+            'mobile.regex' => 'Le numéro ne doit contenir que des chiffres (et éventuellement +, espaces, points ou tirets).',
         ], ['mobile' => 'mobile', 'email' => 'email']);
 
         $this->checkCurrentPassword($agent, $validated['current_password'], 'profil');
@@ -51,7 +51,7 @@ class CallCenterProfileController extends Controller
         $agent->email = trim($validated['email']);
         $agent->save();
 
-        return redirect()->route('call-center.profil')->with(['type' => 'alert-success', 'message' => 'Profil mis a jour.']);
+        return redirect()->route('call-center.profil')->with(['type' => 'alert-success', 'message' => 'Profil mis à jour.']);
     }
 
     public function updatePassword(Request $request)
@@ -63,9 +63,9 @@ class CallCenterProfileController extends Controller
             // Meme format que l'ecran de connexion du call center : 6 a 12 chiffres.
             'password' => ['required', 'digits_between:6,12', 'confirmed', 'different:current_password'],
         ], [
-            'password.digits_between' => 'Le nouveau mot de passe doit contenir 6 a 12 chiffres.',
+            'password.digits_between' => 'Le nouveau mot de passe doit contenir 6 à 12 chiffres.',
             'password.confirmed' => 'La confirmation ne correspond pas.',
-            'password.different' => "Le nouveau mot de passe doit etre different de l'actuel.",
+            'password.different' => "Le nouveau mot de passe doit être différent de l'actuel.",
         ]);
 
         $this->checkCurrentPassword($agent, $validated['current_password'], 'password');
@@ -76,7 +76,7 @@ class CallCenterProfileController extends Controller
         // Nouvel identifiant de session apres un changement de mot de passe.
         $request->session()->regenerate();
 
-        return redirect()->route('call-center.profil')->with(['type' => 'alert-success', 'message' => 'Mot de passe modifie.']);
+        return redirect()->route('call-center.profil')->with(['type' => 'alert-success', 'message' => 'Mot de passe modifié.']);
     }
 
     private function agent(): CallCenterUser

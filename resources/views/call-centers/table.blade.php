@@ -15,7 +15,7 @@
 
     @if(!empty($contactUser))
         @php
-            $contactName = trim(($contactUser->nom ?? '') . ' ' . ($contactUser->prenoms ?? '')) ?: 'User #' . $contactUser->id;
+            $contactName = trim(($contactUser->nom ?? '') . ' ' . ($contactUser->prenoms ?? '')) ?: 'Usager #' . $contactUser->id;
             $contactInitials = collect(preg_split('/\s+/', $contactName))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode('');
             $contactCalled = (string) ($contactUser->call_center_deja_appele ?? '0') === '1';
             $contactHasFollowUp = property_exists($contactUser, 'call_center_deja_appele');
@@ -30,7 +30,7 @@
                             <span class="cc-due cc-due-expired"><span class="cc-dot"></span>{{ $contactUser->alertes_expirees }} alerte(s) expiree(s)</span>
                         @endif
                         @if($contactHasFollowUp)
-                            <span class="badge {{ $contactCalled ? 'badge-success' : 'badge-light' }}"><span class="cc-dot"></span>{{ $contactCalled ? 'Deja appele' : 'Non appele' }}</span>
+                            <span class="badge {{ $contactCalled ? 'badge-success' : 'badge-light' }}"><span class="cc-dot"></span>{{ $contactCalled ? 'Déjà appelé' : 'Non appelé' }}</span>
                         @endif
                         @if(!empty($contactUser->email))
                             <a href="mailto:{{ $contactUser->email }}">{{ $contactUser->email }}</a>
@@ -63,7 +63,7 @@
                         @csrf
                         <input type="hidden" name="call_center_deja_appele" value="{{ $contactCalled ? '0' : '1' }}">
                         <button type="submit" class="btn btn-sm {{ $contactCalled ? 'btn-outline-secondary' : 'btn-outline-success' }}">
-                            {{ $contactCalled ? 'Marquer non appele' : 'Marquer appele' }}
+                            {{ $contactCalled ? 'Marquer non appelé' : 'Marquer appelé' }}
                         </button>
                     </form>
                 @endif
@@ -75,7 +75,7 @@
         <div class="cc-card-header">
             <div>
                 <h5 class="cc-card-title">Liste</h5>
-                <p class="cc-card-subtitle">Filtrez et consultez les donnees disponibles.</p>
+                <p class="cc-card-subtitle">Filtrez et consultez les données disponibles.</p>
             </div>
             <div class="cc-header-actions">
                 @if(!empty($backUrl))
@@ -158,7 +158,7 @@
                 @if($dateFilters->isNotEmpty())
                     <div class="cc-filter-divider">
                         @include('call-centers.partials.icon', ['name' => 'calendar'])
-                        Date de creation
+                        Date de création
                     </div>
                     <div>
                         <div class="cc-filter-grid">
@@ -257,10 +257,10 @@
                                             @if($hasCallFollowUp)
                                                 <div class="cc-follow-badges">
                                                     <span class="badge {{ $dejaAppele ? 'badge-success' : 'badge-light' }}">
-                                                        <span class="cc-dot"></span>{{ $dejaAppele ? 'Deja appele' : 'Non appele' }}
+                                                        <span class="cc-dot"></span>{{ $dejaAppele ? 'Déjà appelé' : 'Non appelé' }}
                                                     </span>
                                                     @if($callCommentaire !== '')
-                                                        <span class="badge badge-info">Commente</span>
+                                                        <span class="badge badge-info">Commenté</span>
                                                     @endif
                                                 </div>
                                                 @php
@@ -292,9 +292,9 @@
                                                 $dejaAppele = (string) ($item->call_center_deja_appele ?? '0') === '1';
                                                 $callCommentaire = $hasCallFollowUp ? (string) ($item->call_center_commentaire ?? '') : '';
                                                 $nextStatus = $dejaAppele ? '0' : '1';
-                                                $statusLabel = $dejaAppele ? 'Marquer non appele' : 'Marquer appele';
+                                                $statusLabel = $dejaAppele ? 'Marquer non appelé' : 'Marquer appelé';
                                                 $statusClass = $dejaAppele ? 'btn-outline-secondary' : 'btn-outline-success';
-                                                $badgeLabel = $dejaAppele ? 'Deja appele' : 'Non appele';
+                                                $badgeLabel = $dejaAppele ? 'Déjà appelé' : 'Non appelé';
                                                 $badgeClass = $dejaAppele ? 'badge-success' : 'badge-light';
                                                 $commentBlockId = 'cc-comment-' . ($menu ?? 'item') . '-' . $entityId;
                                                 $logCibleType = \App\Support\CallCenterOutcomes::MENU_CIBLES[$menu] ?? null;
@@ -403,10 +403,10 @@
         @else
             <div class="cc-empty-state">
                 @include('call-centers.partials.icon', ['name' => 'empty'])
-                <strong>Aucun resultat</strong>
-                <span>Aucune donnee disponible pour cette liste avec les filtres actuels.</span>
+                <strong>Aucun résultat</strong>
+                <span>Aucune donnée disponible pour cette liste avec les filtres actuels.</span>
                 @if($hasActiveFilters ?? false)
-                    <a href="{{ url()->current() }}" class="btn btn-outline-primary mt-2">Reinitialiser les filtres</a>
+                    <a href="{{ url()->current() }}" class="btn btn-outline-primary mt-2">Réinitialiser les filtres</a>
                 @endif
             </div>
         @endif

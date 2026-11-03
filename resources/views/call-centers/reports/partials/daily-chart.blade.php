@@ -7,14 +7,14 @@
             <div class="cc-card-header">
                 <div>
                     <h5 class="cc-card-title">Appels par jour</h5>
-                    <p class="cc-card-subtitle">Survolez une barre pour le detail (appels et personnes jointes).</p>
+                    <p class="cc-card-subtitle">Survolez une barre pour le détail (appels et personnes jointes).</p>
                 </div>
             </div>
             @if(($total ?? 0) === 0)
                 <div class="cc-empty-state">
                     @include('call-centers.partials.icon', ['name' => 'empty'])
-                    <strong>Aucun appel sur la periode</strong>
-                    <span>Les appels enregistres par les agents apparaitront ici.</span>
+                    <strong>Aucun appel sur la période</strong>
+                    <span>Les appels enregistrés par les agents apparaîtront ici.</span>
                 </div>
             @else
                 <div class="cc-r-chart" role="img" aria-label="Histogramme des appels par jour, maximum {{ $maxDay }} appels">
@@ -34,7 +34,7 @@
                     </div>
                 </div>
                 <details class="mt-3">
-                    <summary class="cc-r-sub" style="cursor: pointer;">Voir les donnees en tableau</summary>
+                    <summary class="cc-r-sub" style="cursor: pointer;">Voir les données en tableau</summary>
                     <div class="cc-table-wrap mt-2">
                         <table class="table cc-table cc-r-table">
                             <thead><tr><th>Jour</th><th class="cc-r-num">Appels</th><th class="cc-r-num">Joints</th></tr></thead>

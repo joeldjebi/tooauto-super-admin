@@ -38,12 +38,12 @@
         </div>
         <ul class="cc-profile-rights">
             @if($isSupervisor)
-                <li>Vous voyez les <a href="{{ route('call-center.rapports') }}">rapports de toute l'equipe</a> et pouvez exporter les appels.</li>
+                <li>Vous voyez les <a href="{{ route('call-center.rapports') }}">rapports de toute l'équipe</a> et pouvez exporter les appels.</li>
                 <li>Vous pouvez consulter les rappels de tous les agents.</li>
             @else
-                <li>Vous enregistrez vos appels et suivez <a href="{{ route('call-center.mon-activite') }}">votre activite</a> et <a href="{{ route('call-center.mes-rappels') }}">vos rappels</a>.</li>
+                <li>Vous enregistrez vos appels et suivez <a href="{{ route('call-center.mon-activite') }}">votre activité</a> et <a href="{{ route('call-center.mes-rappels') }}">vos rappels</a>.</li>
             @endif
-            <li>Le role est attribue par le super admin : contactez-le pour le modifier.</li>
+            <li>Le rôle est attribue par le super admin : contactez-le pour le modifier.</li>
         </ul>
     </div>
 
@@ -65,7 +65,7 @@
                         @error('nom')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="col-sm-6 form-group">
-                        <label class="cc-field-label" for="p-prenoms">Prenoms</label>
+                        <label class="cc-field-label" for="p-prenoms">Prénoms</label>
                         <input id="p-prenoms" name="prenoms" class="form-control @error('prenoms') is-invalid @enderror" value="{{ old('prenoms', $user->prenoms) }}" required maxlength="255" autocomplete="given-name">
                         @error('prenoms')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
@@ -93,7 +93,7 @@
             <div class="cc-card-header">
                 <div>
                     <h5 class="cc-card-title">Mot de passe</h5>
-                    <p class="cc-card-subtitle">6 a 12 chiffres, comme a la connexion.</p>
+                    <p class="cc-card-subtitle">6 à 12 chiffres, comme à la connexion.</p>
                 </div>
             </div>
             <form method="POST" action="{{ route('call-center.profil.password') }}" novalidate>

@@ -12,22 +12,35 @@ use Throwable;
 
 class CallCenterUserController extends Controller
 {
+    private const ROLE_MESSAGES = [
+        'role.required' => 'Choisissez un rôle : agent ou superviseur.',
+        'role.in' => 'Le rôle choisi est invalide.',
+    ];
+
     public function __construct(private SmsService $smsService)
     {
     }
 
     private function authorizeSuperAdmin(): void
     {
-        abort_unless(auth()->user()?->isSuperAdmin(), 403, 'Action reservee au super admin.');
+        abort_unless(auth()->user()?->isSuperAdmin(), 403, 'Action réservée au super admin.');
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $this->authorizeSuperAdmin();
 
-        $data['title'] = 'Users call center';
+        $roleFilter = in_array($request->input('role'), array_keys(CallCenterUser::ROLES), true) ? $request->input('role') : null;
+
+        $data['title'] = 'Agents call center';
         $data['menu'] = 'call-centers';
-        $data['users'] = CallCenterUser::orderBy('id', 'desc')->get();
+        $data['roleFilter'] = $roleFilter;
+        $data['roleCounts'] = CallCenterUser::query()->selectRaw('role, COUNT(*) as total')->groupBy('role')->pluck('total', 'role')->all();
+        $data['roleCounts']['total'] = array_sum($data['roleCounts']);
+        $data['users'] = CallCenterUser::query()
+            ->when($roleFilter, fn ($q) => $q->where('role', $roleFilter))
+            ->orderBy('id', 'desc')
+            ->get();
 
         return view('call-centers.index', $data);
     }
@@ -36,7 +49,7 @@ class CallCenterUserController extends Controller
     {
         $this->authorizeSuperAdmin();
 
-        $data['title'] = 'Ajouter un user call center';
+        $data['title'] = 'Ajouter un agent call center';
         $data['menu'] = 'call-centers';
 
         return view('call-centers.create', $data);
@@ -53,13 +66,13 @@ class CallCenterUserController extends Controller
             'mobile' => ['required', 'string', 'max:20', 'regex:/^[0-9\s\.\-]+$/'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:call_center_users,email'],
             'role' => ['required', Rule::in(array_keys(CallCenterUser::ROLES))],
-        ]);
+        ], self::ROLE_MESSAGES);
 
         $mobile = $this->formatMobile($validated['indicatif'], $validated['mobile']);
 
         if (CallCenterUser::where('mobile', $mobile)->exists()) {
             return back()
-                ->withErrors(['mobile' => 'Ce numero de telephone est deja utilise.'])
+                ->withErrors(['mobile' => 'Ce numéro de téléphone est déjà utilisé.'])
                 ->withInput();
         }
 
@@ -77,7 +90,8 @@ class CallCenterUserController extends Controller
         ]);
 
         $smsMessage = "Bonjour {$user->prenoms},\n\n"
-            . "Vos acces TOO AUTO call center :\n"
+            . "Vos accès TOO AUTO call center :\n"
+            . "Profil : {$user->role_label}\n"
             . "Email : {$user->email}\n"
             . "Mot de passe : {$password}\n"
             . "Connexion : " . route('call-center.login');
@@ -90,7 +104,7 @@ class CallCenterUserController extends Controller
             );
 
             session()->flash('type', 'alert-success');
-            session()->flash('message', 'User call center cree avec succes. Les acces ont ete envoyes par SMS.');
+            session()->flash('message', 'Agent call center créé avec succès. Les accès ont été envoyés par SMS.');
             session()->flash('call_center_access', [
                 'email' => $user->email,
                 'password' => $password,
@@ -104,7 +118,7 @@ class CallCenterUserController extends Controller
             ]);
 
             session()->flash('type', 'alert-warning');
-            session()->flash('message', 'User call center cree avec succes, mais le SMS des acces n\'a pas pu etre envoye.');
+            session()->flash('message', 'Agent call center créé avec succès, mais le SMS des accès n\'a pas pu être envoyé.');
             session()->flash('call_center_access', [
                 'email' => $user->email,
                 'password' => $password,
@@ -119,7 +133,7 @@ class CallCenterUserController extends Controller
     {
         $this->authorizeSuperAdmin();
 
-        $data['title'] = 'Modifier un user call center';
+        $data['title'] = 'Modifier un agent call center';
         $data['menu'] = 'call-centers';
         $data['callCenter'] = $callCenter;
 
@@ -138,7 +152,7 @@ class CallCenterUserController extends Controller
             'password' => ['nullable', 'digits_between:6,12', 'confirmed'],
             'statut' => ['nullable', 'boolean'],
             'role' => ['required', Rule::in(array_keys(CallCenterUser::ROLES))],
-        ]);
+        ], self::ROLE_MESSAGES);
 
         $callCenter->nom = html_entity_decode($validated['nom']);
         $callCenter->prenoms = html_entity_decode($validated['prenoms']);
@@ -154,9 +168,27 @@ class CallCenterUserController extends Controller
         $callCenter->save();
 
         session()->flash('type', 'alert-success');
-        session()->flash('message', 'User call center modifie avec succes.');
+        session()->flash('message', 'Agent call center modifié avec succès.');
 
         return redirect()->route('call-centers.index');
+    }
+
+    /** Changement rapide du rôle depuis la liste (Passer superviseur / Passer agent). */
+    public function updateRole(Request $request, CallCenterUser $callCenter)
+    {
+        $this->authorizeSuperAdmin();
+
+        $validated = $request->validate([
+            'role' => ['required', Rule::in(array_keys(CallCenterUser::ROLES))],
+        ], self::ROLE_MESSAGES);
+
+        $callCenter->role = $validated['role'];
+        $callCenter->save();
+
+        session()->flash('type', 'alert-success');
+        session()->flash('message', $callCenter->full_name . ' est maintenant ' . mb_strtolower($callCenter->role_label) . '.');
+
+        return redirect()->back();
     }
 
     public function destroy(CallCenterUser $callCenter)
@@ -166,7 +198,7 @@ class CallCenterUserController extends Controller
         $callCenter->delete();
 
         session()->flash('type', 'alert-success');
-        session()->flash('message', 'User call center supprime avec succes.');
+        session()->flash('message', 'Agent call center supprimé avec succès.');
 
         return redirect()->route('call-centers.index');
     }

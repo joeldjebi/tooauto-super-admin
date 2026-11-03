@@ -20,7 +20,7 @@
                 @include('call-centers.partials.icon', ['name' => 'whatsapp'])
             </a>
         @endif
-        <button type="button" class="cc-phone-btn" data-cc-copy="{{ ($dialCode !== '' ? '+' : '') . $international }}" title="Copier le numero" aria-label="Copier le numero">
+        <button type="button" class="cc-phone-btn" data-cc-copy="{{ ($dialCode !== '' ? '+' : '') . $international }}" title="Copier le numéro" aria-label="Copier le numéro">
             @include('call-centers.partials.icon', ['name' => 'copy'])
         </button>
     </span>

@@ -1534,24 +1534,24 @@
     @include('call-centers.partials.icon-sprite')
     @php
         $callCenterMenu = [
-            ['key' => 'call-center-dashboard', 'label' => 'Dashboard', 'route' => route('call-center.dashboard'), 'icon' => 'dashboard', 'tone' => 'gray'],
+            ['key' => 'call-center-dashboard', 'label' => 'Tableau de bord', 'route' => route('call-center.dashboard'), 'icon' => 'dashboard', 'tone' => 'gray'],
             ['key' => 'call-center-mes-rappels', 'label' => 'Mes rappels', 'route' => route('call-center.mes-rappels'), 'icon' => 'calendar', 'tone' => 'orange'],
-            ['key' => 'call-center-mon-activite', 'label' => 'Mon activite', 'route' => route('call-center.mon-activite'), 'icon' => 'rapports', 'tone' => 'blue'],
+            ['key' => 'call-center-mon-activite', 'label' => 'Mon activité', 'route' => route('call-center.mon-activite'), 'icon' => 'rapports', 'tone' => 'blue'],
             ['key' => 'call-center-appels', 'label' => 'Journal des appels', 'route' => route('call-center.interactions.index'), 'icon' => 'phone', 'tone' => 'green'],
             ['key' => 'call-center-alertes', 'label' => 'Alertes', 'route' => route('call-center.alertes'), 'icon' => 'alertes', 'tone' => 'red'],
-            ['key' => 'call-center-users', 'label' => 'Users', 'route' => route('call-center.users'), 'icon' => 'users', 'tone' => 'blue'],
+            ['key' => 'call-center-users', 'label' => 'Usagers', 'route' => route('call-center.users'), 'icon' => 'users', 'tone' => 'blue'],
             ['key' => 'call-center-professionnels', 'label' => 'Professionnels', 'route' => route('call-center.professionnels'), 'icon' => 'professionnels', 'tone' => 'indigo'],
-            ['key' => 'call-center-vehicules', 'label' => 'Vehicules', 'route' => route('call-center.vehicules'), 'icon' => 'vehicules', 'tone' => 'teal'],
-            ['key' => 'call-center-station-services', 'label' => 'Station services', 'route' => route('call-center.station-services'), 'icon' => 'station-services', 'tone' => 'orange'],
-            ['key' => 'call-center-station-de-lavages', 'label' => 'Station de lavages', 'route' => route('call-center.station-de-lavages'), 'icon' => 'station-de-lavages', 'tone' => 'teal'],
+            ['key' => 'call-center-vehicules', 'label' => 'Véhicules', 'route' => route('call-center.vehicules'), 'icon' => 'vehicules', 'tone' => 'teal'],
+            ['key' => 'call-center-station-services', 'label' => 'Stations service', 'route' => route('call-center.station-services'), 'icon' => 'station-services', 'tone' => 'orange'],
+            ['key' => 'call-center-station-de-lavages', 'label' => 'Stations de lavage', 'route' => route('call-center.station-de-lavages'), 'icon' => 'station-de-lavages', 'tone' => 'teal'],
             ['key' => 'call-center-annonces', 'label' => 'Annonces', 'route' => route('call-center.annonces'), 'icon' => 'annonces', 'tone' => 'pink'],
-            ['key' => 'call-center-annonce-concessionnaires', 'label' => 'Annonce concessionnaires', 'route' => route('call-center.annonce-concessionnaires'), 'icon' => 'annonce-concessionnaires', 'tone' => 'purple'],
-            ['key' => 'call-center-annonce-etablissements', 'label' => 'Annonce etablissements', 'route' => route('call-center.annonce-etablissements'), 'icon' => 'annonce-etablissements', 'tone' => 'red'],
+            ['key' => 'call-center-annonce-concessionnaires', 'label' => 'Annonces concessionnaires', 'route' => route('call-center.annonce-concessionnaires'), 'icon' => 'annonce-concessionnaires', 'tone' => 'purple'],
+            ['key' => 'call-center-annonce-etablissements', 'label' => 'Annonces établissements', 'route' => route('call-center.annonce-etablissements'), 'icon' => 'annonce-etablissements', 'tone' => 'red'],
             ['key' => 'call-center-concessionnaires', 'label' => 'Concessionnaires', 'route' => route('call-center.concessionnaires'), 'icon' => 'concessionnaires', 'tone' => 'indigo'],
-            ['key' => 'call-center-etablissements', 'label' => 'Etablissements', 'route' => route('call-center.etablissements'), 'icon' => 'etablissements', 'tone' => 'green'],
+            ['key' => 'call-center-etablissements', 'label' => 'Établissements', 'route' => route('call-center.etablissements'), 'icon' => 'etablissements', 'tone' => 'green'],
             ['key' => 'call-center-autodocs', 'label' => 'Autodocs', 'route' => route('call-center.autodocs'), 'icon' => 'autodocs', 'tone' => 'yellow'],
             ['key' => 'call-center-notification-send', 'label' => 'Ciblage notif', 'route' => route('call-center.notification-send.index'), 'icon' => 'notification-send', 'tone' => 'red'],
-            ['key' => 'call-center-notification-programmes', 'label' => 'Notifs programmees', 'route' => route('call-center.notification-send.programmes'), 'icon' => 'notification-programmes', 'tone' => 'orange'],
+            ['key' => 'call-center-notification-programmes', 'label' => 'Notifs programmées', 'route' => route('call-center.notification-send.programmes'), 'icon' => 'notification-programmes', 'tone' => 'orange'],
         ];
         // Badge "Mes rappels" : rappels en retard ou prevus aujourd'hui de l'agent connecte.
         $dueCallbacks = auth('call_center')->check() ? \App\Support\CallCenterCallLog::dueCallbacksCount((int) auth('call_center')->id()) : 0;
@@ -1608,7 +1608,7 @@
                     @csrf
                     <button type="submit" class="btn btn-outline-secondary w-100">
                         @include('call-centers.partials.icon', ['name' => 'logout'])
-                        Deconnexion
+                        Déconnexion
                     </button>
                 </form>
             </div>
@@ -1630,7 +1630,7 @@
                         @csrf
                         <button type="submit" class="btn btn-sm btn-outline-secondary">
                             @include('call-centers.partials.icon', ['name' => 'logout'])
-                            Deconnexion
+                            Déconnexion
                         </button>
                     </form>
                 </div>
@@ -1707,10 +1707,10 @@
                 if (!button || !navigator.clipboard) return;
                 navigator.clipboard.writeText(button.getAttribute('data-cc-copy')).then(function () {
                     button.classList.add('is-copied');
-                    button.setAttribute('title', 'Copie !');
+                    button.setAttribute('title', 'Copié !');
                     setTimeout(function () {
                         button.classList.remove('is-copied');
-                        button.setAttribute('title', 'Copier le numero');
+                        button.setAttribute('title', 'Copier le numéro');
                     }, 1500);
                 });
             });
@@ -1737,7 +1737,7 @@
                 function render(options) {
                     list.innerHTML = '';
                     if (!options.length) {
-                        list.innerHTML = '<div class="cc-combo-empty">Aucun resultat</div>';
+                        list.innerHTML = '<div class="cc-combo-empty">Aucun résultat</div>';
                     }
                     options.forEach(function (option) {
                         var button = document.createElement('button');

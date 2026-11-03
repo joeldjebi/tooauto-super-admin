@@ -41,7 +41,7 @@ class CallCenterCallLog
             ])
             ->get()
             ->mapWithKeys(fn ($row) => [(int) $row->cible_id => (object) [
-                'agent' => $row->agent !== '' ? $row->agent : 'Agent supprime',
+                'agent' => $row->agent !== '' ? $row->agent : 'Agent supprimé',
                 'created_at' => $row->created_at,
                 'resultat' => $row->resultat,
                 'total' => (int) $row->total,
@@ -134,7 +134,7 @@ class CallCenterCallLog
             ->map(fn ($row) => [
                 'date' => \Carbon\Carbon::parse($row->created_at)->format('d/m/Y H:i'),
                 'il_y_a' => \Carbon\Carbon::parse($row->created_at)->locale('fr')->diffForHumans(),
-                'agent' => $row->agent !== '' ? $row->agent : 'Agent supprime',
+                'agent' => $row->agent !== '' ? $row->agent : 'Agent supprimé',
                 'canal' => CallCenterOutcomes::label('canal', $row->canal),
                 'resultat' => CallCenterOutcomes::label('resultat', $row->resultat),
                 'tone' => CallCenterOutcomes::tone($row->resultat),
