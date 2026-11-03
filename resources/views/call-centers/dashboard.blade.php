@@ -128,10 +128,25 @@
         .cc-alert-item:hover {
             background: var(--cc-fill-2);
         }
-        .cc-alert-item strong {
+        .cc-alert-name {
+            color: var(--cc-label) !important;
             display: block;
             font-size: 14.5px;
             font-weight: 600;
+        }
+        .cc-alert-name:hover {
+            color: var(--cc-blue) !important;
+        }
+        .cc-call-grid {
+            column-gap: 32px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        }
+        .cc-call-grid li + li {
+            border-top: 0;
+        }
+        .cc-call-grid li {
+            border-bottom: 1px solid var(--cc-separator);
         }
         .cc-alert-item small {
             color: var(--cc-label-2);
@@ -287,6 +302,51 @@
             </form>
         </div>
 
+        <div class="cc-card mb-4">
+            <div class="cc-card-header" style="margin-bottom: 10px;">
+                <div>
+                    <h5 class="cc-card-title">Users a rappeler</h5>
+                    <p class="cc-card-subtitle">Users ayant au moins une alerte expiree, non appeles en premier.</p>
+                </div>
+                <div class="cc-header-actions">
+                    <span class="cc-count">{{ $usersToCall['total'] }} user(s)</span>
+                    <a href="{{ route('call-center.alertes', ['echeance' => 'expirees']) }}" class="btn btn-sm btn-outline-primary">Tout voir</a>
+                </div>
+            </div>
+
+            @if($usersToCall['items']->isNotEmpty())
+                <ul class="cc-alert-list cc-call-grid">
+                    @foreach($usersToCall['items'] as $contact)
+                        @php
+                            $contactName = trim(($contact->nom ?? '') . ' ' . ($contact->prenoms ?? '')) ?: 'User #' . $contact->id;
+                            $contactCalled = (string) ($contact->call_center_deja_appele ?? '0') === '1';
+                        @endphp
+                        <li class="cc-alert-item">
+                            <span style="min-width: 0;">
+                                <a href="{{ route('call-center.users.alerts', $contact->id) }}" class="cc-alert-name">{{ $contactName }}</a>
+                                <small>
+                                    {{ $contact->nb_expirees }} alerte(s) expiree(s) · derniere le {{ \Carbon\Carbon::parse($contact->derniere_expiration)->format('d/m/Y') }}
+                                </small>
+                                <span class="d-block mt-1">
+                                    @include('call-centers.partials.phone', ['mobile' => $contact->mobile ?? null, 'indicatif' => $contact->indicatif ?? null, 'whatsapp' => (string) ($contact->is_whatsapp ?? '0') === '1'])
+                                </span>
+                            </span>
+                            <span class="cc-alert-item-end">
+                                @if(property_exists($contact, 'call_center_deja_appele'))
+                                    <span class="badge {{ $contactCalled ? 'badge-success' : 'badge-light' }}"><span class="cc-dot"></span>{{ $contactCalled ? 'Deja appele' : 'A appeler' }}</span>
+                                @endif
+                                @include('call-centers.partials.alert-due', ['days' => $contact->echeance])
+                            </span>
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <div class="cc-empty-state" style="padding: 28px 12px;">
+                    <span>Aucun user avec une alerte expiree.</span>
+                </div>
+            @endif
+        </div>
+
         <div class="row mb-2">
             @foreach($alertBlocks as $block)
                 <div class="col-lg-6 mb-4">
@@ -302,17 +362,20 @@
                         @if($block['items']->isNotEmpty())
                             <ul class="cc-alert-list">
                                 @foreach($block['items'] as $alert)
-                                    <li>
-                                        <a href="{{ route('call-center.users.alerts', $alert->user_id) }}" class="cc-alert-item">
-                                            <span style="min-width: 0;">
-                                                <strong>{{ $alert->utilisateur !== '' ? $alert->utilisateur : 'User #' . $alert->user_id }}</strong>
-                                                <small>{{ collect([$alert->type_alerte ?? null, $alert->vehicule ?? null, $alert->mobile ?? null])->filter()->implode(' · ') }}</small>
+                                    <li class="cc-alert-item">
+                                        <span style="min-width: 0;">
+                                            <a href="{{ $alert->user_id ? route('call-center.users.alerts', $alert->user_id) : '#' }}" class="cc-alert-name">
+                                                {{ $alert->utilisateur !== '' ? $alert->utilisateur : 'User #' . $alert->user_id }}
+                                            </a>
+                                            <small>{{ collect([$alert->type_alerte ?? null, $alert->vehicule ?? null])->filter()->implode(' · ') }}</small>
+                                            <span class="d-block mt-1">
+                                                @include('call-centers.partials.phone', ['mobile' => $alert->mobile ?? null, 'indicatif' => $alert->indicatif ?? null, 'whatsapp' => (string) ($alert->is_whatsapp ?? '0') === '1'])
                                             </span>
-                                            <span class="cc-alert-item-end">
-                                                @include('call-centers.partials.alert-due', ['days' => $alert->echeance])
-                                                <small class="cc-muted">{{ \Carbon\Carbon::parse($alert->date_fin)->format('d/m/Y') }}</small>
-                                            </span>
-                                        </a>
+                                        </span>
+                                        <span class="cc-alert-item-end">
+                                            @include('call-centers.partials.alert-due', ['days' => $alert->echeance])
+                                            <small class="cc-muted">{{ \Carbon\Carbon::parse($alert->date_fin)->format('d/m/Y') }}</small>
+                                        </span>
                                     </li>
                                 @endforeach
                             </ul>

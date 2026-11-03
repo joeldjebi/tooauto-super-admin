@@ -7,6 +7,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -17,6 +18,12 @@ class CallCenterSpaceController extends Controller
     }
 
     private const ALERT_SOON_DAYS = 30;
+    private const SCHEMA_CACHE_PREFIX = 'call_center.schema.';
+    private const SCHEMA_CACHE_SECONDS = 600;
+    private const OPTIONS_CACHE_SECONDS = 600;
+    private const PER_PAGE_OPTIONS = [15, 25, 50, 100];
+
+    private array $schemaCache = [];
     private const ALERT_URGENT_DAYS = 7;
 
     public function dashboard()
@@ -28,6 +35,7 @@ class CallCenterSpaceController extends Controller
             'alertStats' => $this->alertStats(),
             'upcomingAlerts' => $this->dashboardAlerts('upcoming'),
             'expiredAlerts' => $this->dashboardAlerts('expired'),
+            'usersToCall' => $this->usersWithExpiredAlerts(),
             'alertFilter' => $this->alertExpirationFilter(null),
             'cards' => [
                 ['label' => 'Alertes', 'route' => route('call-center.alertes')],
@@ -60,6 +68,8 @@ class CallCenterSpaceController extends Controller
         $this->pushSelect($selects, 'users.name', 'nom_affiche');
         $this->pushSelect($selects, 'users.email', 'email');
         $this->pushSelect($selects, 'users.mobile', 'mobile');
+        $this->pushSelect($selects, 'users.indicatif', 'indicatif');
+        $this->pushSelect($selects, 'users.is_whatsapp', 'is_whatsapp');
         $this->pushSelect($selects, 'users.telephone', 'telephone');
         $this->pushSelect($selects, 'users.statut', 'statut');
         $this->pushSelect($selects, 'users.created_at', 'date_creation');
@@ -81,7 +91,7 @@ class CallCenterSpaceController extends Controller
         $this->pushSearchColumn($searchColumns, 'users.mobile');
         $this->pushSearchColumn($searchColumns, 'users.telephone');
 
-        if ($this->hasColumn('users', 'commercial_id') && Schema::hasTable('commercials')) {
+        if ($this->hasColumn('users', 'commercial_id') && $this->tableExists('commercials')) {
             $query->leftJoin('commercials', 'commercials.id', '=', 'users.commercial_id');
             $selects[] = DB::raw("TRIM(CONCAT(COALESCE(commercials.prenoms, ''), ' ', COALESCE(commercials.nom, ''))) as commercial");
         }
@@ -154,7 +164,7 @@ class CallCenterSpaceController extends Controller
 
     public function userAlerts(Request $request, int $user)
     {
-        return $this->renderUserRelatedList(
+        $response = $this->renderUserRelatedList(
             $request,
             $user,
             "Alertes de l'utilisateur #{$user}",
@@ -205,6 +215,8 @@ class CallCenterSpaceController extends Controller
             ],
             fn (Builder $query) => $this->applyAlertOrder($query, $request->input('echeance'))
         );
+
+        return $response->with('contactUser', $this->contactUser($user));
     }
 
     public function alerts(Request $request)
@@ -217,6 +229,8 @@ class CallCenterSpaceController extends Controller
             DB::raw("TRIM(CONCAT(COALESCE(users.nom, ''), ' ', COALESCE(users.prenoms, ''))) as utilisateur"),
         ];
         $this->pushSelect($selects, 'users.mobile', 'mobile');
+        $this->pushSelect($selects, 'users.indicatif', 'indicatif');
+        $this->pushSelect($selects, 'users.is_whatsapp', 'is_whatsapp');
         $this->pushSelect($selects, 'vehicules.matricule', 'vehicule');
         $this->pushSelect($selects, 'type_alerts.libelle', 'type_alerte');
         $selects[] = 'alerts.date_fin';
@@ -263,7 +277,7 @@ class CallCenterSpaceController extends Controller
 
         $columns = [
             'utilisateur' => 'Utilisateur',
-            'mobile' => 'Mobile',
+            'mobile' => 'Telephone',
             'vehicule' => 'Vehicule',
             'type_alerte' => 'Type alerte',
             'date_fin' => "Date d'expiration",
@@ -436,7 +450,7 @@ class CallCenterSpaceController extends Controller
 
     public function userAutodocs(Request $request, int $user)
     {
-        if (! Schema::hasTable('autodocs')) {
+        if (! $this->tableExists('autodocs')) {
             return $this->renderList(
                 $request,
                 "Documents automobile de l'utilisateur #{$user}",
@@ -454,11 +468,11 @@ class CallCenterSpaceController extends Controller
             function () use ($user) {
                 $query = DB::table('autodocs');
 
-                if ($this->hasColumn('autodocs', 'vehicule_id') && Schema::hasTable('vehicules')) {
+                if ($this->hasColumn('autodocs', 'vehicule_id') && $this->tableExists('vehicules')) {
                     $query->leftJoin('vehicules', 'vehicules.id', '=', 'autodocs.vehicule_id');
                 }
 
-                if ($this->hasColumn('autodocs', 'type_docauto_id') && Schema::hasTable('type_docautos')) {
+                if ($this->hasColumn('autodocs', 'type_docauto_id') && $this->tableExists('type_docautos')) {
                     $query->leftJoin('type_docautos', 'type_docautos.id', '=', 'autodocs.type_docauto_id');
                 }
 
@@ -545,15 +559,15 @@ class CallCenterSpaceController extends Controller
 
     public function autodocDetails(Request $request, int $user, int $autodoc)
     {
-        abort_unless(Schema::hasTable('autodocs'), 404);
+        abort_unless($this->tableExists('autodocs'), 404);
 
         $query = DB::table('autodocs');
 
-        if ($this->hasColumn('autodocs', 'vehicule_id') && Schema::hasTable('vehicules')) {
+        if ($this->hasColumn('autodocs', 'vehicule_id') && $this->tableExists('vehicules')) {
             $query->leftJoin('vehicules', 'vehicules.id', '=', 'autodocs.vehicule_id');
         }
 
-        if ($this->hasColumn('autodocs', 'type_docauto_id') && Schema::hasTable('type_docautos')) {
+        if ($this->hasColumn('autodocs', 'type_docauto_id') && $this->tableExists('type_docautos')) {
             $query->leftJoin('type_docautos', 'type_docautos.id', '=', 'autodocs.type_docauto_id');
         }
 
@@ -709,23 +723,23 @@ class CallCenterSpaceController extends Controller
 
         $etablissements = collect();
 
-        if (Schema::hasTable('etablissements') && $this->hasColumn('etablissements', 'professionnel_id')) {
+        if ($this->tableExists('etablissements') && $this->hasColumn('etablissements', 'professionnel_id')) {
             $etablissementsQuery = DB::table('etablissements')
                 ->where('etablissements.professionnel_id', $professionnel);
 
-            if (Schema::hasTable('categorie_services') && $this->hasColumn('etablissements', 'categorie_service_id')) {
+            if ($this->tableExists('categorie_services') && $this->hasColumn('etablissements', 'categorie_service_id')) {
                 $etablissementsQuery->leftJoin('categorie_services', 'categorie_services.id', '=', 'etablissements.categorie_service_id');
             }
 
-            if (Schema::hasTable('type_etablissements') && $this->hasColumn('etablissements', 'type_etablissement_id')) {
+            if ($this->tableExists('type_etablissements') && $this->hasColumn('etablissements', 'type_etablissement_id')) {
                 $etablissementsQuery->leftJoin('type_etablissements', 'type_etablissements.id', '=', 'etablissements.type_etablissement_id');
             }
 
-            if (Schema::hasTable('villes') && $this->hasColumn('etablissements', 'ville_id')) {
+            if ($this->tableExists('villes') && $this->hasColumn('etablissements', 'ville_id')) {
                 $etablissementsQuery->leftJoin('villes', 'villes.id', '=', 'etablissements.ville_id');
             }
 
-            if (Schema::hasTable('communes') && $this->hasColumn('etablissements', 'commune_id')) {
+            if ($this->tableExists('communes') && $this->hasColumn('etablissements', 'commune_id')) {
                 $etablissementsQuery->leftJoin('communes', 'communes.id', '=', 'etablissements.commune_id');
             }
 
@@ -737,10 +751,10 @@ class CallCenterSpaceController extends Controller
                     $this->hasColumn('etablissements', 'mobile') ? 'etablissements.mobile' : null,
                     $this->hasColumn('etablissements', 'mobile_fix') ? 'etablissements.mobile_fix' : null,
                     $this->hasColumn('etablissements', 'adresse') ? 'etablissements.adresse' : null,
-                    Schema::hasTable('categorie_services') && $this->hasColumn('etablissements', 'categorie_service_id') && $this->hasColumn('categorie_services', 'libelle') ? 'categorie_services.libelle as categorie' : null,
-                    Schema::hasTable('type_etablissements') && $this->hasColumn('etablissements', 'type_etablissement_id') && $this->hasColumn('type_etablissements', 'libelle') ? 'type_etablissements.libelle as type_etablissement' : null,
-                    Schema::hasTable('villes') && $this->hasColumn('etablissements', 'ville_id') && $villeLabel ? DB::raw('villes.' . $villeLabel . ' as ville') : null,
-                    Schema::hasTable('communes') && $this->hasColumn('etablissements', 'commune_id') && $communeLabel ? DB::raw('communes.' . $communeLabel . ' as commune') : null,
+                    $this->tableExists('categorie_services') && $this->hasColumn('etablissements', 'categorie_service_id') && $this->hasColumn('categorie_services', 'libelle') ? 'categorie_services.libelle as categorie' : null,
+                    $this->tableExists('type_etablissements') && $this->hasColumn('etablissements', 'type_etablissement_id') && $this->hasColumn('type_etablissements', 'libelle') ? 'type_etablissements.libelle as type_etablissement' : null,
+                    $this->tableExists('villes') && $this->hasColumn('etablissements', 'ville_id') && $villeLabel ? DB::raw('villes.' . $villeLabel . ' as ville') : null,
+                    $this->tableExists('communes') && $this->hasColumn('etablissements', 'commune_id') && $communeLabel ? DB::raw('communes.' . $communeLabel . ' as commune') : null,
                     $this->hasColumn('etablissements', 'statut') ? 'etablissements.statut' : null,
                     $this->hasColumn('etablissements', 'created_at') ? 'etablissements.created_at' : null,
                 ]))
@@ -1012,7 +1026,7 @@ class CallCenterSpaceController extends Controller
             'date_creation' => 'Date creation',
         ];
 
-        if ($this->hasColumn('station_de_lavages', 'created_by') && Schema::hasTable('commercials')) {
+        if ($this->hasColumn('station_de_lavages', 'created_by') && $this->tableExists('commercials')) {
             $query->leftJoin('commercials', 'commercials.id', '=', 'station_de_lavages.created_by');
             $selects[] = DB::raw("TRIM(CONCAT(COALESCE(commercials.prenoms, ''), ' ', COALESCE(commercials.nom, ''))) as commercial");
             $columns['commercial'] = 'Commercial';
@@ -1309,7 +1323,7 @@ class CallCenterSpaceController extends Controller
             'concessionnaires.adresse',
         ];
 
-        if ($this->hasColumn('concessionnaires', 'userconcessionnaire_id') && Schema::hasTable('userconcessionnaires')) {
+        if ($this->hasColumn('concessionnaires', 'userconcessionnaire_id') && $this->tableExists('userconcessionnaires')) {
             $query->leftJoin('userconcessionnaires', 'userconcessionnaires.id', '=', 'concessionnaires.userconcessionnaire_id');
             $selects[] = DB::raw("TRIM(CONCAT(COALESCE(userconcessionnaires.prenoms, ''), ' ', COALESCE(userconcessionnaires.nom, ''))) as gestionnaire");
             $columns['gestionnaire'] = 'Gestionnaire';
@@ -1395,25 +1409,25 @@ class CallCenterSpaceController extends Controller
             $columns['suivi_appel'] = 'Suivi appel';
         }
 
-        if (Schema::hasTable('categorie_services') && $this->hasColumn('etablissements', 'categorie_service_id')) {
+        if ($this->tableExists('categorie_services') && $this->hasColumn('etablissements', 'categorie_service_id')) {
             $query->leftJoin('categorie_services', 'categorie_services.id', '=', 'etablissements.categorie_service_id');
             $selects[] = 'categorie_services.libelle as categorie';
             $columns['categorie'] = 'Categorie';
         }
 
-        if (Schema::hasTable('type_etablissements') && $this->hasColumn('etablissements', 'type_etablissement_id')) {
+        if ($this->tableExists('type_etablissements') && $this->hasColumn('etablissements', 'type_etablissement_id')) {
             $query->leftJoin('type_etablissements', 'type_etablissements.id', '=', 'etablissements.type_etablissement_id');
             $selects[] = 'type_etablissements.libelle as type_etablissement';
             $columns['type_etablissement'] = 'Type etablissement';
         }
 
-        if (Schema::hasTable('villes') && $this->hasColumn('etablissements', 'ville_id')) {
+        if ($this->tableExists('villes') && $this->hasColumn('etablissements', 'ville_id')) {
             $query->leftJoin('villes', 'villes.id', '=', 'etablissements.ville_id');
             $selects[] = DB::raw(($villeLabel ? 'villes.' . $villeLabel : 'NULL') . ' as ville');
             $columns['ville'] = 'Ville';
         }
 
-        if (Schema::hasTable('communes') && $this->hasColumn('etablissements', 'commune_id')) {
+        if ($this->tableExists('communes') && $this->hasColumn('etablissements', 'commune_id')) {
             $query->leftJoin('communes', 'communes.id', '=', 'etablissements.commune_id');
             $selects[] = DB::raw(($communeLabel ? 'communes.' . $communeLabel : 'NULL') . ' as commune');
             $columns['commune'] = 'Commune';
@@ -1428,12 +1442,12 @@ class CallCenterSpaceController extends Controller
             'professionnels.nom',
             'professionnels.prenoms',
         ];
-        if (Schema::hasTable('villes') && $this->hasColumn('etablissements', 'ville_id')) {
+        if ($this->tableExists('villes') && $this->hasColumn('etablissements', 'ville_id')) {
             if ($villeLabel) {
                 $searchColumns[] = 'villes.' . $villeLabel;
             }
         }
-        if (Schema::hasTable('communes') && $this->hasColumn('etablissements', 'commune_id')) {
+        if ($this->tableExists('communes') && $this->hasColumn('etablissements', 'commune_id')) {
             if ($communeLabel) {
                 $searchColumns[] = 'communes.' . $communeLabel;
             }
@@ -1508,7 +1522,7 @@ class CallCenterSpaceController extends Controller
 
     public function etablissementArticles(Request $request, int $etablissement)
     {
-        abort_unless(Schema::hasTable('articles'), 404);
+        abort_unless($this->tableExists('articles'), 404);
 
         $query = DB::table('articles')
             ->leftJoin('etablissements', 'etablissements.id', '=', 'articles.etablissement_id')
@@ -1556,7 +1570,7 @@ class CallCenterSpaceController extends Controller
 
     public function etablissementPromotions(Request $request, int $etablissement)
     {
-        abort_unless(Schema::hasTable('promotions'), 404);
+        abort_unless($this->tableExists('promotions'), 404);
 
         $query = DB::table('promotions')
             ->leftJoin('etablissements', 'etablissements.id', '=', 'promotions.etablissement_id')
@@ -1724,12 +1738,25 @@ class CallCenterSpaceController extends Controller
             $query->orderByDesc($this->resolveOrderColumn(array_keys($columns)));
         }
 
+        $perPage = (int) $request->input('per_page', self::PER_PAGE_OPTIONS[0]);
+        $perPage = in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : self::PER_PAGE_OPTIONS[0];
+
         $items = $query
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
         if ($decorateRows !== null) {
             $items->setCollection($items->getCollection()->map($decorateRows));
+        }
+
+        // Les colonnes absentes du schema ne sont pas selectionnees : inutile d'afficher une colonne de tirets.
+        $firstItem = $items->getCollection()->first();
+        if ($firstItem !== null) {
+            $columns = array_filter(
+                $columns,
+                fn ($label, $key) => $key === 'suivi_appel' || property_exists($firstItem, $key),
+                ARRAY_FILTER_USE_BOTH
+            );
         }
 
         return view('call-centers.table', [
@@ -1739,7 +1766,9 @@ class CallCenterSpaceController extends Controller
             'columns' => $columns,
             'items' => $items,
             'filters' => $filters,
-            'hasActiveFilters' => collect($request->except('page'))->filter(fn ($value) => $value !== null && $value !== '')->isNotEmpty(),
+            'hasActiveFilters' => collect($request->except(['page', 'per_page']))->filter(fn ($value) => $value !== null && $value !== '')->isNotEmpty(),
+            'perPage' => $perPage,
+            'perPageOptions' => self::PER_PAGE_OPTIONS,
         ]);
     }
 
@@ -1900,7 +1929,7 @@ class CallCenterSpaceController extends Controller
 
     private function alertStats(): ?object
     {
-        if (! Schema::hasTable('alerts') || ! $this->hasColumn('alerts', 'date_fin')) {
+        if (! $this->tableExists('alerts') || ! $this->hasColumn('alerts', 'date_fin')) {
             return null;
         }
 
@@ -1916,7 +1945,7 @@ class CallCenterSpaceController extends Controller
 
     private function dashboardAlerts(string $kind)
     {
-        if (! Schema::hasTable('alerts') || ! $this->hasColumn('alerts', 'date_fin')) {
+        if (! $this->tableExists('alerts') || ! $this->hasColumn('alerts', 'date_fin')) {
             return collect();
         }
 
@@ -1928,6 +1957,8 @@ class CallCenterSpaceController extends Controller
             DB::raw("TRIM(CONCAT(COALESCE(users.nom, ''), ' ', COALESCE(users.prenoms, ''))) as utilisateur"),
         ];
         $this->pushSelect($selects, 'users.mobile', 'mobile');
+        $this->pushSelect($selects, 'users.indicatif', 'indicatif');
+        $this->pushSelect($selects, 'users.is_whatsapp', 'is_whatsapp');
         $this->pushSelect($selects, 'vehicules.matricule', 'vehicule');
         $this->pushSelect($selects, 'type_alerts.libelle', 'type_alerte');
 
@@ -1941,6 +1972,58 @@ class CallCenterSpaceController extends Controller
         }
 
         return $query->limit(6)->get();
+    }
+
+    private function contactUser(int $userId): ?object
+    {
+        $columns = array_values(array_filter(
+            ['id', 'nom', 'prenoms', 'indicatif', 'mobile', 'is_whatsapp', 'email', 'call_center_deja_appele', 'call_center_commentaire'],
+            fn ($column) => $this->hasColumn('users', $column)
+        ));
+
+        $contact = DB::table('users')->where('id', $userId)->first($columns);
+
+        if ($contact && $this->hasColumn('alerts', 'date_fin')) {
+            $contact->alertes_expirees = DB::table('alerts')
+                ->where('user_id', $userId)
+                ->where('date_fin', '<', now()->toDateString())
+                ->count();
+        }
+
+        return $contact;
+    }
+
+    private function usersWithExpiredAlerts(): array
+    {
+        if (! $this->tableExists('alerts') || ! $this->hasColumn('alerts', 'date_fin')) {
+            return ['total' => 0, 'items' => collect()];
+        }
+
+        $hasCallFollowUp = $this->hasCallFollowUpColumns('users');
+        $groupColumns = array_values(array_filter(
+            ['users.id', 'users.nom', 'users.prenoms', 'users.indicatif', 'users.mobile', 'users.is_whatsapp', $hasCallFollowUp ? 'users.call_center_deja_appele' : null],
+            fn ($column) => $column !== null && $this->hasColumn('users', explode('.', $column)[1])
+        ));
+
+        $query = DB::table('alerts')
+            ->join('users', 'users.id', '=', 'alerts.user_id')
+            ->where('alerts.date_fin', '<', now()->toDateString());
+
+        $total = (clone $query)->distinct()->count('users.id');
+
+        $items = $query
+            ->select($groupColumns)
+            ->selectRaw('COUNT(*) as nb_expirees')
+            ->selectRaw('MAX(alerts.date_fin) as derniere_expiration')
+            ->selectRaw('DATEDIFF(MAX(alerts.date_fin), CURDATE()) as echeance')
+            ->groupBy($groupColumns)
+            // Les users pas encore appeles d'abord, puis les expirations les plus recentes.
+            ->when($hasCallFollowUp, fn ($q) => $q->orderBy('users.call_center_deja_appele'))
+            ->orderByDesc('derniere_expiration')
+            ->limit(8)
+            ->get();
+
+        return ['total' => $total, 'items' => $items];
     }
 
     private function statusFilter(mixed $value): array
@@ -1959,8 +2042,8 @@ class CallCenterSpaceController extends Controller
 
     private function stationLavageCommercialFilter(mixed $value): ?array
     {
-        if (! Schema::hasTable('station_de_lavages')
-            || ! Schema::hasTable('commercials')
+        if (! $this->tableExists('station_de_lavages')
+            || ! $this->tableExists('commercials')
             || ! $this->hasColumn('station_de_lavages', 'created_by')) {
             return null;
         }
@@ -2015,7 +2098,7 @@ class CallCenterSpaceController extends Controller
 
     private function updateCallFollowUp(Request $request, string $table, int $id, string $label)
     {
-        if (! Schema::hasTable($table) || ! $this->hasCallFollowUpColumns($table)) {
+        if (! $this->tableExists($table) || ! $this->hasCallFollowUpColumns($table)) {
             return back()->with([
                 'type' => 'alert-danger',
                 'message' => "Le suivi d'appel {$label} n'est pas encore disponible. Creez les colonnes avant d'enregistrer une note.",
@@ -2064,16 +2147,20 @@ class CallCenterSpaceController extends Controller
 
     private function tableOptions(string $table, string $valueColumn, string $labelColumn): array
     {
-        if (! Schema::hasTable($table) || ! $this->hasColumn($table, $valueColumn) || ! $this->hasColumn($table, $labelColumn)) {
+        if (! $this->tableExists($table) || ! $this->hasColumn($table, $valueColumn) || ! $this->hasColumn($table, $labelColumn)) {
             return [];
         }
 
-        return DB::table($table)
-            ->select("{$valueColumn} as value", "{$labelColumn} as label")
-            ->orderBy($labelColumn)
-            ->get()
-            ->map(fn ($item) => ['value' => (string) $item->value, 'label' => $item->label])
-            ->all();
+        return Cache::remember(
+            'call_center.options.' . implode('.', [__FUNCTION__, $table, $valueColumn, $labelColumn]),
+            self::OPTIONS_CACHE_SECONDS,
+            fn () => DB::table($table)
+                ->select("{$valueColumn} as value", "{$labelColumn} as label")
+                ->orderBy($labelColumn)
+                ->get()
+                ->map(fn ($item) => ['value' => (string) $item->value, 'label' => $item->label])
+                ->all()
+        );
     }
 
     private function smartTableOptions(string $table, string $valueColumn = 'id'): array
@@ -2089,41 +2176,71 @@ class CallCenterSpaceController extends Controller
 
     private function distinctOptions(string $table, string $column, string $labelColumn): array
     {
-        if (! Schema::hasTable($table) || ! $this->hasColumn($table, $column) || ! $this->hasColumn($table, $labelColumn)) {
+        if (! $this->tableExists($table) || ! $this->hasColumn($table, $column) || ! $this->hasColumn($table, $labelColumn)) {
             return [];
         }
 
-        return DB::table($table)
-            ->select("{$column} as value", "{$labelColumn} as label")
-            ->whereNotNull($column)
-            ->distinct()
-            ->orderBy($labelColumn)
-            ->get()
-            ->map(fn ($item) => ['value' => (string) $item->value, 'label' => $item->label])
-            ->all();
+        return Cache::remember(
+            'call_center.options.' . implode('.', [__FUNCTION__, $table, $column, $labelColumn]),
+            self::OPTIONS_CACHE_SECONDS,
+            fn () => DB::table($table)
+                ->select("{$column} as value", "{$labelColumn} as label")
+                ->whereNotNull($column)
+                ->distinct()
+                ->orderBy($labelColumn)
+                ->get()
+                ->map(fn ($item) => ['value' => (string) $item->value, 'label' => $item->label])
+                ->all()
+        );
     }
 
     private function nameOptions(string $table): array
     {
-        if (! Schema::hasTable($table) || ! $this->hasColumn($table, 'id') || ! $this->hasColumn($table, 'nom')) {
+        if (! $this->tableExists($table) || ! $this->hasColumn($table, 'id') || ! $this->hasColumn($table, 'nom')) {
             return [];
         }
 
-        return DB::table($table)
-            ->select(
-                'id as value',
-                DB::raw("TRIM(CONCAT(COALESCE(prenoms, ''), ' ', COALESCE(nom, ''))) as label")
-            )
-            ->orderBy('prenoms')
-            ->orderBy('nom')
-            ->get()
-            ->map(fn ($item) => ['value' => (string) $item->value, 'label' => trim($item->label) !== '' ? $item->label : 'Sans nom'])
-            ->all();
+        return Cache::remember(
+            'call_center.options.' . implode('.', [__FUNCTION__, $table]),
+            self::OPTIONS_CACHE_SECONDS,
+            fn () => DB::table($table)
+                ->select(
+                    'id as value',
+                    DB::raw("TRIM(CONCAT(COALESCE(prenoms, ''), ' ', COALESCE(nom, ''))) as label")
+                )
+                ->orderBy('prenoms')
+                ->orderBy('nom')
+                ->get()
+                ->map(fn ($item) => ['value' => (string) $item->value, 'label' => trim($item->label) !== '' ? $item->label : 'Sans nom'])
+                ->all()
+        );
     }
 
     private function hasColumn(string $table, string $column): bool
     {
-        return Schema::hasTable($table) && Schema::hasColumn($table, $column);
+        return in_array($column, $this->tableColumns($table) ?? [], true);
+    }
+
+    private function tableExists(string $table): bool
+    {
+        return $this->tableColumns($table) !== null;
+    }
+
+    /**
+     * Colonnes d'une table (null si elle n'existe pas). Chaque verification de schema coutait une requete
+     * information_schema (jusqu'a 55 par page) : on les met en cache par requete et pour quelques minutes.
+     */
+    private function tableColumns(string $table): ?array
+    {
+        if (! array_key_exists($table, $this->schemaCache)) {
+            $this->schemaCache[$table] = Cache::remember(
+                self::SCHEMA_CACHE_PREFIX . $table,
+                self::SCHEMA_CACHE_SECONDS,
+                fn () => Schema::hasTable($table) ? Schema::getColumnListing($table) : null
+            );
+        }
+
+        return $this->schemaCache[$table];
     }
 
     private function resolveLabelColumn(string $table): ?string
@@ -2140,7 +2257,7 @@ class CallCenterSpaceController extends Controller
     private function findExistingTable(array $tables): ?string
     {
         foreach ($tables as $table) {
-            if (Schema::hasTable($table)) {
+            if ($this->tableExists($table)) {
                 return $table;
             }
         }

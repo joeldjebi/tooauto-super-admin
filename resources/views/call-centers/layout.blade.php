@@ -273,6 +273,23 @@
             flex-wrap: wrap;
             gap: 10px;
         }
+        .cc-perpage {
+            align-items: center;
+            display: inline-flex;
+            gap: 8px;
+            margin: 0;
+        }
+        .cc-perpage label {
+            color: var(--cc-label-2);
+            font-size: 13px;
+            margin: 0;
+        }
+        .cc-app .cc-perpage .form-control {
+            border-radius: 980px;
+            height: 32px;
+            padding: 4px 30px 4px 12px;
+            width: auto;
+        }
         .cc-count {
             background: var(--cc-fill-2);
             border-radius: 980px;
@@ -542,9 +559,9 @@
         .cc-table-wrap {
             border: 1px solid var(--cc-separator);
             border-radius: var(--cc-radius);
-            max-height: 72vh;
             max-width: 100%;
-            overflow: auto;
+            overflow-x: auto;
+            overflow-y: hidden;
             -webkit-overflow-scrolling: touch;
             scrollbar-color: rgba(0, 0, 0, .25) transparent;
             scrollbar-width: thin;
@@ -627,6 +644,114 @@
             flex-wrap: wrap;
             gap: 6px;
             min-width: 130px;
+        }
+
+        /* Telephone cliquable */
+        .cc-phone {
+            align-items: center;
+            display: inline-flex;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        .cc-phone-call {
+            align-items: center;
+            background: var(--cc-green-tint);
+            border-radius: 980px;
+            color: var(--cc-green) !important;
+            display: inline-flex;
+            font-size: 13.5px;
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            gap: 6px;
+            padding: 5px 11px 5px 9px;
+            text-decoration: none !important;
+            transition: background .15s var(--cc-ease);
+        }
+        .cc-phone-call:hover {
+            background: rgba(52, 199, 89, .24);
+        }
+        .cc-phone-call .cc-icon {
+            height: 15px;
+            width: 15px;
+        }
+        .cc-phone-btn {
+            align-items: center;
+            background: var(--cc-fill-2);
+            border: 0;
+            border-radius: 50%;
+            color: var(--cc-label-2) !important;
+            cursor: pointer;
+            display: inline-flex;
+            height: 28px;
+            justify-content: center;
+            padding: 0;
+            transition: background .15s var(--cc-ease), color .15s var(--cc-ease);
+            width: 28px;
+        }
+        .cc-phone-btn:hover {
+            background: var(--cc-fill);
+            color: var(--cc-label) !important;
+        }
+        .cc-phone-btn .cc-icon {
+            height: 15px;
+            width: 15px;
+        }
+        .cc-phone-btn.cc-phone-wa {
+            color: #1f9d55 !important;
+        }
+        .cc-phone-btn.is-copied {
+            background: var(--cc-green-tint);
+            color: var(--cc-green) !important;
+        }
+        .cc-phone-lg .cc-phone-call {
+            font-size: 16px;
+            padding: 8px 16px 8px 13px;
+        }
+        .cc-phone-lg .cc-phone-btn {
+            height: 36px;
+            width: 36px;
+        }
+
+        /* Fiche contact */
+        .cc-contact {
+            align-items: center;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px 24px;
+            justify-content: space-between;
+        }
+        .cc-contact-id {
+            align-items: center;
+            display: flex;
+            gap: 16px;
+            min-width: 0;
+        }
+        .cc-contact-avatar {
+            align-items: center;
+            background: linear-gradient(160deg, #3b9bff, #0a6cf0);
+            border-radius: 50%;
+            color: #fff;
+            display: flex;
+            flex-shrink: 0;
+            font-size: 19px;
+            font-weight: 600;
+            height: 56px;
+            justify-content: center;
+            width: 56px;
+        }
+        .cc-contact-meta {
+            align-items: center;
+            display: flex;
+            flex-wrap: wrap;
+            font-size: 13.5px;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .cc-contact-actions {
+            align-items: center;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         /* Echeances des alertes */
@@ -1467,6 +1592,20 @@
                 window.addEventListener(name, function () {
                     document.querySelectorAll('.cc-actions-dropdown[open]').forEach(place);
                 }, true);
+            });
+
+            // Copie d'un numero de telephone dans le presse-papiers.
+            document.addEventListener('click', function (event) {
+                var button = event.target.closest('[data-cc-copy]');
+                if (!button || !navigator.clipboard) return;
+                navigator.clipboard.writeText(button.getAttribute('data-cc-copy')).then(function () {
+                    button.classList.add('is-copied');
+                    button.setAttribute('title', 'Copie !');
+                    setTimeout(function () {
+                        button.classList.remove('is-copied');
+                        button.setAttribute('title', 'Copier le numero');
+                    }, 1500);
+                });
             });
 
             // Le bloc commentaire change la hauteur du menu : on le repositionne.

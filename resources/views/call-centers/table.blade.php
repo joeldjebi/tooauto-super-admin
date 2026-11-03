@@ -13,6 +13,49 @@
         $activeFilterCount = collect($filters ?? [])->filter(fn ($filter) => filled($filter['value'] ?? null))->count();
     @endphp
 
+    @if(!empty($contactUser))
+        @php
+            $contactName = trim(($contactUser->nom ?? '') . ' ' . ($contactUser->prenoms ?? '')) ?: 'User #' . $contactUser->id;
+            $contactInitials = collect(preg_split('/\s+/', $contactName))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode('');
+            $contactCalled = (string) ($contactUser->call_center_deja_appele ?? '0') === '1';
+            $contactHasFollowUp = property_exists($contactUser, 'call_center_deja_appele');
+        @endphp
+        <div class="cc-card cc-contact mb-4">
+            <div class="cc-contact-id">
+                <span class="cc-contact-avatar">{{ $contactInitials ?: '?' }}</span>
+                <div style="min-width: 0;">
+                    <h5 class="cc-card-title">{{ $contactName }}</h5>
+                    <div class="cc-contact-meta">
+                        @if(($contactUser->alertes_expirees ?? 0) > 0)
+                            <span class="cc-due cc-due-expired"><span class="cc-dot"></span>{{ $contactUser->alertes_expirees }} alerte(s) expiree(s)</span>
+                        @endif
+                        @if($contactHasFollowUp)
+                            <span class="badge {{ $contactCalled ? 'badge-success' : 'badge-light' }}"><span class="cc-dot"></span>{{ $contactCalled ? 'Deja appele' : 'Non appele' }}</span>
+                        @endif
+                        @if(!empty($contactUser->email))
+                            <a href="mailto:{{ $contactUser->email }}">{{ $contactUser->email }}</a>
+                        @endif
+                    </div>
+                    @if(filled($contactUser->call_center_commentaire ?? null))
+                        <div class="cc-note-preview">{{ \Illuminate\Support\Str::limit($contactUser->call_center_commentaire, 160) }}</div>
+                    @endif
+                </div>
+            </div>
+            <div class="cc-contact-actions">
+                @include('call-centers.partials.phone', ['mobile' => $contactUser->mobile ?? null, 'indicatif' => $contactUser->indicatif ?? null, 'whatsapp' => (string) ($contactUser->is_whatsapp ?? '0') === '1', 'size' => 'lg'])
+                @if($contactHasFollowUp)
+                    <form action="{{ route('call-center.users.suivi-appel', $contactUser->id) }}" method="POST" class="mb-0">
+                        @csrf
+                        <input type="hidden" name="call_center_deja_appele" value="{{ $contactCalled ? '0' : '1' }}">
+                        <button type="submit" class="btn btn-sm {{ $contactCalled ? 'btn-outline-secondary' : 'btn-outline-success' }}">
+                            {{ $contactCalled ? 'Marquer non appele' : 'Marquer appele' }}
+                        </button>
+                    </form>
+                @endif
+            </div>
+        </div>
+    @endif
+
     <div class="cc-card">
         <div class="cc-card-header">
             <div>
@@ -27,11 +70,29 @@
                     </a>
                 @endif
                 <span class="cc-count">{{ number_format($items->total(), 0, ',', ' ') }} element(s)</span>
+                @if(!empty($perPageOptions) && $items->total() > min($perPageOptions))
+                    <form method="GET" class="cc-perpage">
+                        @foreach(request()->except(['page', 'per_page']) as $name => $value)
+                            @if(!is_array($value))
+                                <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+                            @endif
+                        @endforeach
+                        <label for="cc-per-page">Afficher</label>
+                        <select id="cc-per-page" name="per_page" class="form-control form-control-sm" onchange="this.form.submit()">
+                            @foreach($perPageOptions as $option)
+                                <option value="{{ $option }}" {{ (int) ($perPage ?? 15) === $option ? 'selected' : '' }}>{{ $option }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                @endif
             </div>
         </div>
 
         @if($standardFilters->isNotEmpty() || $dateFilters->isNotEmpty())
             <form method="GET" class="cc-filter-panel">
+                @if(request()->filled('per_page'))
+                    <input type="hidden" name="per_page" value="{{ request('per_page') }}">
+                @endif
                 <div class="cc-filter-head">
                     <span>
                         Filtres
@@ -154,7 +215,7 @@
                                             }
                                         }
                                     @endphp
-                                    <td class="{{ $key === 'actions' ? 'cc-table-actions' : '' }} {{ in_array($key, ['echeance', 'date_fin'], true) ? 'cc-td-full' : '' }}" data-label="{{ $key === 'date_creation' ? 'Date' : ($columns[$key] ?? '') }}">
+                                    <td class="{{ $key === 'actions' ? 'cc-table-actions' : '' }} {{ in_array($key, ['echeance', 'date_fin', 'mobile'], true) ? 'cc-td-full' : '' }}" data-label="{{ $key === 'date_creation' ? 'Date' : ($columns[$key] ?? '') }}">
                                         @if ($key === 'echeance')
                                             @if($dueDays === null)
                                                 <span class="cc-muted">&mdash;</span>
@@ -163,6 +224,8 @@
                                             @endif
                                         @elseif ($key === 'date_fin' && $dueDays !== null && filled($item->date_fin ?? null))
                                             @include('call-centers.partials.alert-due', ['days' => $dueDays, 'mode' => 'date', 'date' => $item->date_fin])
+                                        @elseif ($key === 'mobile' && filled($value))
+                                            @include('call-centers.partials.phone', ['mobile' => $value, 'indicatif' => $item->indicatif ?? null, 'whatsapp' => (string) ($item->is_whatsapp ?? '0') === '1'])
                                         @elseif ($key === 'suivi_appel')
                                             @php
                                                 $hasCallFollowUp = property_exists($item, 'call_center_deja_appele') && property_exists($item, 'call_center_commentaire');
