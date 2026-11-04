@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Referentiel unique du journal des appels : cibles, canaux, motifs et resultats.
@@ -133,7 +134,13 @@ class CallCenterOutcomes
             }
         }
 
-        $base = Str::limit(Str::slug($label, '_'), 34, '') ?: 'option';
+        if (! SchemaCache::hasTable('call_center_options')) {
+            throw ValidationException::withMessages([
+                $groupe . '_autre' => "L'option « Autre » n'est pas encore disponible (table call_center_options manquante). Choisissez une option de la liste.",
+            ]);
+        }
+
+        $base = rtrim(Str::limit(Str::slug($label, '_'), 34, ''), '_') ?: 'option';
         $code = $base;
         for ($i = 2; array_key_exists($code, $existing) || $code === self::AUTRE; $i++) {
             $code = $base . '_' . $i;
