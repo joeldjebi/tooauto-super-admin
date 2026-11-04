@@ -27,8 +27,40 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'activated_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /**
+     * Comptes à compter comme « usagers » dans les statistiques :
+     * - ont un numéro de mobile ;
+     * - ne sont pas des clients créés par un lavage qui ne se sont jamais connectés à l'app usager.
+     */
+    public function scopeComptesUsagers($query)
+    {
+        return $query->whereNotNull('users.mobile')
+            ->whereRaw("TRIM(users.mobile) <> ''")
+            ->where(function ($q) {
+                $q->whereNull('users.station_de_lavage_id')
+                    ->orWhereNotNull('users.activated_at');
+            });
+    }
+
+    /**
+     * Comptes créés par une station de lavage
+     */
+    public function scopeCreesParLavage($query)
+    {
+        return $query->whereNotNull('users.station_de_lavage_id');
+    }
+
+    /**
+     * Client créé par un lavage qui ne s'est pas encore connecté à l'app usager
+     */
+    public function estClientLavageNonActive(): bool
+    {
+        return ! empty($this->station_de_lavage_id) && empty($this->activated_at);
+    }
 
     /**
      * Relation avec les incidents

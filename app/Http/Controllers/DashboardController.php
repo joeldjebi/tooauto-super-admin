@@ -96,7 +96,8 @@ class DashboardController extends Controller
             'id' => auth()->user()->id
         ])->first();
 
-        $data['usagerCount'] = User::count();
+        $data['usagerCount'] = User::comptesUsagers()->count();
+        $data['clientLavageNonActiveCount'] = User::creesParLavage()->whereNull('activated_at')->count();
         $data['etablissementCount'] = Etablissement::count();
         $data['prefectureCount'] = Prefecture::count();
         $data['alertCount'] = Alert::count();

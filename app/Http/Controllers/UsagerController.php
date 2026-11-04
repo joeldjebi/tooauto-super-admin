@@ -53,6 +53,7 @@ class UsagerController extends Controller
             'annonce_filter' => $request->get('annonce_filter'),
             'document_filter' => $request->get('document_filter'),
         ];
+        $origineFilter = $request->get('origine_filter');
         $abonnementFilters = [
             'forfait_id' => $request->get('forfait_id'),
             'expiration_from' => $request->get('expiration_from'),
@@ -72,9 +73,10 @@ class UsagerController extends Controller
         $perPage = (int) $request->get('per_page', 50);
         $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
 
-        $usagersQuery = User::select(['id', 'nom', 'prenoms', 'indicatif', 'mobile', 'email', 'statut', 'commercial_id'])
+        $usagersQuery = User::select(['id', 'nom', 'prenoms', 'indicatif', 'mobile', 'email', 'statut', 'commercial_id', 'station_de_lavage_id', 'activated_at'])
             ->with([
                 'commercial:id,nom,prenoms,mobile',
+                'stationDeLavage:id,name',
                 'abonnementUsagers' => function ($query) use ($abonnementFilters) {
                     $query->select(['id', 'user_id', 'forfait_id', 'date_debut', 'date_fin', 'statut', 'is_free'])
                         ->with('forfait_usager:id,libelle')
@@ -115,6 +117,7 @@ class UsagerController extends Controller
         }
 
         $this->applyAutodocPresenceFilter($usagersQuery, $presenceFilters['document_filter']);
+        $this->applyOrigineFilter($usagersQuery, $origineFilter);
 
         $search = trim((string) $request->get('search', ''));
         $this->applyUsagerSearch($usagersQuery, $search);
@@ -122,6 +125,7 @@ class UsagerController extends Controller
         $data["usagers"] = $usagersQuery->simplePaginate($perPage)->appends($request->query());
         $data["search"] = $search;
         $data["presence_filters"] = $presenceFilters;
+        $data["origine_filter"] = $origineFilter;
         $data["abonnement_filters"] = $abonnementFilters;
         $data["per_page"] = $perPage;
 
@@ -175,6 +179,20 @@ class UsagerController extends Controller
                 $q->orWhere('users.id', (int) $search);
             }
         });
+    }
+
+    /**
+     * Filtre par origine du compte : créé par un lavage (activé ou non)
+     */
+    private function applyOrigineFilter($query, ?string $filter): void
+    {
+        if ($filter === 'lavage') {
+            $query->creesParLavage();
+        } elseif ($filter === 'lavage_non_active') {
+            $query->creesParLavage()->whereNull('users.activated_at');
+        } elseif ($filter === 'lavage_active') {
+            $query->creesParLavage()->whereNotNull('users.activated_at');
+        }
     }
 
     private function applyAbonnementFilters($query, array $filters): void

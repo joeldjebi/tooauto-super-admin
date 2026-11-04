@@ -511,6 +511,7 @@
 
    $stats = [
       ['label' => 'Usagers', 'value' => $usagerCount ?? 0, 'icon' => 'i-Add-User', 'tone' => '#0071e3', 'url' => $routeOrNull('index-usagers')],
+      ['label' => 'Clients lavage non activés', 'value' => $clientLavageNonActiveCount ?? 0, 'icon' => 'i-Car', 'tone' => '#8e8e93', 'url' => \Illuminate\Support\Facades\Route::has('index-usagers') ? route('index-usagers', ['origine_filter' => 'lavage_non_active']) : null],
       ['label' => 'Établissements', 'value' => $etablissementCount ?? 0, 'icon' => 'i-Administrator', 'tone' => '#5856d6', 'url' => $routeOrNull('index-etablissements')],
       ['label' => 'Abonnements usagers', 'value' => $abonnementUsagerCount ?? 0, 'icon' => 'i-Financial', 'tone' => '#34c759', 'url' => $routeOrNull('abonnement-usager')],
       ['label' => 'Abonnements pro', 'value' => $abonnementProCount ?? 0, 'icon' => 'i-Money-2', 'tone' => '#30b0c7', 'url' => $routeOrNull('abonnement-pro')],

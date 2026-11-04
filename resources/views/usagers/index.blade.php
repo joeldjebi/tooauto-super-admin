@@ -31,6 +31,12 @@
                         'with' => 'Avec',
                         'without' => 'Sans',
                     ];
+                    $origineOptions = [
+                        '' => 'Tous',
+                        'lavage' => 'Créés par un lavage',
+                        'lavage_non_active' => 'Lavage - non activés',
+                        'lavage_active' => 'Lavage - activés',
+                    ];
                 @endphp
                 <form method="GET" action="{{ route('index-usagers') }}" class="mb-4">
                     <input type="hidden" name="per_page" value="{{ $currentPerPage }}">
@@ -105,6 +111,16 @@
                             <input type="date" name="expiration_to" class="form-control" value="{{ $abonnementFilters['expiration_to'] ?? '' }}">
                         </div>
                     </div>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <label>Origine du compte</label>
+                            <select name="origine_filter" class="form-control">
+                                @foreach($origineOptions as $value => $label)
+                                    <option value="{{ $value }}" {{ (string) ($origine_filter ?? '') === (string) $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
                 </form>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="text-muted">
@@ -118,6 +134,7 @@
                             <input type="hidden" name="{{ $name }}" value="{{ $value }}">
                         @endforeach
                         <input type="hidden" name="search" value="{{ $search ?? '' }}">
+                        <input type="hidden" name="origine_filter" value="{{ $origine_filter ?? '' }}">
                         <label class="mb-0 mr-2">Par page</label>
                         <select name="per_page" class="form-control form-control-sm" onchange="this.form.submit()" style="width: auto;">
                             @foreach($perPageOptions as $option)
@@ -299,6 +316,14 @@
                                         </td>
                                         <td>
                                             <span class="text-white badge bg-{{ $item->statut == 1 ? 'primary' : "danger" }} m-2">{{ $item->statut == 1 ? 'Activer' : "Desactiver" }}</span>
+                                            @if($item->station_de_lavage_id)
+                                                <div>
+                                                    <span class="badge {{ $item->estClientLavageNonActive() ? 'badge-warning' : 'badge-success text-white' }} ml-2">
+                                                        {{ $item->estClientLavageNonActive() ? 'Client lavage (non activé)' : 'Lavage - activé' }}
+                                                    </span>
+                                                </div>
+                                                <div class="small text-muted ml-2">{{ $item->stationDeLavage->name ?? 'Station de lavage' }}</div>
+                                            @endif
                                         </td>
                                         <td>
                                             <a class="text-success mr-2" href="#" data-toggle="modal" data-target="#id{{ $item->id }}">
