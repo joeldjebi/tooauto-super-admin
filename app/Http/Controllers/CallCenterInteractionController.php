@@ -30,8 +30,11 @@ class CallCenterInteractionController extends Controller
             'cible_id' => ['required', 'integer', 'min:1'],
             'alert_id' => ['nullable', 'integer', 'min:1'],
             'canal' => ['required', Rule::in(array_keys(CallCenterOutcomes::CANAUX))],
-            'motif' => ['required', Rule::in(array_keys(CallCenterOutcomes::MOTIFS))],
-            'resultat' => ['required', Rule::in(array_keys(CallCenterOutcomes::RESULTATS))],
+            'motif' => ['required', Rule::in(array_keys(CallCenterOutcomes::motifs()))],
+            'motif_autre' => ['nullable', 'required_if:motif,' . CallCenterOutcomes::AUTRE, 'string', 'max:100'],
+            'resultat' => ['required', Rule::in([...array_keys(CallCenterOutcomes::resultats()), CallCenterOutcomes::AUTRE])],
+            'resultat_autre' => ['nullable', 'required_if:resultat,' . CallCenterOutcomes::AUTRE, 'string', 'max:100'],
+            'resultat_autre_contact' => ['nullable', 'boolean'],
             'duree_minutes' => ['nullable', 'integer', 'min:0', 'max:600'],
             'commentaire' => ['nullable', 'string', 'max:2000'],
             'rappel_le' => [
@@ -43,6 +46,8 @@ class CallCenterInteractionController extends Controller
         ], [
             'rappel_le.required' => 'Indiquez la date du rappel.',
             'rappel_le.after_or_equal' => 'La date de rappel ne peut pas être dans le passé.',
+            'motif_autre.required_if' => 'Saisissez le libellé du motif.',
+            'resultat_autre.required_if' => 'Saisissez le libellé du résultat.',
         ]);
 
         $table = $validated['cible_type'];
@@ -65,7 +70,21 @@ class CallCenterInteractionController extends Controller
 
         $commentaire = trim((string) ($validated['commentaire'] ?? ''));
 
-        DB::transaction(function () use ($validated, $table, $cibleId, $alertId, $commentaire) {
+        DB::transaction(function () use (&$validated, $table, $cibleId, $alertId, $commentaire) {
+            // « Autre » : le libelle saisi devient une option permanente de la liste.
+            $agentId = Auth::guard('call_center')->id();
+            if ($validated['motif'] === CallCenterOutcomes::AUTRE) {
+                $validated['motif'] = CallCenterOutcomes::addOption('motif', $validated['motif_autre'], true, $agentId);
+            }
+            if ($validated['resultat'] === CallCenterOutcomes::AUTRE) {
+                $validated['resultat'] = CallCenterOutcomes::addOption(
+                    'resultat',
+                    $validated['resultat_autre'],
+                    (bool) ($validated['resultat_autre_contact'] ?? false),
+                    $agentId
+                );
+            }
+
             // Un nouvel appel traite les rappels encore en attente sur ce contact.
             CallCenterInteraction::query()
                 ->where('cible_type', $table)
@@ -119,9 +138,9 @@ class CallCenterInteractionController extends Controller
     {
         $filters = $request->validate([
             'agent_id' => ['nullable', 'integer'],
-            'resultat' => ['nullable', Rule::in(array_keys(CallCenterOutcomes::RESULTATS))],
+            'resultat' => ['nullable', Rule::in(array_keys(CallCenterOutcomes::resultats()))],
             'cible_type' => ['nullable', Rule::in(array_keys(CallCenterOutcomes::CIBLES))],
-            'motif' => ['nullable', Rule::in(array_keys(CallCenterOutcomes::MOTIFS))],
+            'motif' => ['nullable', Rule::in(array_keys(CallCenterOutcomes::motifs()))],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
             'search' => ['nullable', 'string', 'max:100'],

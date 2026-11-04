@@ -69,6 +69,8 @@
     .cc-chip span:hover { background: var(--cc-fill-2); }
     .cc-chip input:checked + span { background: var(--cc-blue-tint); box-shadow: inset 0 0 0 1.5px var(--cc-blue); color: var(--cc-blue); }
     .cc-chip input:focus-visible + span { outline: 2px solid var(--cc-blue); outline-offset: 2px; }
+    .cc-log-autre { margin-top: 10px; }
+    .cc-log-autre .form-check { margin-top: 8px; font-size: 13px; }
     .cc-log-row { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
     .cc-log-hint { color: var(--cc-label-3); font-size: 12px; margin-top: 4px; }
     .cc-log-error { background: var(--cc-red-tint, #fdecea); border-radius: 10px; color: var(--cc-red, #d70015); font-size: 13px; margin-bottom: 12px; padding: 10px 12px; }
@@ -133,9 +135,13 @@
             <div class="cc-log-group">
                 <span class="cc-log-label">Motif</span>
                 <div class="cc-chips">
-                    @foreach(CallCenterOutcomes::MOTIFS as $key => $label)
+                    @foreach(CallCenterOutcomes::motifs() as $key => $label)
                         <label class="cc-chip"><input type="radio" name="motif" value="{{ $key }}"><span>{{ $label }}</span></label>
                     @endforeach
+                </div>
+                <div class="cc-log-autre" id="cc-log-motif-autre" hidden>
+                    <input type="text" class="form-control" name="motif_autre" maxlength="100" placeholder="Libellé du motif">
+                    <div class="cc-log-hint">Ce motif sera ajouté à la liste pour les prochains appels.</div>
                 </div>
             </div>
 
@@ -145,6 +151,15 @@
                     @foreach(CallCenterOutcomes::resultatLabels() as $key => $label)
                         <label class="cc-chip"><input type="radio" name="resultat" value="{{ $key }}"><span>{{ $label }}</span></label>
                     @endforeach
+                    <label class="cc-chip"><input type="radio" name="resultat" value="{{ CallCenterOutcomes::AUTRE }}"><span>Autre</span></label>
+                </div>
+                <div class="cc-log-autre" id="cc-log-resultat-autre" hidden>
+                    <input type="text" class="form-control" name="resultat_autre" maxlength="100" placeholder="Libellé du résultat">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="cc-log-resultat-autre-contact" name="resultat_autre_contact" value="1" checked>
+                        <label class="form-check-label" for="cc-log-resultat-autre-contact">La personne a été jointe</label>
+                    </div>
+                    <div class="cc-log-hint">Ce résultat sera ajouté à la liste pour les prochains appels.</div>
                 </div>
             </div>
 
@@ -183,6 +198,19 @@
         var submit = document.getElementById('cc-log-submit');
         var rappel = document.getElementById('cc-log-rappel');
         var alertTag = document.getElementById('cc-log-alert');
+        var AUTRE = @json(CallCenterOutcomes::AUTRE);
+        var autreBoxes = {
+            motif: document.getElementById('cc-log-motif-autre'),
+            resultat: document.getElementById('cc-log-resultat-autre')
+        };
+
+        // « Autre » : affiche le champ de saisie du libelle.
+        function syncAutre(name, focus) {
+            var checked = form.querySelector('input[name="' + name + '"]:checked');
+            var show = !!checked && checked.value === AUTRE;
+            autreBoxes[name].hidden = !show;
+            if (show && focus) autreBoxes[name].querySelector('input[type="text"]').focus();
+        }
 
         function pad(n) { return (n < 10 ? '0' : '') + n; }
         function localValue(date) {
@@ -264,6 +292,8 @@
             alertTag.textContent = data.alerte ? 'Alerte : ' + data.alerte : '';
             var motif = form.querySelector('input[name="motif"][value="' + (data.motif || (data.alert_id ? 'relance_alerte' : 'prospection')) + '"]');
             if (motif) motif.checked = true;
+            syncAutre('motif');
+            syncAutre('resultat');
             rappel.min = localValue(new Date());
             loadRecent(data);
             document.querySelectorAll('.cc-actions-dropdown[open]').forEach(function (d) { d.removeAttribute('open'); });
@@ -282,6 +312,7 @@
 
         // "A rappeler" : propose demain 9h si aucune date n'est saisie.
         form.addEventListener('change', function (event) {
+            if (event.target.name === 'motif' || event.target.name === 'resultat') syncAutre(event.target.name, true);
             if (event.target.name === 'resultat' && event.target.value === 'a_rappeler' && !rappel.value) {
                 var tomorrow = new Date();
                 tomorrow.setDate(tomorrow.getDate() + 1);
@@ -294,6 +325,8 @@
             event.preventDefault();
             if (!form.querySelector('input[name="motif"]:checked')) return showError('Choisissez le motif de l\'appel.');
             if (!form.querySelector('input[name="resultat"]:checked')) return showError('Choisissez le résultat de l\'appel.');
+            if (form.querySelector('input[name="motif"]:checked').value === AUTRE && !form.motif_autre.value.trim()) return showError('Saisissez le libellé du motif.');
+            if (form.querySelector('input[name="resultat"]:checked').value === AUTRE && !form.resultat_autre.value.trim()) return showError('Saisissez le libellé du résultat.');
             if (form.querySelector('input[name="resultat"]:checked').value === 'a_rappeler' && !rappel.value) return showError('Indiquez la date du rappel.');
 
             submit.disabled = true;

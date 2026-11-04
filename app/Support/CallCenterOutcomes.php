@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
 /**
  * Referentiel unique du journal des appels : cibles, canaux, motifs et resultats.
  * Les formulaires, la validation et les rapports lisent tous cette classe.
@@ -68,14 +71,98 @@ class CallCenterOutcomes
     /** Resultats qui imposent une date de rappel. */
     public const RESULTATS_AVEC_RAPPEL = ['a_rappeler'];
 
+    /** Valeur du choix « Autre » : l'agent saisit un libelle qui devient une nouvelle option. */
+    public const AUTRE = 'autre';
+
+    /** Options ajoutees par les agents (table call_center_options), chargees une fois par requete. */
+    private static ?array $customOptions = null;
+
+    /**
+     * Motifs proposes : liste fixe, puis motifs ajoutes par les agents, puis « Autre » en dernier.
+     */
+    public static function motifs(): array
+    {
+        $motifs = self::MOTIFS;
+        unset($motifs[self::AUTRE]);
+
+        foreach (self::customOptions('motif') as $option) {
+            $motifs[$option->code] = $option->label;
+        }
+
+        $motifs[self::AUTRE] = self::MOTIFS[self::AUTRE];
+
+        return $motifs;
+    }
+
+    /**
+     * Resultats : liste fixe puis resultats ajoutes par les agents.
+     */
+    public static function resultats(): array
+    {
+        $resultats = self::RESULTATS;
+
+        foreach (self::customOptions('resultat') as $option) {
+            $resultats[$option->code] = ['label' => $option->label, 'contact' => (bool) $option->contact, 'tone' => 'secondary'];
+        }
+
+        return $resultats;
+    }
+
     public static function resultatLabels(): array
     {
-        return array_map(fn ($resultat) => $resultat['label'], self::RESULTATS);
+        return array_map(fn ($resultat) => $resultat['label'], self::resultats());
     }
 
     public static function contactResultats(): array
     {
-        return array_keys(array_filter(self::RESULTATS, fn ($resultat) => $resultat['contact']));
+        return array_keys(array_filter(self::resultats(), fn ($resultat) => $resultat['contact']));
+    }
+
+    /**
+     * Enregistre le libelle saisi avec « Autre » comme nouvelle option et renvoie son code.
+     * Si une option porte deja ce libelle (sans tenir compte de la casse), son code est reutilise.
+     */
+    public static function addOption(string $groupe, string $label, bool $contact = true, ?int $createdBy = null): string
+    {
+        $label = trim(preg_replace('/\s+/', ' ', $label));
+        $existing = $groupe === 'motif' ? self::motifs() : self::resultatLabels();
+
+        foreach ($existing as $code => $existingLabel) {
+            if ($code !== self::AUTRE && mb_strtolower($existingLabel) === mb_strtolower($label)) {
+                return $code;
+            }
+        }
+
+        $base = Str::limit(Str::slug($label, '_'), 34, '') ?: 'option';
+        $code = $base;
+        for ($i = 2; array_key_exists($code, $existing) || $code === self::AUTRE; $i++) {
+            $code = $base . '_' . $i;
+        }
+
+        DB::table('call_center_options')->insert([
+            'groupe' => $groupe,
+            'code' => $code,
+            'label' => $label,
+            'contact' => $contact,
+            'created_by' => $createdBy,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        self::$customOptions = null;
+
+        return $code;
+    }
+
+    private static function customOptions(string $groupe): array
+    {
+        if (self::$customOptions === null) {
+            self::$customOptions = SchemaCache::hasTable('call_center_options')
+                ? DB::table('call_center_options')->orderBy('label')->get(['groupe', 'code', 'label', 'contact'])->groupBy('groupe')->map->all()->all()
+                : [];
+        }
+
+        return self::$customOptions[$groupe] ?? [];
     }
 
     public static function label(string $group, ?string $key): string
@@ -83,14 +170,14 @@ class CallCenterOutcomes
         return match ($group) {
             'cible' => self::CIBLES[$key]['label'] ?? (string) $key,
             'canal' => self::CANAUX[$key] ?? (string) $key,
-            'motif' => self::MOTIFS[$key] ?? (string) $key,
-            'resultat' => self::RESULTATS[$key]['label'] ?? (string) $key,
+            'motif' => self::motifs()[$key] ?? (string) $key,
+            'resultat' => self::resultats()[$key]['label'] ?? (string) $key,
             default => (string) $key,
         };
     }
 
     public static function tone(?string $resultat): string
     {
-        return self::RESULTATS[$resultat]['tone'] ?? 'light';
+        return self::resultats()[$resultat]['tone'] ?? 'light';
     }
 }

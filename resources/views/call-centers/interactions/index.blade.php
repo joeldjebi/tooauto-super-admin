@@ -58,7 +58,7 @@
                     <label class="cc-field-label">Motif</label>
                     <select name="motif" class="form-control">
                         <option value="">Tous</option>
-                        @foreach(CallCenterOutcomes::MOTIFS as $key => $label)
+                        @foreach(CallCenterOutcomes::motifs() as $key => $label)
                             <option value="{{ $key }}" {{ ($filters['motif'] ?? '') === $key ? 'selected' : '' }}>{{ $label }}</option>
                         @endforeach
                     </select>
