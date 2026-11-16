@@ -71,7 +71,8 @@ class ReductionCardController extends Controller
                     ->orWhereHas('user', function ($userQuery) use ($search) {
                         $userQuery->where('nom', 'like', '%' . $search . '%')
                             ->orWhere('prenoms', 'like', '%' . $search . '%')
-                            ->orWhere('name', 'like', '%' . $search . '%')
+                            ->orWhereRaw("CONCAT_WS(' ', nom, prenoms) LIKE ?", ['%' . $search . '%'])
+                            ->orWhereRaw("CONCAT_WS(' ', prenoms, nom) LIKE ?", ['%' . $search . '%'])
                             ->orWhere('email', 'like', '%' . $search . '%');
 
                         foreach (['indicatif', 'mobile', 'telephone'] as $column) {
@@ -134,7 +135,8 @@ class ReductionCardController extends Controller
                     ->orWhereHas('user', function ($userQuery) use ($search) {
                         $userQuery->where('nom', 'like', '%' . $search . '%')
                             ->orWhere('prenoms', 'like', '%' . $search . '%')
-                            ->orWhere('name', 'like', '%' . $search . '%')
+                            ->orWhereRaw("CONCAT_WS(' ', nom, prenoms) LIKE ?", ['%' . $search . '%'])
+                            ->orWhereRaw("CONCAT_WS(' ', prenoms, nom) LIKE ?", ['%' . $search . '%'])
                             ->orWhere('email', 'like', '%' . $search . '%');
                     });
             });
